@@ -33,13 +33,22 @@ class MechanicalSystem(object):
         self.raw_output = None
         self.output_time_steps = None
 
+    def set_initial_conditions(self, initial_conditions):
+        """
+        Sets the initial conditions for the model.
+        :param initial_conditions: list of initial conditions for each of the differential equations
+                                   of the model. [float_1, float_2, float_3, ...]
+        """
+        self.initial_conditions = initial_conditions
+
     def set_model(self, model, initial_conditions=None):
         """
         Set the model of the mechanical system
         """
         self.model = model
+
         if initial_conditions is not None:
-            self.initial_conditions = initial_conditions
+            self.set_initial_conditions(initial_conditions)
 
     def set_spring(self, spring):
         """
@@ -82,7 +91,7 @@ class MechanicalSystem(object):
         Run the simulation
         """
         self.output_time_steps = t_array
-        t_step = t_array[1]-t_array[0]
+        t_step = t_array[1] - t_array[0]
         model_kwargs = self._build_model_kwargs()
         psoln = odeint(func=self.model,
                        y0=self.initial_conditions,
@@ -106,7 +115,7 @@ class MechanicalSystem(object):
         x_relative_velocity = x4 - x2
 
         output = pd.DataFrame()
-        output['Time'] = self.output_time_steps
+        output['time'] = self.output_time_steps
         output['tube_displacement'] = x1
         output['tube_velocity'] = x2
         output['assembly_displacement'] = x3

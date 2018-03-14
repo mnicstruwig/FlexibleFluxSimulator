@@ -1,8 +1,8 @@
 from scipy import optimize
 
 # Local imports
-from mechanical_system.magnetic_spring.model import coulombs_law, coulombs_law_modified
-from mechanical_system.magnetic_spring.utils import read_raw_file, get_model_function
+from mechanical_system.spring.model import coulombs_law, coulombs_law_modified
+from mechanical_system.spring.utils import read_raw_file, get_model_function
 
 MODEL_DICT = {
     'coulombs_unmodified': coulombs_law,

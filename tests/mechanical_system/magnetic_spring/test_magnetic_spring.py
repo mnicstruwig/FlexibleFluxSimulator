@@ -1,8 +1,8 @@
 import unittest
 
 # Local imports
-from mechanical_system.magnetic_spring.magnetic_spring import MagneticSpring
-from mechanical_system.magnetic_spring.model import coulombs_law, coulombs_law_modified
+from mechanical_system.spring.magnetic_spring import MagneticSpring
+from mechanical_system.spring.model import coulombs_law, coulombs_law_modified
 
 
 class TestMagneticSpring(unittest.TestCase):
