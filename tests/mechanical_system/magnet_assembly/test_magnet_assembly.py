@@ -32,19 +32,19 @@ class TestMagnetAssembly(unittest.TestCase):
 
         # Automatic case
         self.test_magnet_assembly._set_weight()
-        self.assertAlmostEqual(self.test_magnet_assembly.weight, 0.0036815538909, places=5)
+        self.assertAlmostEqual(self.test_magnet_assembly.weight, 0.036116043669979545, places=5)
 
     def test_calculate_weight(self):
         """
         Tests if the weight gets calculated correctly.
         """
-        self.assertAlmostEqual(self.test_magnet_assembly.weight, 0.0036815538909, places=5)
+        self.assertAlmostEqual(self.test_magnet_assembly.weight, 0.036116043669979545, places=5)
 
     def test_get_mass(self):
         """
         Tests if the mass is correctly calculated and returned
         """
-        self.assertAlmostEqual(self.test_magnet_assembly.get_mass(), self.test_magnet_assembly.weight/9.81)
+        self.assertAlmostEqual(self.test_magnet_assembly.get_mass(), self.test_magnet_assembly.weight / 9.81)
 
     def test_get_weight(self):
         """

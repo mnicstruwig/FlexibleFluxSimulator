@@ -67,8 +67,8 @@ class MagnetAssembly(object):
         volume_magnet = calc_volume_cylinder(self.dia_magnet, self.h_magnet)
         volume_spacer = calc_volume_cylinder(self.dia_spacer, self.h_spacer)
 
-        weight_magnet = volume_magnet * self.density_magnet
-        weight_spacer = volume_spacer * self.density_spacer
+        weight_magnet = volume_magnet * self.density_magnet * 9.81
+        weight_spacer = volume_spacer * self.density_spacer * 9.81
 
         return self.n_magnet * weight_magnet + (self.n_magnet - 1) * weight_spacer
 
