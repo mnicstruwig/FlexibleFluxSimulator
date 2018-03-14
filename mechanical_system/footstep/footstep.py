@@ -94,7 +94,7 @@ class Footstep(object):
         self.t_acc_up, self.t_acc_dec = calculate_acceleration_couple_times(self.acc_up, self.acc_dec,
                                                                             self.positive_footstep_displacement)
         self.t_acc_down, self.t_acc_impact = calculate_acceleration_couple_times(self.acc_down, self.acc_impact,
-                                                                                 self.positive_footstep_displacement)
+                                                                                 -self.positive_footstep_displacement)
 
     def _set_acceleration_time_intervals(self):
         acceleration_time_intervals = calculate_acceleration_time_intervals(self.t_footstep_start,

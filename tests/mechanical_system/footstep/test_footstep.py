@@ -5,12 +5,15 @@ from mechanical_system.footstep import footstep
 
 
 class TestFootstep(unittest.TestCase):
+    """
+    Tests the footstep class
+    """
     def setUp(self):
         """
         Set-up for the `TestFootstep` class
         """
 
-        self.accelerations = [1., -2., 3., -4.]
+        self.accelerations = [1., -2., -3., 4.]
         self.acceleration_couple_time_separation = 0.05
         self.positive_footstep_displacement = 0.15
         self.footstep = footstep.Footstep(self.accelerations, self.acceleration_couple_time_separation,
@@ -29,7 +32,7 @@ class TestFootstep(unittest.TestCase):
         t_acc_up, t_acc_dec = footstep.calculate_acceleration_couple_times(acc_up, acc_dec,
                                                                            self.positive_footstep_displacement)
         t_acc_down, t_acc_impact = footstep.calculate_acceleration_couple_times(acc_down, acc_impact,
-                                                                                self.positive_footstep_displacement)
+                                                                                -self.positive_footstep_displacement)
 
         # Tests
         self.assertAlmostEqual(t_acc_up, 0.4472135954999579)
@@ -82,6 +85,6 @@ class TestFootstep(unittest.TestCase):
         self.assertEqual(acc_up, 1)
         self.assertEqual(acc_dec, -2)
         self.assertEqual(acc_delay, 0)
-        self.assertEqual(acc_down, 3)
-        self.assertEqual(acc_impact, -4)
+        self.assertEqual(acc_down, -3)
+        self.assertEqual(acc_impact, 4)
         self.assertEqual(acc_after, 0)
