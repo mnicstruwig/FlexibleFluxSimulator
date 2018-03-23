@@ -20,25 +20,17 @@ class TestMagnetAssembly(unittest.TestCase):
 
         self.test_magnet_assembly = MagnetAssembly(n_magnet, h_magnet, h_spacer, dia_magnet, dia_spacer)
 
-    def test_set_weight(self):
-        """
-        Tests if the weight is can be set manually and automatically
-        """
-
-        # Manual case
-        custom_weight = 0.005
-        self.test_magnet_assembly._set_weight(custom_weight)
-        self.assertEqual(self.test_magnet_assembly.weight, custom_weight)
-
-        # Automatic case
-        self.test_magnet_assembly._set_weight()
-        self.assertAlmostEqual(self.test_magnet_assembly.weight, 0.036116043669979545, places=5)
-
     def test_calculate_weight(self):
         """
         Tests if the weight gets calculated correctly.
         """
         self.assertAlmostEqual(self.test_magnet_assembly.weight, 0.036116043669979545, places=5)
+
+    def test_calculate_contact_surface_area(self):
+        """
+        Tests if the contact surface area gets calculated correctly
+        """
+        self.assertAlmostEqual(self.test_magnet_assembly.surface_area, 392.6990817, places=5)
 
     def test_get_mass(self):
         """

@@ -1,6 +1,6 @@
 import numpy as np
 from utils.utils import fetch_key_from_dictionary
-from mechanical_system.magnet_assembly.utils import calc_volume_cylinder
+from mechanical_system.magnet_assembly.utils import calc_volume_cylinder, calc_contact_surface_area_cylinder
 
 MATERIAL_DICT = {'NdFeB': 7.5e-6,
                  'iron': 7.5e-6}
@@ -42,22 +42,13 @@ class MagnetAssembly(object):
         self.dia_spacer = dia_spacer
 
         self.weight = None
+        self.surface_area = None
 
         self.density_magnet = _get_material_density(MATERIAL_DICT, mat_magnet)
         self.density_spacer = _get_material_density(MATERIAL_DICT, mat_spacer)
 
-        self._set_weight()
-
-    def _set_weight(self, new_weight=None):
-        """
-        Sets the weight of the magnet assembly
-        :param new_weight: The new weight of the magnet assembly. Set to `None` to automatically calculate from
-        parameters.
-        """
-        if new_weight is not None:
-            self.weight = new_weight
-        else:
-            self.weight = self._calculate_weight()
+        self.weight = self._calculate_weight()
+        self.surface_area = self._calculate_contact_surface_area()
 
     def _calculate_weight(self):
         """
@@ -72,6 +63,16 @@ class MagnetAssembly(object):
 
         return self.n_magnet * weight_magnet + (self.n_magnet - 1) * weight_spacer
 
+    def _calculate_contact_surface_area(self):
+        """
+        Calculates the contact-surface area of the magnet assembly from the parameters (i.e. without the cylinder's
+        top and bottom caps.
+        """
+        surface_area_magnet = calc_contact_surface_area_cylinder(self.dia_magnet, self.h_magnet)
+        surface_area_spacer = calc_contact_surface_area_cylinder(self.dia_spacer, self.h_spacer)
+
+        return self.n_magnet * surface_area_magnet + (self.n_magnet - 1) * surface_area_spacer
+
     def get_mass(self):
         """
         Get the mass of the magnet assembly
@@ -83,3 +84,9 @@ class MagnetAssembly(object):
         Returns the weight of the magnet assembly
         """
         return self.weight
+
+    def get_contact_surface_area(self):
+        """
+        Return the contact surface area of the magnet assembly in mm^2
+        """
+        return self.surface_area

@@ -1,9 +1,11 @@
 import unittest
 
-from mechanical_system.damper.model import DamperConstant
+from mechanical_system.damper.model import DamperConstant, DamperSurfaceArea
 from mechanical_system.damper import damper
 
 CONSTANT_DAMPING_COEFFICIENT = 3
+MAGNET_ASSEMBLY_SURFACE_AREA = 10
+TUNING_PARAMETER = 2
 
 
 class TestDamperModels(unittest.TestCase):
@@ -17,14 +19,31 @@ class TestDamperModels(unittest.TestCase):
         Run once before running tests.
         """
         cls.damper_constant = DamperConstant(damping_coefficient=CONSTANT_DAMPING_COEFFICIENT)
+        cls.damper_surface_area = DamperSurfaceArea(magnet_assembly_surface_area=MAGNET_ASSEMBLY_SURFACE_AREA,
+                                                    tuning_parameter=TUNING_PARAMETER)
 
     def test_damper_constant(self):
+        """
+        Tests the DamperConstant model
+        """
         velocity = 3
         expected_force = CONSTANT_DAMPING_COEFFICIENT * velocity
 
         # Tests
         self.assertEqual(self.damper_constant.damping_coefficient, CONSTANT_DAMPING_COEFFICIENT)
         self.assertEqual(self.damper_constant.get_force(velocity), expected_force)
+
+    def test_damper_surface_area(self):
+        """
+        Tests the DamperSurfaceArea model
+        """
+        velocity = 3
+        expected_force = MAGNET_ASSEMBLY_SURFACE_AREA * TUNING_PARAMETER * velocity
+
+        # Tests
+        self.assertEqual(self.damper_surface_area.tuning_parameter, TUNING_PARAMETER)
+        self.assertEqual(self.damper_surface_area.magnet_assembly_surface_area, MAGNET_ASSEMBLY_SURFACE_AREA)
+        self.assertEqual(self.damper_surface_area.get_force(velocity), expected_force)
 
 
 class TestDamper(unittest.TestCase):

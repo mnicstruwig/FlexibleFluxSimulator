@@ -45,7 +45,7 @@ class MechanicalSystem(object):
         """
         Set the model of the mechanical system
         """
-        self.model = model
+        self.model = get_mechanical_model(MODEL_DICT, model)
 
         if initial_conditions is not None:
             self.set_initial_conditions(initial_conditions)

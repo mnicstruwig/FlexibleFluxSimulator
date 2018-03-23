@@ -76,7 +76,26 @@ class TestMechanicalSystem(unittest.TestCase):
         """
         Tests if the model kwarg dictionary is generated correctly.
         """
-        pass
+        test_spring = 'test_spring'
+        test_damper = 'test_damper'
+        test_input = 'test_input'
+        test_magnet_assembly = 'test_magnet_assembly'
+
+        self.test_mechanical_system.set_spring(test_spring)
+        self.test_mechanical_system.set_damper(test_damper)
+        self.test_mechanical_system.set_input(test_input)
+        self.test_mechanical_system.set_magnet_assembly(test_magnet_assembly)
+
+        created_kwargs = self.test_mechanical_system._build_model_kwargs()
+
+        self.assertIn('spring', created_kwargs)
+        self.assertEqual(created_kwargs['spring'], test_spring)
+        self.assertIn('damper', created_kwargs)
+        self.assertEqual(created_kwargs['damper'], test_damper)
+        self.assertIn('input', created_kwargs)
+        self.assertEqual(created_kwargs['input'], test_input)
+        self.assertIn('magnet_assembly', created_kwargs)
+        self.assertEqual(created_kwargs['magnet_assembly'], test_magnet_assembly)
 
     def test_solve(self):
         """
