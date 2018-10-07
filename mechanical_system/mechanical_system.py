@@ -1,8 +1,8 @@
 from scipy.integrate import odeint
 import pandas as pd
 
-from utils.utils import fetch_key_from_dictionary
-from mechanical_system.model import ode_decoupled
+from unified_model.utils.utils import fetch_key_from_dictionary
+from unified_model.mechanical_system.model import ode_decoupled
 
 MODEL_DICT = {'ode_decoupled': ode_decoupled}
 
@@ -14,7 +14,7 @@ def get_mechanical_model(model_dict, model):
     :param model: The key for the model to load from `model_dict`
     :return: The mechanical system model
     """
-    return fetch_key_from_dictionary(model_dict, model, "The mechanical model is not defined!")
+    return fetch_key_from_dictionary(model_dict, model, "The mechanical model {} is not defined!".format(model))
 
 
 class MechanicalSystem(object):

@@ -2,7 +2,7 @@ import unittest
 import pandas as pd
 from pandas.testing import assert_frame_equal
 # Local imports
-from mechanical_system.spring.utils import get_model_function, read_raw_file
+from unified_model.mechanical_system.spring.utils import get_model_function, read_raw_file
 
 
 class TestMagneticSpringUtils(unittest.TestCase):

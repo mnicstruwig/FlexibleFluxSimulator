@@ -1,7 +1,7 @@
 import unittest
 
 # Local imports
-from mechanical_system.footstep import footstep
+from unified_model.mechanical_system.footstep import footstep
 
 
 class TestFootstep(unittest.TestCase):

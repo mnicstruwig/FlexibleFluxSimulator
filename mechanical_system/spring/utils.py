@@ -1,5 +1,5 @@
 import pandas as pd
-from utils.utils import fetch_key_from_dictionary
+from unified_model.utils.utils import fetch_key_from_dictionary
 
 
 def read_raw_file(file_name, z_unit='mm'):

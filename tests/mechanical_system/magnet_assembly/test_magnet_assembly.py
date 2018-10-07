@@ -1,6 +1,6 @@
 import unittest
 
-from mechanical_system.magnet_assembly.magnet_assembly import MagnetAssembly
+from unified_model.mechanical_system.magnet_assembly.magnet_assembly import MagnetAssembly
 
 
 class TestMagnetAssembly(unittest.TestCase):

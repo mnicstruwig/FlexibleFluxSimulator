@@ -1,12 +1,15 @@
 from scipy import optimize
 
 # Local imports
-from mechanical_system.spring.model import coulombs_law, coulombs_law_modified
-from mechanical_system.spring.utils import read_raw_file, get_model_function
+from unified_model.mechanical_system.spring.model import coulombs_law, coulombs_law_modified, power_series_2, \
+    power_series_3
+from unified_model.mechanical_system.spring.utils import read_raw_file, get_model_function
 
 MODEL_DICT = {
     'coulombs_unmodified': coulombs_law,
-    'coulombs_modified': coulombs_law_modified
+    'coulombs_modified': coulombs_law_modified,
+    'power_series_2': power_series_2,
+    'power_series_3': power_series_3
 }
 
 
@@ -14,7 +17,6 @@ class MagneticSpring(object):
     """
     The magnetic spring object
     """
-
     def __init__(self, fea_data_file, model='coulombs_modified'):
         self.fea_dataframe = read_raw_file(fea_data_file)
         self.model_parameters = None

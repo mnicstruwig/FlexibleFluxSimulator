@@ -1,5 +1,5 @@
-from mechanical_system.damper.model import DamperConstant
-from utils.utils import fetch_key_from_dictionary
+from unified_model.mechanical_system.damper.model import DamperConstant
+from unified_model.utils.utils import fetch_key_from_dictionary
 
 DAMPER_DICT = {
     'constant': DamperConstant

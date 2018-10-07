@@ -1,15 +1,16 @@
 import unittest
 from collections import OrderedDict
 import numpy as np
-import pandas as pd
+
 from pandas.testing import assert_frame_equal
+import pandas as pd
 
-from mechanical_system.mechanical_system import MechanicalSystem
-from mechanical_system.spring.magnetic_spring import MagneticSpring
-from mechanical_system.model import ode_decoupled
+from unified_model.mechanical_system.mechanical_system import MechanicalSystem
+from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
+from unified_model.mechanical_system.model import ode_decoupled
 
-from tests.mechanical_system.utils import build_test_mechanical_system_model
-from tests.mechanical_system.mechanical_system import test_data
+from unified_model.tests.mechanical_system.utils import build_test_mechanical_system_model
+from unified_model.tests.mechanical_system.mechanical_system import test_data
 
 
 class TestMechanicalSystem(unittest.TestCase):
@@ -23,7 +24,7 @@ class TestMechanicalSystem(unittest.TestCase):
         """
 
         self.test_mechanical_system = MechanicalSystem()
-        self.test_model = ode_decoupled
+        self.test_model = 'ode_decoupled'
         self.test_initial_conditions = [1, 2, 3, 4]
         self.test_mechanical_system.raw_output = test_data.TEST_RAW_OUTPUT
         self.test_mechanical_system.output_time_steps = test_data.TEST_TIME_STEPS
@@ -52,25 +53,6 @@ class TestMechanicalSystem(unittest.TestCase):
         self.test_mechanical_system.set_spring(test_spring)
 
         self.assertEqual(self.test_mechanical_system.spring, test_spring)
-
-    def test_set_damper(self):
-        """
-        Tests if the damper can be set correctly.
-        :return:
-        """
-        pass
-
-    def test_set_input(self):
-        """
-        Tests if the mechanical input can be set correctly.
-        """
-        pass
-
-    def test_set_magnet_assembly(self):
-        """
-        Tests if the magnet assembly can be set correctly.
-        """
-        pass
 
     def test_build_model_kwargs(self):
         """

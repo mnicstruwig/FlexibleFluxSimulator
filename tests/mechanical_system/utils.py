@@ -1,9 +1,8 @@
-from mechanical_system.mechanical_system import MechanicalSystem
-from mechanical_system.model import ode_decoupled
-from mechanical_system.damper.damper import Damper
-from mechanical_system.footstep.footstep import Footstep
-from mechanical_system.spring.magnetic_spring import MagneticSpring
-from mechanical_system.magnet_assembly.magnet_assembly import MagnetAssembly
+from unified_model.mechanical_system.mechanical_system import MechanicalSystem
+from unified_model.mechanical_system.damper.damper import Damper
+from unified_model.mechanical_system.footstep.footstep import Footstep
+from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
+from unified_model.mechanical_system.magnet_assembly.magnet_assembly import MagnetAssembly
 
 
 def build_test_mechanical_system_model():
@@ -37,6 +36,6 @@ def build_test_mechanical_system_model():
     test_mechanical_system.set_magnet_assembly(test_magnet_assembly)
 
     initial_conditions = [0, 0, 0.1, 0]
-    test_mechanical_system.set_model(ode_decoupled, initial_conditions=initial_conditions)
+    test_mechanical_system.set_model('ode_decoupled', initial_conditions=initial_conditions)
 
     return test_mechanical_system
