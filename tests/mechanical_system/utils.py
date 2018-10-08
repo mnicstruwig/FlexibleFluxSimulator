@@ -1,6 +1,6 @@
 from unified_model.mechanical_system.mechanical_system import MechanicalSystem
 from unified_model.mechanical_system.damper.damper import Damper
-from unified_model.mechanical_system.footstep.footstep import Footstep
+from unified_model.mechanical_system.input_excitation.footstep import Footstep
 from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
 from unified_model.mechanical_system.magnet_assembly.magnet_assembly import MagnetAssembly
 

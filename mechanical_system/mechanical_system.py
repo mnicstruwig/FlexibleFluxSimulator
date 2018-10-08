@@ -64,7 +64,16 @@ class MechanicalSystem(object):
 
     def set_input(self, mechanical_input):
         """
-        Adds an  excitation to the mechanical system
+        Adds an input excitation to the mechanical system
+
+        The `mechanical_input` object must implement a
+        `get_acceleration(t)` method, where `t` is the current
+        time step.
+
+        Parameters
+        ----------
+        mechanical_input : obj
+            The input excitation to add to the mechanical system.
         """
         self.input = mechanical_input
 
