@@ -41,11 +41,26 @@ class MechanicalSystem(object):
         """
         self.initial_conditions = initial_conditions
 
-    def set_model(self, model, initial_conditions=None):
+    def set_model(self, model, initial_conditions=None, **additional_model_kwargs):
         """
         Set the model of the mechanical system
+
+        Parameters
+        ----------
+        model : cls
+            The mechanical model class to use as the model for the mechanical system.
+        initial_conditions : list
+            A list containing the initial conditions for the mechanical model.
+        **additional_model_kwargs
+            Additional keyword arguments to pass to the model object at simulation time.
+
+        Returns
+        -------
+        None
         """
         self.model = get_mechanical_model(MODEL_DICT, model)
+
+        self.additional_model_kwargs = additional_model_kwargs
 
         if initial_conditions is not None:
             self.set_initial_conditions(initial_conditions)
@@ -92,6 +107,8 @@ class MechanicalSystem(object):
                   'damper': self.damper,
                   'input': self.input,
                   'magnet_assembly': self.magnet_assembly}
+
+        kwargs.update(self.additional_model_kwargs)
 
         return kwargs
 

@@ -10,7 +10,7 @@ SIMULATION_TIME_COL = 'simulation_time_seconds'
 
 class TestAccelerometerInput(unittest.TestCase):
     """
-    Tests for the `AccelerometerInput` class and helper functions.
+    Test the `AccelerometerInput` class and helper functions.
     """
     def setUp(self):
         """
