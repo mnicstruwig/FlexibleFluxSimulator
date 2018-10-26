@@ -106,7 +106,6 @@ class MechanicalSystem(object):
                        y0=self.initial_conditions,
                        t=t_array,
                        args=(model_kwargs,),
-                       hmin=t_step,
                        hmax=t_step)
 
         self.raw_output = psoln
