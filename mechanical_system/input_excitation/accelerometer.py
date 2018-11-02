@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
+from numba import jit
 
-
-def _find_nearest_acc_value(t, simulation_time_column, accel_column, df):
+@jit(nopython=True)
+def _find_nearest_acc_value(t, simulation_time_arr, accel_arr):
     """
     Return the acceleration in `accel_column` corresponding with the closest
     value of `t` in `simulation_time_column` within the dataframe `df`.
@@ -13,8 +14,8 @@ def _find_nearest_acc_value(t, simulation_time_column, accel_column, df):
     :return:
     """
     # TODO: Add sanity check when t is out of bounds.
-    index = np.abs(df[simulation_time_column] - t).sort_values().index[0]
-    acceleration = df.loc[index, accel_column]
+    index = np.abs(simulation_time_arr - t).argmin()
+    acceleration = accel_arr[index]
     return acceleration
 
 
@@ -51,9 +52,10 @@ def _preprocess_acceleration_dataframe(df, accel_column, time_column, accel_unit
     return df
 
 
+# TODO: Reformat docstring
 class AccelerometerInput(object):
     """
-    Provide custom accelerometer input.
+    Provide custom accelerometer input from a file or dataframe.
     """
     def __init__(self, raw_accelerometer_input, accel_column, time_column, accel_unit='g', time_unit='ms'):
         """
@@ -83,8 +85,7 @@ class AccelerometerInput(object):
         :return:
         """
         accel = _find_nearest_acc_value(t,
-                                        'simulation_time_seconds',
-                                        self._accel_column,
-                                        self.acceleration_df)
+                                        self.acceleration_df[self._time_column].values,
+                                        self.acceleration_df[self._accel_column].values)
 
         return accel

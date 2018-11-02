@@ -7,11 +7,9 @@ def _enforce_boundary_condition(boundary_condition, y, lower=True):
     if lower is False:
         raise NotImplementedError('This feature is not yet implemented')
 
-    enforce_boundary = False
     for (index, value), condition in zip(enumerate(y), boundary_condition):
         try:
             y[index] = condition if value < boundary_condition[index] else value
-            print(y[index])
         except TypeError:  # Handles cases where there is no boundary condition
             if boundary_condition[index] is None:
                 continue
@@ -46,8 +44,11 @@ def ode_decoupled(y, t, kwargs):
     magnet_assembly = kwargs['magnet_assembly']
     lower_boundary_conditions = kwargs.pop('lower_boundary_conditions', [None, None, None, None])
 
-    y = _enforce_boundary_condition(lower_boundary_conditions, y, lower=True)
     x1, x2, x3, x4 = y  # tube displacement, tube velocity, magnet-assembly displacement, magnet-assembly velocity
+
+    if x1 < 0 and x2 < 0:
+        x1 = 0
+        x2 = 0
 
     x1_dot = x2
     x2_dot = mechanical_input.get_acceleration(t)

@@ -23,10 +23,13 @@ class TestLabeledProcessor(unittest.TestCase):
 
     def test_fit_transform(self):
         """Test the `fit_transform method`."""
-        test_lp = LabeledProcessor(L=120, mf=10, mm=10)
-        actual_result = test_lp.fit_transform(self.test_groundtruth_df)
-        expected_result = np.array([108., 98.])
+        test_lp = LabeledProcessor(L=120, mf=10, mm=10, seconds_per_frame=0.1)
+        actual_displacement, actual_timesteps = test_lp.fit_transform(self.test_groundtruth_df)
 
-        assert_array_equal(actual_result, expected_result)
+        expected_displacement = np.array([108., 98.])
+        expected_timesteps = np.array([0, 0.1])
+
+        assert_array_equal(actual_displacement, expected_displacement)
+        assert_array_equal(actual_timesteps, expected_timesteps)
 
 

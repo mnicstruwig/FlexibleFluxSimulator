@@ -1,4 +1,17 @@
 import numpy as np
+from scipy.signal import savgol_filter
+from scipy.interpolate import interp1d
+
+
+def savgol_smoothing(z_arr, force_arr):
+    """
+    Apply a savgol filter and interpolate the result
+    """
+
+    filtered_force_arr = savgol_filter(force_arr, 27, 5)
+    interp = interp1d(z_arr, filtered_force_arr, fill_value=0, bounds_error=False)
+    return interp
+
 
 
 def coulombs_law(z, m):
