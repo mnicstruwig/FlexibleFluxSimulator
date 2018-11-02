@@ -4,13 +4,15 @@ from unified_model.mechanical_system.input_excitation.footstep import Footstep
 from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
 from unified_model.mechanical_system.magnet_assembly.magnet_assembly import MagnetAssembly
 
+from unified_model.tests.mechanical_system.test_data import TEST_MAGNET_SPRING_FEA_PATH
+
 
 def build_test_mechanical_system_model():
     """
     Builds a hard-coded mechanical system model for use in testing
     :return The fully-completed mechanical system
     """
-    test_spring = MagneticSpring(fea_data_file='../test_data/test_magnetic_spring_fea.csv',
+    test_spring = MagneticSpring(fea_data_file=TEST_MAGNET_SPRING_FEA_PATH,
                                  model='coulombs_modified')
     test_magnet_assembly = MagnetAssembly(n_magnet=2,
                                           h_magnet=10,

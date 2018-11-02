@@ -5,13 +5,15 @@ import numpy as np
 from pandas.testing import assert_frame_equal
 import pandas as pd
 
+# Local imports
 from unified_model.mechanical_system.mechanical_system import MechanicalSystem
 from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
 from unified_model.mechanical_system.model import ode_decoupled
 
+# Local test helpers
 from unified_model.tests.mechanical_system.utils import build_test_mechanical_system_model
 from unified_model.tests.mechanical_system.mechanical_system import test_data
-
+from unified_model.tests.mechanical_system.test_data import TEST_MAGNET_SPRING_FEA_PATH
 
 class TestMechanicalSystem(unittest.TestCase):
     """
@@ -49,7 +51,7 @@ class TestMechanicalSystem(unittest.TestCase):
         """
         Tests if the spring can be set correctly.
         """
-        test_spring = MagneticSpring('../test_data/test_magnetic_spring_fea.csv', model='coulombs_modified')
+        test_spring = MagneticSpring(TEST_MAGNET_SPRING_FEA_PATH, model='coulombs_modified')
         self.test_mechanical_system.set_spring(test_spring)
 
         self.assertEqual(self.test_mechanical_system.spring, test_spring)
@@ -62,11 +64,13 @@ class TestMechanicalSystem(unittest.TestCase):
         test_damper = 'test_damper'
         test_input = 'test_input'
         test_magnet_assembly = 'test_magnet_assembly'
+        test_model = 'ode_decoupled'
 
         self.test_mechanical_system.set_spring(test_spring)
         self.test_mechanical_system.set_damper(test_damper)
         self.test_mechanical_system.set_input(test_input)
         self.test_mechanical_system.set_magnet_assembly(test_magnet_assembly)
+        self.test_mechanical_system.set_model(test_model)
 
         created_kwargs = self.test_mechanical_system._build_model_kwargs()
 

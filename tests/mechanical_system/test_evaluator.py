@@ -26,10 +26,13 @@ class TestLabeledProcessor(unittest.TestCase):
         test_lp = LabeledProcessor(L=120, mf=10, mm=10, seconds_per_frame=0.1)
         actual_displacement, actual_timesteps = test_lp.fit_transform(self.test_groundtruth_df)
 
-        expected_displacement = np.array([108., 98.])
+        expected_displacement = np.array([0.108, 0.098])
         expected_timesteps = np.array([0, 0.1])
 
         assert_array_equal(actual_displacement, expected_displacement)
         assert_array_equal(actual_timesteps, expected_timesteps)
 
 
+# TODO: Write tests for Evaluator class
+class TestEvaluator(unittest.TestCase):
+    pass

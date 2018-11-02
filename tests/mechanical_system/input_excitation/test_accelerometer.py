@@ -1,9 +1,12 @@
 import unittest
+import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
 # Local imports
 from unified_model.mechanical_system.input_excitation.accelerometer import _find_nearest_acc_value, _parse_raw_accelerometer_input, _preprocess_acceleration_dataframe, AccelerometerInput  # noqa
+
+from unified_model.tests.mechanical_system.test_data import TEST_ACCELEROMETER_FILE_PATH
 
 SIMULATION_TIME_COL = 'simulation_time_seconds'
 
@@ -16,13 +19,17 @@ class TestAccelerometerInput(unittest.TestCase):
         """
         Set-up.
         """
-        self.test_accelerometer_file_path = '../test_data/test_accelerometer_file.csv'
+        self.test_accelerometer_file_path = TEST_ACCELEROMETER_FILE_PATH
         self.test_raw_accelerometer_df = pd.DataFrame({'time': [1., 2., 3., 4., 5., 6],
                                                        'z_G': [0, 1, 0, 1, -2, 0]})
 
         self.test_accel_column = 'z_G'
         self.test_time_column = 'time'
         self.test_accel_unit = 'g'
+
+
+        self.test_simulation_time_array = np.array([1, 2, 3, 4, 5, 6])
+        self.test_acceleration_array = np.array([0, 1, 0, 1, -2, 0])
 
     def test_find_nearest_acc_value_exact_value(self):
         """
@@ -33,9 +40,8 @@ class TestAccelerometerInput(unittest.TestCase):
         expected_acceleration = -2
         test_time = 5
         returned_acceleration = _find_nearest_acc_value(test_time,
-                                                        self.test_time_column,
-                                                        self.test_accel_column,
-                                                        self.test_raw_accelerometer_df)
+                                                        self.test_simulation_time_array,
+                                                        self.test_acceleration_array)
 
         self.assertEqual(expected_acceleration, returned_acceleration)
 
@@ -48,10 +54,8 @@ class TestAccelerometerInput(unittest.TestCase):
         expected_acceleration = -2
         test_time = 5.1
         returned_acceleration = _find_nearest_acc_value(test_time,
-                                                        self.test_time_column,
-                                                        self.test_accel_column,
-                                                        self.test_raw_accelerometer_df)
-
+                                                        self.test_simulation_time_array,
+                                                        self.test_acceleration_array)
         self.assertEqual(expected_acceleration, returned_acceleration)
 
     def test_find_nearest_acc_value_smaller_value(self):
@@ -63,10 +67,8 @@ class TestAccelerometerInput(unittest.TestCase):
         expected_acceleration = -2
         test_time = 4.9
         returned_acceleration = _find_nearest_acc_value(test_time,
-                                                        self.test_time_column,
-                                                        self.test_accel_column,
-                                                        self.test_raw_accelerometer_df)
-
+                                                        self.test_simulation_time_array,
+                                                        self.test_acceleration_array)
         self.assertEqual(expected_acceleration, returned_acceleration)
 
     def test_parse_raw_accelerometer_input_df(self):

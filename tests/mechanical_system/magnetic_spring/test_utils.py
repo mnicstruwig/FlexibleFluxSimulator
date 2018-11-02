@@ -1,8 +1,10 @@
 import unittest
 import pandas as pd
 from pandas.testing import assert_frame_equal
+import os
 # Local imports
 from unified_model.mechanical_system.spring.utils import get_model_function, read_raw_file
+from unified_model.tests.mechanical_system.test_data import TEST_RAW_CSV_FILE_PATH
 
 
 class TestMagneticSpringUtils(unittest.TestCase):
@@ -29,7 +31,9 @@ class TestMagneticSpringUtils(unittest.TestCase):
         """
         Tests the read_raw_file function
         """
-        test_df = read_raw_file('../test_data/test_raw_file.csv')
+        path = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(path, '../test_data/test_raw_file.csv')
+        test_df = read_raw_file(TEST_RAW_CSV_FILE_PATH, z_unit=None)
 
         expected_dataframe = pd.DataFrame()
         expected_dataframe['z'] = [1, 2, 3, 4, 5]
