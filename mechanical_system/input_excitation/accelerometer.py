@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from numba import jit
+from scipy.signal import savgol_filter
 
 @jit(nopython=True)
 def _find_nearest_acc_value(t, simulation_time_arr, accel_arr):
@@ -30,6 +31,13 @@ def _parse_raw_accelerometer_input(raw_accelerometer_input):
         return raw_accelerometer_input
     return None
 
+# TODO: Add test
+def _smooth(values, **kwargs):
+    """Smooth `values` using a savgol filter"""
+    if 'window_length' in kwargs and 'polyorder' in kwargs:
+        return savgol_filter(values, **kwargs)
+    return savgol_filter(values, 101, 2)
+
 
 def _preprocess_acceleration_dataframe(df, accel_column, time_column, accel_unit, time_unit):
     """
@@ -48,6 +56,8 @@ def _preprocess_acceleration_dataframe(df, accel_column, time_column, accel_unit
             df[accel_column] = (df[accel_column]-1)*9.81
         if accel_unit is 'ms2':
             df[accel_column] = df[accel_column] - 9.81
+
+    df[accel_column] = _smooth(df[accel_column])  # Apply smoothing filter
 
     return df
 
@@ -85,7 +95,7 @@ class AccelerometerInput(object):
         :return:
         """
         accel = _find_nearest_acc_value(t,
-                                        self.acceleration_df[self._time_column].values,
+                                        self.acceleration_df['simulation_time_seconds'].values,
                                         self.acceleration_df[self._accel_column].values)
 
         return accel
