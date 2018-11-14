@@ -1,6 +1,13 @@
 import numpy as np
+from unified_model.electrical_system.flux.model import flux_interpolate
+from unified_model.utils.utils import fetch_key_from_dictionary
 
+# TODO: Come up with something better (eg. "basic")
+FLUX_MODEL_DICT = {
+    'flux_interpolate': flux_interpolate
+}
 
+# TODO: Add tests
 class OpenCircuitSystem(object):
     """
     An electrical system that is not connected to a load
@@ -10,8 +17,15 @@ class OpenCircuitSystem(object):
         self.received_z = []
         self.current_t = 0
         self.current_z = 0
+        flux_model = fetch_key_from_dictionary(FLUX_MODEL_DICT, flux_model, "Flux model not found.")
         self.flux_model = flux_model(z_index, phi_arr, **model_kwargs)
         self.current_phi = self.flux_model(self.current_z)
+
+
+    def reset(self):
+        self.received_z = []
+        self.received_t = []
+
 
     def get_emf(self, next_t, next_z):
         self.received_t.append(next_t)
@@ -32,3 +46,11 @@ class OpenCircuitSystem(object):
         self.current_phi = next_phi
 
         return emf
+
+    def get_processed_flux_curve(self, z_arr):
+        """
+        Return the processed flux curve using the flux curve model for magnet
+        assembly positions of `z_arr`.
+        """
+        return self.flux_model(z_arr)
+

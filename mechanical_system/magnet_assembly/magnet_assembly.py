@@ -90,3 +90,10 @@ class MagnetAssembly(object):
         Return the contact surface area of the magnet assembly in mm^2
         """
         return self.surface_area
+
+    # TODO: Add test
+    def get_height(self):
+        """
+        Return the height of the magnet assembly in mm.
+        """
+        return self.n_magnet*self.h_magnet + (self.n_magnet - 1)*self.h_spacer

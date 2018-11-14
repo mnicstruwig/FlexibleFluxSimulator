@@ -104,7 +104,8 @@ class TestAccelerometerInput(unittest.TestCase):
                                                           self.test_accel_column,
                                                           self.test_time_column,
                                                           accel_unit='g',
-                                                          time_unit='s')
+                                                          time_unit='s',
+                                                          smooth=False)
         actual_acceleration_values = processed_df[self.test_accel_column].tolist()
         self.assertEqual(expected_acceleration_values, actual_acceleration_values)
 
@@ -119,7 +120,8 @@ class TestAccelerometerInput(unittest.TestCase):
                                                           self.test_accel_column,
                                                           self.test_time_column,
                                                           accel_unit='ms2',
-                                                          time_unit='s')
+                                                          time_unit='s',
+                                                          smooth=False)
         actual_acceleration_values = processed_df[self.test_accel_column].tolist()
         self.assertEqual(expected_acceleration_values, actual_acceleration_values)
 
@@ -134,7 +136,8 @@ class TestAccelerometerInput(unittest.TestCase):
                                                               self.test_accel_column,
                                                               self.test_time_column,
                                                               accel_unit='not a unit',
-                                                              time_unit='s')
+                                                              time_unit='s',
+                                                              smooth=False)
 
     def test_preprocess_acceleration_dataframe_time_in_sec(self):
         """
@@ -146,7 +149,8 @@ class TestAccelerometerInput(unittest.TestCase):
                                                           self.test_accel_column,
                                                           self.test_time_column,
                                                           self.test_accel_unit,
-                                                          time_unit='s')
+                                                          time_unit='s',
+                                                          smooth=False)
         actual_time_values = processed_df[SIMULATION_TIME_COL].tolist()
 
         self.assertEqual(expected_time_values, actual_time_values)
@@ -161,7 +165,8 @@ class TestAccelerometerInput(unittest.TestCase):
                                                           self.test_accel_column,
                                                           self.test_time_column,
                                                           self.test_accel_unit,
-                                                          time_unit='ms')
+                                                          time_unit='ms',
+                                                          smooth=False)
         actual_time_values = processed_df[SIMULATION_TIME_COL].values.tolist()
 
         self.assertEqual(expected_time_values, actual_time_values)
@@ -175,7 +180,8 @@ class TestAccelerometerInput(unittest.TestCase):
                                               self.test_accel_column,
                                               self.test_time_column,
                                               self.test_accel_unit,
-                                              time_unit='s')
+                                              time_unit='s',
+                                              smooth=False)
 
         self.assertEqual(test_accel_input._accel_column, self.test_accel_column)
         self.assertEqual(test_accel_input._time_unit, 's')
@@ -189,7 +195,8 @@ class TestAccelerometerInput(unittest.TestCase):
         test_accel_input = AccelerometerInput(self.test_accelerometer_file_path,
                                               self.test_accel_column,
                                               self.test_time_column,
-                                              time_unit='s')
+                                              time_unit='s',
+                                              smooth=False)
 
         self.assertEqual(test_accel_input._accel_column, self.test_accel_column)
         self.assertEqual(test_accel_input._time_unit, 's')
@@ -205,7 +212,8 @@ class TestAccelerometerInput(unittest.TestCase):
         test_accel_input = AccelerometerInput(self.test_accelerometer_file_path,
                                               self.test_accel_column,
                                               self.test_time_column,
-                                              time_unit='s')
+                                              time_unit='s',
+                                              smooth=False)
 
         self.assertEqual(test_accel_input.get_acceleration(5), expected_acceleration_a)
         self.assertEqual(test_accel_input.get_acceleration(5.4), expected_acceleration_a)

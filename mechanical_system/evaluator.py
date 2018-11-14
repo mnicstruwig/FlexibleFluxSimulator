@@ -78,7 +78,7 @@ class LabeledProcessor(object):
         return df['y_prime_mm'].values/1000, np.arange(0, len(df['y_prime_mm'])*self.spf, self.spf)
 
 
-class Evaluator(object):
+class MechanicalSystemEvaluator(object):
     """
     Evaluate the accuracy of the mechanical system model
 
