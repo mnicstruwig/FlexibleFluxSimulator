@@ -7,6 +7,12 @@ FLUX_MODEL_DICT = {
     'flux_interpolate': flux_interpolate
 }
 
+def _gradient(f, x, delta_x=1e-3):
+    """Compute the gradient of function `f` at point `y` relative to `dx`"""
+
+    gradient = (f(x + delta_x) - f(x - delta_x))/(2*delta_x)
+    return gradient
+
 # TODO: Add tests
 class OpenCircuitSystem(object):
     """
@@ -45,6 +51,14 @@ class OpenCircuitSystem(object):
         self.current_z = next_z
         self.current_phi = next_phi
 
+        return emf
+
+    def get_emf_arr(self, t_arr, z_arr):
+        phi_at_z = self.flux_model(z_arr)
+        dphi_dz = np.gradient(phi_at_z, z_arr)
+        dz_dt = np.gradient(z_arr, t_arr)
+
+        emf = dphi_dz * dz_dt
         return emf
 
     def get_processed_flux_curve(self, z_arr):
