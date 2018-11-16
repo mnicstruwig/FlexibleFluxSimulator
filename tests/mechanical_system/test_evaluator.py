@@ -5,7 +5,7 @@ import pandas as pd
 from numpy.testing import assert_array_equal
 
 # Local imports
-from unified_model.mechanical_system.evaluator import LabeledProcessor, Evaluator
+from unified_model.mechanical_system.evaluator import LabeledProcessor, MechanicalSystemEvaluator
 
 
 class TestLabeledProcessor(unittest.TestCase):
@@ -34,5 +34,5 @@ class TestLabeledProcessor(unittest.TestCase):
 
 
 # TODO: Write tests for Evaluator class
-class TestEvaluator(unittest.TestCase):
+class TestMechanicalSystemEvaluator(unittest.TestCase):
     pass

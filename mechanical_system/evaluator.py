@@ -78,7 +78,7 @@ class LabeledProcessor(object):
         return df['y_prime_mm'].values/1000, np.arange(0, len(df['y_prime_mm'])*self.spf, self.spf)
 
 
-class Evaluator(object):
+class MechanicalSystemEvaluator(object):
     """
     Evaluate the accuracy of the mechanical system model
 
@@ -121,7 +121,7 @@ class Evaluator(object):
         self._fit(y_predicted, time_predicted)
         return self.time_predicted, self.y_predicted
 
-    def _find_peak_index(self, y, thres=0.5):
+    def _find_peak_index(self, y, thres=0.95):
         peak_idx = peakutils.indexes(y, thres=thres)
         return peak_idx[0]
 
