@@ -3,8 +3,10 @@ import pandas as pd
 
 from unified_model.utils.utils import fetch_key_from_dictionary
 from unified_model.mechanical_system.model import ode_decoupled
+from unified_model.model import unified_ode_coupled_oc
 
-MODEL_DICT = {'ode_decoupled': ode_decoupled}
+MODEL_DICT = {'ode_decoupled': ode_decoupled,
+              'unified_ode_decoupled_oc': unified_ode_coupled_oc}
 
 
 def get_mechanical_model(model_dict, model):
@@ -15,7 +17,6 @@ def get_mechanical_model(model_dict, model):
     :return: The mechanical system model
     """
     return fetch_key_from_dictionary(model_dict, model, "The mechanical model {} is not defined!".format(model))
-
 
 class MechanicalSystem(object):
     """

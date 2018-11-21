@@ -9,8 +9,9 @@ FLUX_MODEL_DICT = {
 
 def _gradient(f, x, delta_x=1e-3):
     """Compute the gradient of function `f` at point `y` relative to `dx`"""
-
     gradient = (f(x + delta_x) - f(x - delta_x))/(2*delta_x)
+    if np.isinf(gradient):
+        return 0
     return gradient
 
 # TODO: Add tests
@@ -25,7 +26,6 @@ class OpenCircuitSystem(object):
         self.current_z = 0
         flux_model = fetch_key_from_dictionary(FLUX_MODEL_DICT, flux_model, "Flux model not found.")
         self.flux_model = flux_model(z_index, phi_arr, **model_kwargs)
-        self.current_phi = self.flux_model(self.current_z)
 
 
     def reset(self):
@@ -36,20 +36,20 @@ class OpenCircuitSystem(object):
     def get_emf(self, next_t, next_z):
         self.received_t.append(next_t)
         self.received_z.append(next_z)
-        next_phi = self.flux_model(next_z)
 
-        delta_phi = self.current_phi - next_phi
         delta_t = next_t - self.current_t
         delta_z = next_z - self.current_z
 
-        dphi_dz = delta_phi / delta_z
+        dphi_dz = _gradient(self.flux_model, self.current_z)
         dz_dt = delta_z / delta_t
 
         emf = dphi_dz * dz_dt
 
+        if np.isinf(emf):
+            emf = 0
+
         self.current_t = next_t
         self.current_z = next_z
-        self.current_phi = next_phi
 
         return emf
 
