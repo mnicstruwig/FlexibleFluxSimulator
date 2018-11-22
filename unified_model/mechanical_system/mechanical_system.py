@@ -1,12 +1,13 @@
-from scipy.integrate import odeint
+from asteval import Interpreter
+from scipy.integrate import odeint, solve_ivp
 import pandas as pd
 
 from unified_model.utils.utils import fetch_key_from_dictionary
 from unified_model.mechanical_system.model import ode_decoupled
-from unified_model.model import unified_ode_coupled_oc
+from unified_model.model import unified_ode_coupled
 
 MODEL_DICT = {'ode_decoupled': ode_decoupled,
-              'unified_ode_decoupled_oc': unified_ode_coupled_oc}
+              'unified_ode_coupled': unified_ode_coupled}
 
 
 def get_mechanical_model(model_dict, model):
@@ -32,7 +33,7 @@ class MechanicalSystem(object):
         self.results = None
         self.initial_conditions = None
         self.raw_output = None
-        self.output_time_steps = None
+        self.t = None
 
     def set_initial_conditions(self, initial_conditions):
         """
@@ -50,7 +51,7 @@ class MechanicalSystem(object):
         ----------
         model : string
             The mechanical model to use as the model for the mechanical system.
-            Current options: {'ode_decoupled', 'unified_ode_decoupled_oc'}
+            Current options: {'ode_decoupled', 'unified_ode_coupled'}
         **additional_model_kwargs
             Additional keyword arguments to pass to the model object at simulation time.
 
@@ -108,41 +109,43 @@ class MechanicalSystem(object):
 
         return kwargs
 
-    def solve(self, t_array):
+    def solve(self, t_start, t_end, t_max_step=0.01):
         """
         Run the simulation
         """
-        self.output_time_steps = t_array
-        t_step = t_array[1] - t_array[0]
+        t_span = (t_start, t_end)
         model_kwargs = self._build_model_kwargs()
-        psoln = odeint(func=self.model,
-                       y0=self.initial_conditions,
-                       t=t_array,
-                       args=(model_kwargs,),
-                       hmax=t_step)
 
-        self.raw_output = psoln
+        psoln = solve_ivp(fun=lambda t, y: self.model(t, y, model_kwargs),
+                          t_span = t_span,
+                          y0 = self.initial_conditions,
+                          max_step = t_max_step)
 
-    def get_output(self):
+        self.raw_output = psoln.y
+        self.t = psoln.t
+
+    # TODO: Write test
+    def _parse_output_expression(self, **kwargs):
+        df_out = pd.DataFrame()
+
+        def _populate_asteval_symbol_table(aeval):
+            aeval.symtable['t'] = self.t
+            for i in range(self.raw_output.shape[0]):
+                aeval.symtable['x' + str(i+1)] = self.raw_output[i, :]
+            return aeval
+
+        aeval = Interpreter()
+        aeval = _populate_asteval_symbol_table(aeval)
+
+        for key, expr in kwargs.items():
+            df_out[key] = aeval(expr)
+
+        return df_out
+
+    # TODO: Update documentation
+    def get_output(self, **kwargs):
         """
         Return the output of the simulation as a dataframe.
         :return: The output as a dataframe
         """
-        x1 = self.raw_output[:, 0]  # Tube displacement
-        x2 = self.raw_output[:, 1]  # Tube velocity
-        x3 = self.raw_output[:, 2]  # Magnet assembly displacement
-        x4 = self.raw_output[:, 3]  # Magnet assembly velocity
-
-        x_relative_displacement = x3 - x1
-        x_relative_velocity = x4 - x2
-
-        output = pd.DataFrame()
-        output['time'] = self.output_time_steps
-        output['tube_displacement'] = x1
-        output['tube_velocity'] = x2
-        output['assembly_displacement'] = x3
-        output['assembly_velocity'] = x4
-        output['assembly_relative_displacement'] = x_relative_displacement
-        output['assembly_relative_velocity'] = x_relative_velocity
-
-        return output
+        return self._parse_output_expression(**kwargs)
