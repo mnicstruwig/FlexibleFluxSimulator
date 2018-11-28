@@ -64,19 +64,19 @@ class MechanicalSystem(object):
 
     def set_spring(self, spring):
         """
-        Adds a spring to the mechanical system
+        Add a spring to the mechanical system
         """
         self.spring = spring
 
     def set_damper(self, damper):
         """
-        Adds a damper to the mechanical system
+        Add a damper to the mechanical system
         """
         self.damper = damper
 
     def set_input(self, mechanical_input):
         """
-        Adds an input excitation to the mechanical system
+        Add an input excitation to the mechanical system
 
         The `mechanical_input` object must implement a
         `get_acceleration(t)` method, where `t` is the current
@@ -91,9 +91,15 @@ class MechanicalSystem(object):
 
     def set_magnet_assembly(self, magnet_assembly):
         """
-        Adds a magnet assembly to the mechanical system
+        Add a magnet assembly to the mechanical system
         """
         self.magnet_assembly = magnet_assembly
+
+    def attach_electrical_model(self, electrical_model):
+        """
+        Add a flux model to the system.
+        """
+        self.electrical_model = electrical_model
 
     def _build_model_kwargs(self):
         """
