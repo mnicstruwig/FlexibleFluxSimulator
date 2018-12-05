@@ -8,17 +8,19 @@ FLUX_MODEL_DICT = {
 }
 
 def _gradient(f, x, delta_x=1e-3):
-    """Compute the gradient of function `f` at point `y` relative to `dx`"""
+    """Compute the gradient of function `f` at point `y` relative to `x`"""
     gradient = (f(x + delta_x) - f(x - delta_x))/(2*delta_x)
     if np.isinf(gradient):
-        return 0
+       return 0.0
     return gradient
 
 # TODO: Add tests
+# TODO: Add documentation
+# TODO: Rename to "ElectricalSystem" or similar, since the coupling controls
+# TODO: the interaction.
 class OpenCircuitSystem(object):
-    """
-    An electrical system that is not connected to a load
-    """
+    """An electrical system that is not connected to a load."""
+
     def __init__(self, z_index, phi_arr, flux_model, **model_kwargs):
         self.received_t = []
         self.received_z = []
@@ -27,11 +29,9 @@ class OpenCircuitSystem(object):
         flux_model = fetch_key_from_dictionary(FLUX_MODEL_DICT, flux_model, "Flux model not found.")
         self.flux_model = flux_model(z_index, phi_arr, **model_kwargs)
 
-
     def reset(self):
         self.received_z = []
         self.received_t = []
-
 
     def get_emf(self, next_t, next_z):
         self.received_t.append(next_t)
