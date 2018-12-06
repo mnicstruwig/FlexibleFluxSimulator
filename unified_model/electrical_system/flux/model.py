@@ -24,5 +24,5 @@ def flux_interpolate(z_arr, phi_arr, coil_center, mf):
     """
     magnet_assembly_center = mf/2
     z_arr = z_arr - z_arr[np.abs(phi_arr).argmax()] + coil_center - magnet_assembly_center/1000
-    interpolator = interp1d(z_arr, phi_arr, fill_value=0, bounds_error=False)
+    interpolator = interp1d(z_arr, np.abs(phi_arr), fill_value=0, bounds_error=False)
     return interpolator

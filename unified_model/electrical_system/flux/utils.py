@@ -52,6 +52,7 @@ def _extract_parameter_from_str(str_):
     return param_dict
 
 
+# TODO: Write helper to go from a query to flux model simply
 class FluxDatabase(object):
     """Convert .csv produced by Maxwell parametric simulation into flux database.
 
@@ -111,6 +112,11 @@ class FluxDatabase(object):
 
     def add(self, key_dict, value):
         """Add an entry to the database.
+
+        This method should preferably not be used to build the original
+        database, and should instead be used to add once-off or the odd
+        additional sample to a database that has been built from a .csv file
+        exported by ANSYS Maxwell.
 
         Parameters
         ----------

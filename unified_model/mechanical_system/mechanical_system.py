@@ -28,6 +28,7 @@ def get_mechanical_model(model_dict, model):
     """
     return fetch_key_from_dictionary(model_dict, model, "The mechanical model {} is not defined!".format(model))
 
+
 # TODO: Add example once interface is more stable
 class MechanicalSystem(object):
     """A mechanical system of a kinetic microgenerator whose motion can be simulated.
@@ -53,7 +54,7 @@ class MechanicalSystem(object):
         Time values of solution output.
     electrical_system: obj
         Electrical system that has been coupled to the mechanical system.
-    coupling_model : obj
+    coupling : obj
         Coupling that models the interaction between the mechanical and attached
         electrical system.
 
@@ -70,7 +71,7 @@ class MechanicalSystem(object):
         self.raw_output = None
         self.t = None
         self.electrical_system = None
-        self.coupling_model = None
+        self.coupling = None
 
     def set_initial_conditions(self, initial_conditions):
         """Set the initial conditions of the mechanical system.
@@ -151,20 +152,20 @@ class MechanicalSystem(object):
         """
         self.magnet_assembly = magnet_assembly
 
-
-    def attach_electrical_model(self, electrical_model, coupling_model):
+    def attach_electrical_system(self, electrical_system, coupling):
         """Attach an electrical system.
 
         Parameters
         ----------
         electrical_model : obj
             Electrical system model to attach to the mechanical system
-        cpupling_model : obj
-            Coupling that modles the interaction between the mechanical
+        coupling : obj
+            Coupling that models the interaction between the mechanical
             and electrical system.
 
         """
-        self.electrical_model = electrical_model
+        self.electrical_system = electrical_system
+        self.coupling = coupling
 
     def _build_model_kwargs(self):
         """
@@ -174,7 +175,9 @@ class MechanicalSystem(object):
         kwargs = {'spring': self.spring,
                   'damper': self.damper,
                   'input': self.input_,
-                  'magnet_assembly': self.magnet_assembly}
+                  'magnet_assembly': self.magnet_assembly,
+                  'electrical_system': self.electrical_system,
+                  'coupling': self.coupling}
 
         kwargs.update(self.additional_model_kwargs)
 
@@ -197,9 +200,9 @@ class MechanicalSystem(object):
         model_kwargs = self._build_model_kwargs()
 
         psoln = solve_ivp(fun=lambda t, y: self.model(t, y, model_kwargs),
-                          t_span = t_span,
-                          y0 = self.initial_conditions,
-                          max_step = t_max_step)
+                          t_span=t_span,
+                          y0=self.initial_conditions,
+                          max_step=t_max_step)
 
         self.raw_output = psoln.y
         self.t = psoln.t
