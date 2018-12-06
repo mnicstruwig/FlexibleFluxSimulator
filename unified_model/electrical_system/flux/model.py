@@ -1,5 +1,6 @@
 import numpy as np
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, UnivariateSpline
+
 
 def flux_interpolate(z_arr, phi_arr, coil_center, mf):
     """Model the flux by interpolating between values
@@ -25,4 +26,15 @@ def flux_interpolate(z_arr, phi_arr, coil_center, mf):
     magnet_assembly_center = mf/2
     z_arr = z_arr - z_arr[np.abs(phi_arr).argmax()] + coil_center - magnet_assembly_center/1000
     interpolator = interp1d(z_arr, np.abs(phi_arr), fill_value=0, bounds_error=False)
+    return interpolator
+
+# TODO: Complete documentation
+def flux_univariate_spline(z_arr, phi_arr, coil_center, mf):
+    """Model flux curve by interpolating between values using univariate spline.
+
+    This flux model supports pre-computation of the gradient.
+    """
+    magnet_assembly_center = mf/2
+    z_arr = z_arr - z_arr[np.abs(phi_arr).argmax()] + coil_center - magnet_assembly_center/1000
+    interpolator = UnivariateSpline(z_arr, np.abs(phi_arr), k=3, s=0, ext='zeros')
     return interpolator
