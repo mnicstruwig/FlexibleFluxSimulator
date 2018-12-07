@@ -14,4 +14,4 @@ TEST_RAW_OUTPUT = np.array([
     [
         4., 4., 4., 4., 4.
     ]
-]).T
+])

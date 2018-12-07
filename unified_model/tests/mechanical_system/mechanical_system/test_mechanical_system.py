@@ -29,13 +29,14 @@ class TestMechanicalSystem(unittest.TestCase):
         self.test_model = 'ode_decoupled'
         self.test_initial_conditions = [1, 2, 3, 4]
         self.test_mechanical_system.raw_output = test_data.TEST_RAW_OUTPUT
-        self.test_mechanical_system.output_time_steps = test_data.TEST_TIME_STEPS
+        self.test_mechanical_system.t = test_data.TEST_TIME_STEPS
 
     def test_set_model(self):
         """
         Tests if the model is set correctly
         """
-        self.test_mechanical_system.set_model(self.test_model, initial_conditions=self.test_initial_conditions)
+        self.test_mechanical_system.set_model(self.test_model,
+                                              initial_conditions=self.test_initial_conditions)
 
         # Tests
         self.assertEqual(self.test_mechanical_system.model, ode_decoupled)
@@ -100,15 +101,15 @@ class TestMechanicalSystem(unittest.TestCase):
         """
         Tests if the simulation output is returned correctly.
         """
-        actual_output_dataframe = self.test_mechanical_system.get_output()
+        actual_output_dataframe = self.test_mechanical_system.get_output(time='t',
+                                                                         x1='x1',
+                                                                         x2='x2',
+                                                                         relative_displacement='x3-x1')
         expected_data = OrderedDict(
             time=[1., 2., 3., 4., 5.],
-            tube_displacement=[1., 1., 1., 1., 1.],
-            tube_velocity=[2., 2., 2., 2., 2.],
-            assembly_displacement=[3., 3., 3., 3., 3.],
-            assembly_velocity=[4., 4., 4., 4., 4.],
-            assembly_relative_displacement=[2., 2., 2., 2., 2.],
-            assembly_relative_velocity=[2., 2., 2., 2., 2.]
+            x1=[1., 1., 1., 1., 1.],
+            x2=[2., 2., 2., 2., 2.],
+            relative_displacement=[2., 2., 2., 2., 2.]
         )
         expected_output_dataframe = pd.DataFrame(expected_data)
         assert_frame_equal(actual_output_dataframe, expected_output_dataframe)

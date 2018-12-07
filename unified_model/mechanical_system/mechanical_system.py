@@ -9,6 +9,7 @@ from unified_model.model import unified_ode_coupled
 MODEL_DICT = {'ode_decoupled': ode_decoupled,
               'unified_ode_coupled': unified_ode_coupled}
 
+
 # TODO: Update documentation
 def get_mechanical_model(model_dict, model):
     """Fetch mechanical model
@@ -26,7 +27,9 @@ def get_mechanical_model(model_dict, model):
         The mechanical system model.
 
     """
-    return fetch_key_from_dictionary(model_dict, model, "The mechanical model {} is not defined!".format(model))
+    return fetch_key_from_dictionary(model_dict,
+                                     model,
+                                     "The mechanical model {} is not defined!".format(model))
 
 
 # TODO: Add example once interface is more stable
