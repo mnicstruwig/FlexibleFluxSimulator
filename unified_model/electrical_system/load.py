@@ -1,5 +1,3 @@
-from numba import jit
-
 class SimpleLoad:
     """A simple resistive load."""
 

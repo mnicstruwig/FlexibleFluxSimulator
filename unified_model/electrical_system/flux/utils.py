@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 
+from unified_model.electrical_system.flux.model import flux_univariate_spline
+
 
 def _parse_raw_flux_input(raw_flux_input):
     """Parse a raw flux input.
@@ -52,7 +54,6 @@ def _extract_parameter_from_str(str_):
     return param_dict
 
 
-# TODO: Write helper to go from a query to flux model simply
 class FluxDatabase(object):
     """Convert .csv produced by Maxwell parametric simulation into flux database.
 
@@ -141,6 +142,44 @@ class FluxDatabase(object):
         """
         db_key = self._build_db_key(**key_dict)
         self.database[db_key] = value
+
+    # TODO: Add test
+    def query_to_model(self, model_cls, coil_center, mf, **kwargs):
+        """Query the database and return a flux model.
+
+        This is intended to be a convenience function. It works identically
+        to the `query` method, but returns a flux model instead of the actual
+        flux curve.
+
+        Parameters
+        ----------
+        model_cls : cls
+            Class of flux model to create from query.
+        coil_center : float
+            The position (in metres) of the center of the coil of the
+            microgenerator, relative to the *top* of the fixed magnet.
+        mf : float
+            The total height of the magnet assembly (in mm).
+
+        Returns
+        -------
+        flux model object
+            The interpolator that can be called with `z` values to return the
+            flux linkage.
+
+        See Also
+        --------
+        self.query : underlying method.
+
+        """
+        phi = self.query(**kwargs)
+        flux_model = model_cls(self.z,
+                               phi,
+                               coil_center,
+                               mf=mf)
+
+        return flux_model
+
 
     def query(self, **kwargs):
         """Query the database

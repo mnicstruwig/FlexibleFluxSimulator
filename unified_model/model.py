@@ -23,8 +23,8 @@ def unified_ode_coupled(t, y, kwargs):
     x1_dot = x2
     x2_dot = mechanical_input.get_acceleration(t)
     x3_dot = x4
-
-    current = electrical_system.get_current(y)
+    emf = electrical_system.get_emf(y)
+    current = electrical_system.load_model.get_current(emf)
     coupling_force = coupling.get_mechanical_force(current)
 
     # Ensure coupling mechanical force is *opposite* to direction of motion.
@@ -38,6 +38,6 @@ def unified_ode_coupled(t, y, kwargs):
     x4_dot = (spring.get_force(x3 - x1) - magnet_assembly.get_weight() -
               damper.get_force(x4 - x2) - coupling_force) / magnet_assembly.get_mass()
 
-    x5_dot = electrical_system.get_emf(y)
+    x5_dot = emf
 
     return [x1_dot, x2_dot, x3_dot, x4_dot, x5_dot]
