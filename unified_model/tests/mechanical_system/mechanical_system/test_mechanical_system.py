@@ -4,6 +4,7 @@ import numpy as np
 
 from pandas.testing import assert_frame_equal
 import pandas as pd
+from scipy.integrate import solve_ivp
 
 # Local imports
 from unified_model.mechanical_system.mechanical_system import MechanicalSystem
@@ -14,6 +15,8 @@ from unified_model.mechanical_system.model import ode_decoupled
 from unified_model.tests.mechanical_system.utils import build_test_mechanical_system_model
 from unified_model.tests.mechanical_system.mechanical_system import test_data
 from unified_model.tests.mechanical_system.test_data import TEST_MAGNET_SPRING_FEA_PATH
+
+from mockito import when
 
 class TestMechanicalSystem(unittest.TestCase):
     """
@@ -88,14 +91,23 @@ class TestMechanicalSystem(unittest.TestCase):
         """
         Test if the mechanical system is able to be solved.
         """
-        complete_mechanical_system = build_test_mechanical_system_model()
+        test_mechanical_system = MechanicalSystem()
+        test_mechanical_system.additional_model_kwargs = {}
+        test_t_start = 0
+        test_t_end = 1
 
-        test_t_array = np.arange(0, 5, 0.001)
-        complete_mechanical_system.solve(test_t_array)
+        class TestPsoln:
+            def __init__(self):
+                self.t = np.array([10., 20., 30.])
+                self.y = np.array([[1., 2., 3.], [4., 5., 6.]])
 
-        # Tests
-        self.assertFalse(complete_mechanical_system.raw_output is None)
-        self.assertEqual(len(complete_mechanical_system.raw_output), len(test_t_array))
+        test_solution = TestPsoln()
+        when(solve_ivp).__call__().thenReturn(test_solution)
+
+        test_mechanical_system.solve(test_t_start, test_t_end)
+
+        print(test_mechanical_system.raw_output)
+
 
     def test_get_output(self):
         """

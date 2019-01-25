@@ -2,11 +2,12 @@ import numpy as np
 from unified_model.electrical_system.flux.model import flux_interpolate
 from unified_model.utils.utils import fetch_key_from_dictionary
 
+
 def _gradient(f, x, delta_x=1e-3):
     """Compute the gradient of function `f` at point `y` relative to `x`"""
     gradient = (f(x + delta_x) - f(x - delta_x))/(2*delta_x)
     if np.isinf(gradient):
-       return 0.0
+        return 0.0
     return gradient
 
 

@@ -1,3 +1,4 @@
+# TODO: Add docstrings to functions
 class SimpleLoad:
     """A simple resistive load."""
 

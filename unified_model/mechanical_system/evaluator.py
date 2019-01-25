@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import peakutils
 import matplotlib.pyplot as plt
 
@@ -78,6 +77,7 @@ class LabeledProcessor(object):
         return df['y_prime_mm'].values/1000, np.arange(0, len(df['y_prime_mm'])*self.spf, self.spf)
 
 
+# TODO : Add documentation to member functions
 class MechanicalSystemEvaluator(object):
     """
     Evaluate the accuracy of the mechanical system model
