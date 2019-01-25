@@ -1,5 +1,5 @@
 from asteval import Interpreter
-from scipy.integrate import odeint, solve_ivp
+from scipy import integrate
 import pandas as pd
 
 from unified_model.utils.utils import fetch_key_from_dictionary
@@ -202,7 +202,7 @@ class MechanicalSystem(object):
         t_span = (t_start, t_end)
         model_kwargs = self._build_model_kwargs()
 
-        psoln = solve_ivp(fun=lambda t, y: self.model(t, y, model_kwargs),
+        psoln = integrate.solve_ivp(fun=lambda t, y: self.model(t, y, model_kwargs),
                           t_span=t_span,
                           y0=self.initial_conditions,
                           max_step=t_max_step)
