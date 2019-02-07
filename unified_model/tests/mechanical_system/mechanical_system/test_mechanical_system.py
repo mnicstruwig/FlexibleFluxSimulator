@@ -18,6 +18,7 @@ from unified_model.tests.mechanical_system.test_data import TEST_MAGNET_SPRING_F
 
 from mockito import ANY, when, verify
 
+
 class TestMechanicalSystem(unittest.TestCase):
     """
     Tests the MechanicalSystem class

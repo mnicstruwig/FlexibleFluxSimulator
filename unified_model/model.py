@@ -2,6 +2,7 @@ import numpy as np
 
 from unified_model.electrical_system.electrical_system import _gradient
 
+
 def unified_ode_coupled(t, y, kwargs):
     """
     A coupled unified electro-mechanical model.

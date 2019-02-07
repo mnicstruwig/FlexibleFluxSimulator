@@ -180,7 +180,6 @@ class FluxDatabase(object):
 
         return flux_model
 
-
     def query(self, **kwargs):
         """Query the database
 

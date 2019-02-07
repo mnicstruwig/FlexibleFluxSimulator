@@ -5,11 +5,11 @@ import pandas as pd
 from numpy.testing import assert_array_equal
 
 # Local imports
-from unified_model.mechanical_system.evaluator import LabeledProcessor, MechanicalSystemEvaluator
+from unified_model.mechanical_system.evaluator import LabeledVideoProcessor, MechanicalSystemEvaluator
 
 
 class TestLabeledProcessor(unittest.TestCase):
-    """Test the `LabeledProcessor` class."""
+    """Test the `LabeledVideoProcessor` class."""
 
     def setUp(self):
         """Run before every test"""
@@ -23,7 +23,7 @@ class TestLabeledProcessor(unittest.TestCase):
 
     def test_fit_transform(self):
         """Test the `fit_transform method`."""
-        test_lp = LabeledProcessor(L=120, mf=10, mm=10, seconds_per_frame=0.1)
+        test_lp = LabeledVideoProcessor(L=120, mf=10, mm=10, seconds_per_frame=0.1)
         actual_displacement, actual_timesteps = test_lp.fit_transform(self.test_groundtruth_df)
 
         expected_displacement = np.array([0.108, 0.098])

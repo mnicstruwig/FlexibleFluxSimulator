@@ -1,6 +1,4 @@
 import numpy as np
-from unified_model.electrical_system.flux.model import flux_interpolate
-from unified_model.utils.utils import fetch_key_from_dictionary
 
 
 def _gradient(f, x, delta_x=1e-3):

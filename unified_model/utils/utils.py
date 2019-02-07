@@ -1,6 +1,6 @@
 import warnings
 
-from scipy.signal import savgol_filter
+from scipy import signal
 
 
 def fetch_key_from_dictionary(dictionary, key, error_message):
@@ -19,6 +19,39 @@ def fetch_key_from_dictionary(dictionary, key, error_message):
 
 
 # TODO: Add test
+def _smooth_butterworth(values, critical_frequency, **kwargs):
+    """Smooth `values` by applying a low-pass butterworth filter
+
+    Parameters
+    ----------
+    values : array_like
+        Values to smooth or filter.
+    critical_frequency : float
+        The critical frequency of the butterworth filter. This is the
+        frequency at which the gain drops to -3 dB of the pass band.
+        Normalized between 0 and 1, where 1 is the Nyquist Frequency.
+    **kwargs
+        Keyword arguments to pass to the `butter` class.
+
+    Returns
+    -------
+    ndarray
+        The filtered signal
+
+    See Also
+    --------
+    scipy.signal.butter : module
+
+    """
+    if 'N' not in kwargs:
+        N = 6
+    # noinspection PyTupleAssignmentBalance
+    b, a = signal.butter(N, Wn=critical_frequency, btype='low', output='ba')
+    filtered_values = signal.lfilter(b, a, values)
+    return filtered_values
+
+
+# TODO: Add test
 def _smooth_savgol(values, **kwargs):
     """Smooth `values` using a Savitsky-Golay filter
 
@@ -31,9 +64,8 @@ def _smooth_savgol(values, **kwargs):
 
     Returns
     -------
-    array_like
+    ndarray
         Smoothed values.
-
 
     See Also
     --------
