@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import warnings
 
 
-class LabeledVideoProcessor(object):
-    """Post-processor labeled magnet-assembly data.
+class LabeledVideoProcessor:
+    """Post-processor for labeled magnet-assembly data.
 
     Attributes
     ----------
@@ -44,7 +44,6 @@ class LabeledVideoProcessor(object):
         self.L = L
         self.mm = mm
         self.spf = seconds_per_frame
-        self.processed_dataframe = None
 
     def fit_transform(self, groundtruth_dataframe, impute_missing_values=False, pixel_scale=None):
         """
@@ -83,7 +82,6 @@ class LabeledVideoProcessor(object):
 
         df['y'] = np.abs(df['end_y'] - df['start_y'])  # Get position metric
         df['y_mm'] = df['y'] * df['y_pixel_scale']  # Adjust for pixel scale
-#        df['y_prime_mm'] = self.L - self.mf - df['y_mm']  # Get actual position
         df['y_prime_mm'] = df['y_mm']  # Get actual position
         df.loc[df['top_of_magnet'] == 1, 'y_prime_mm'] = df['y_prime_mm'] - self.mm
 
@@ -91,7 +89,6 @@ class LabeledVideoProcessor(object):
             missing_indexes = df.query('start_y == -1').index.values
             df = impute_missing(df, missing_indexes)
 
-        self.processed_dataframe = df
         timestamps = np.arange(0, round(len(df)*self.spf, 8), self.spf)
 
         return df['y_prime_mm'].values/1000, timestamps
@@ -100,6 +97,12 @@ class LabeledVideoProcessor(object):
 # TODO: Add docs
 # TODO: Add tests
 def impute_missing(df_missing, indexes):
+    """Impute missing values from the labeled video data.
+
+    The missing values are imputed by calculating the velocity of the magnet
+    assembly from the previous two timesteps and inferring a displacement
+    based on that.
+    """
     for index in indexes:
         start_velocity_calc = index - 2
         end_velocity_calc = index - 1
@@ -114,10 +117,8 @@ def impute_missing(df_missing, indexes):
     return df_missing
 
 
-# TODO : Add documentation to member functions
-class MechanicalSystemEvaluator(object):
-    """
-    Evaluate the accuracy of the mechanical system model
+class MechanicalSystemEvaluator:
+    """Evaluate the accuracy of a mechanical system model's output
 
     Attributes
     ----------
@@ -131,21 +132,47 @@ class MechanicalSystemEvaluator(object):
         The timestamps for each element in `y_predicted`.
     """
 
-    def __init__(self, y_target, time_target, y_predicted=None, time_predicted=None):
+# TODO: Use autocorrelation to align signals
+    def __init__(self, y_target, time_target):
+        """Constructor
+
+        Parameters
+        ----------
+        y_target : ndarray
+            The target values that the mechanical system model is
+            attempting to predict. This is the "ground truth" that the
+            prediction will be compared against.
+        time_target : ndarray
+            The corresponding timestamps of the values in `y_target`
+
+        """
         if len(y_target) != len(time_target):
             raise ValueError('`y_target` and `time_target` must be equal in length.')
         self.y_target = y_target
         self.time_target = time_target
-        self.y_predicted = y_predicted if not None else None
-        self.time_predicted = time_predicted if not None else None
 
     def fit(self, y_predicted, time_predicted):
+        """Align `y_predicted` and `y_target` in time.
+
+        This allows the target and prediction to later be plotted overlaying
+        one another.
+
+        Parameters
+        ----------
+        y_predicted : ndarray, optional
+            The predicted values from the mechanical system model.
+        time_predicted : ndarray, optional
+            The corresponding timestamps of the values in `y_predicted`.
+
+        """
         self._fit(y_predicted, time_predicted)
 
     def _fit(self, y_predicted, time_predicted):
+        """The underlying method that is called with by the `fit` class method."""
         self.y_predicted = y_predicted
         self.time_predicted = time_predicted
 
+        # Align the two curves by their first peak.
         peak_idx_target = self._find_peak_index(self.y_target)
         peak_idx_predic = self._find_peak_index(self.y_predicted)
         peak_time_target = self.time_target[peak_idx_target]
@@ -155,6 +182,22 @@ class MechanicalSystemEvaluator(object):
         self.time_predicted = self.time_predicted + time_shift
 
     def fit_transform(self, y_predicted, time_predicted):
+        """Align `y_predicted` and `y_target` in time.
+
+        This allows the target and prediction to later be plotted overlaying
+        one another.
+
+        The `fit_transform` class method returns the `y_predicted` values with
+        its shifted timestamps.
+
+        Parameters
+        ----------
+        y_predicted : ndarray, optional
+            The predicted values from the mechanical system model.
+        time_predicted : ndarray, optional
+            The corresponding timestamps of the values in `y_predicted`.
+
+        """
         self._fit(y_predicted, time_predicted)
         return self.time_predicted, self.y_predicted
 
