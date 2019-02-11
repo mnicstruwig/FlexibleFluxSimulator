@@ -33,7 +33,7 @@ def get_mechanical_model(model_dict, model):
 
 
 # TODO: Add example once interface is more stable
-class MechanicalSystem(object):
+class MechanicalSystem:
     """A mechanical system of a kinetic microgenerator whose motion can be simulated.
 
     Attributes
