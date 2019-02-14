@@ -1,17 +1,7 @@
 import numpy as np
-import pandas as pd
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
-from unified_model.electrical_system.electrical_system import ElectricalSystem
-from unified_model.electrical_system.load import SimpleLoad
-from unified_model.electrical_system.flux.utils import FluxDatabase
-from unified_model.electrical_system.flux.model import flux_univariate_spline
-
-from unified_model.mechanical_system.evaluator import LabeledVideoProcessor
+from unified_model.electrical_system import ElectricalModel
 
 
 def _build_y_input_vector_at_timestamps(x3, timestamps):
@@ -78,7 +68,7 @@ def simulate_electrical_system(y_relative_mm, timestamps, flux_model, load, inte
 
     ys = _build_y_input_vector_at_timestamps(x3, timestamps)
 
-    electrical_system = ElectricalSystem(flux_model=flux_model, load_model=load, precompute_gradient=True)
+    electrical_system = ElectricalModel(flux_model=flux_model, load_model=load, precompute_gradient=True)
     emf_values = np.array([electrical_system.get_emf(y) for y in ys])
 
     return emf_values, timestamps

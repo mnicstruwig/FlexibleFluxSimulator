@@ -10,7 +10,7 @@ def _gradient(f, x, delta_x=1e-3):
 
 
 # TODO: Add tests + documentation
-class ElectricalSystem:
+class ElectricalModel:
     """A generic electrical system."""
 
     def __init__(self, flux_model, load_model, **kwargs):
