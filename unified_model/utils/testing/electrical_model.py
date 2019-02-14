@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 
-from unified_model.electrical_system import ElectricalModel
+from unified_model.electrical_model import ElectricalModel
 
 
 def _build_y_input_vector_at_timestamps(x3, timestamps):
@@ -39,6 +39,7 @@ def _build_y_input_vector_at_timestamps(x3, timestamps):
 
     return np.array([x1, x2, x3, x4, x5]).T
 
+
 def apply_rectification(emf_values):
     """Do a "dumb" simulation of rectification of the EMF values."""
 
@@ -52,6 +53,7 @@ def apply_rectification(emf_values):
 
         emf_values[i]= e
     return emf_values
+
 
 # TODO: Add Docstring
 def simulate_electrical_system(y_relative_mm, timestamps, flux_model, load, interpolate=True):

@@ -9,7 +9,7 @@ from unified_model.electrical_system.flux.model import flux_univariate_spline
 from unified_model.electrical_system.flux.utils import FluxDatabase
 from unified_model.electrical_system.load import SimpleLoad
 from unified_model.mechanical_system.evaluator import LabeledVideoProcessor
-from unified_model.utils.testing.electrical_system import \
+from unified_model.utils.testing.electrical_model import \
     simulate_electrical_system
 
 # Prerequisites

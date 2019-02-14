@@ -47,7 +47,6 @@ class AdcProcessor:
         self.smooth = smooth
         self.smooth_kwargs = smooth_kwargs if not None else None
 
-
     def fit_transform(self, groundtruth_dataframe, voltage_col='V', time_col='time(ms)'):
         """
         Extract and transform the voltage in pandas dataframe

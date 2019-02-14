@@ -2,7 +2,7 @@ import warnings
 import pandas as pd
 from asteval import Interpreter
 
-from scipy.signal import savgol_filter
+from scipy import signal
 
 
 def fetch_key_from_dictionary(dictionary, key, error_message):
