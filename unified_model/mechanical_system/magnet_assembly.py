@@ -1,6 +1,7 @@
 import numpy as np
 from unified_model.utils.utils import fetch_key_from_dictionary
-from unified_model.mechanical_system.magnet_assembly.utils import calc_volume_cylinder, calc_contact_surface_area_cylinder
+from unified_model.mechanical_system.utils import \
+    calc_contact_surface_area_cylinder, calc_volume_cylinder
 
 MATERIAL_DICT = {'NdFeB': 7.5e-6,
                  'iron': 7.5e-6}

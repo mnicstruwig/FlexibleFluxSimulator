@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from numba import jit
 
-from unified_model.utils.utils import _smooth_savgol
+from unified_model.utils.utils import smooth_savgol
 
 
 @jit(nopython=True)
@@ -47,7 +47,12 @@ def _parse_raw_accelerometer_input(raw_accelerometer_input):
     return None
 
 
-def _preprocess_acceleration_dataframe(df, accel_column, time_column, accel_unit, time_unit, smooth=True):
+def _preprocess_acceleration_dataframe(df,
+                                       accel_column,
+                                       time_column,
+                                       accel_unit,
+                                       time_unit,
+                                       smooth=True):
     """Perform pre-processing operations on the raw acceleration dataframe.
 
     This includes converting the time to seconds, converting the acceleration
@@ -91,7 +96,7 @@ def _preprocess_acceleration_dataframe(df, accel_column, time_column, accel_unit
             df[accel_column] = df[accel_column] - 9.81
 
     if smooth:
-        df[accel_column] = _smooth_savgol(df[accel_column])  # Apply smoothing filter
+        df[accel_column] = smooth_savgol(df[accel_column])  # Apply smoothing filter
 
     return df
 

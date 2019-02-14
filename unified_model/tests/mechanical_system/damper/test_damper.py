@@ -1,7 +1,8 @@
 import unittest
 
-from unified_model.mechanical_system.damper.model import DamperConstant, DamperSurfaceArea
-from unified_model.mechanical_system.damper import damper
+from unified_model.mechanical_system.damper import DamperConstant, \
+    DamperSurfaceArea
+from unified_model.mechanical_system import damper
 
 CONSTANT_DAMPING_COEFFICIENT = 3
 MAGNET_ASSEMBLY_SURFACE_AREA = 10

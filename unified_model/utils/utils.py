@@ -54,7 +54,7 @@ def _smooth_butterworth(values, critical_frequency, **kwargs):
 
 
 # TODO: Add test
-def _smooth_savgol(values, **kwargs):
+def smooth_savgol(values, **kwargs):
     """Smooth `values` using a Savitsky-Golay filter
 
     Parameters
@@ -76,8 +76,8 @@ def _smooth_savgol(values, **kwargs):
     """
     try:
         if 'window_length' in kwargs and 'polyorder' in kwargs:
-            return savgol_filter(values, **kwargs)
-        return savgol_filter(values, 101, 2)
+            return signal.savgol_filter(values, **kwargs)
+        return signal.savgol_filter(values, 101, 2)
     except ValueError:
         warnings.warn('Filter window length exceeds signal length. No filtering is being applied.', RuntimeWarning)
         return values
