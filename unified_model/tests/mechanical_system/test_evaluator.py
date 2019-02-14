@@ -5,7 +5,7 @@ import pandas as pd
 from numpy.testing import assert_array_equal
 
 # Local imports
-from unified_model.mechanical_system.evaluator import LabeledVideoProcessor, MechanicalSystemEvaluator
+from unified_model.mechanical_system.evaluator import LabeledVideoProcessor
 
 
 class TestLabeledProcessor(unittest.TestCase):

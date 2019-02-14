@@ -1,4 +1,4 @@
-from unified_model.mechanical_system.mechanical_system import MechanicalSystem
+from unified_model.mechanical_model import MechanicalModel
 from unified_model.mechanical_system.damper.damper import Damper
 from unified_model.mechanical_system.input_excitation.footstep import Footstep
 from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
@@ -31,7 +31,7 @@ def build_test_mechanical_system_model():
                              positive_footstep_displacement=0.15,
                              t_footstep_start=1)
 
-    test_mechanical_system = MechanicalSystem()
+    test_mechanical_system = MechanicalModel()
     test_mechanical_system.set_spring(test_spring)
     test_mechanical_system.set_damper(test_damper)
     test_mechanical_system.set_input(test_footstep)

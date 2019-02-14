@@ -1,10 +1,9 @@
-from asteval import Interpreter
 from scipy import integrate
-import pandas as pd
+import numpy as np
 
-from unified_model.utils.utils import fetch_key_from_dictionary
+from unified_model.utils.utils import fetch_key_from_dictionary, parse_output_expression
 from unified_model.mechanical_system.model import ode_decoupled
-from unified_model.model import unified_ode_coupled
+from unified_model.governing_equations import unified_ode_coupled
 
 MODEL_DICT = {'ode_decoupled': ode_decoupled,
               'unified_ode_coupled': unified_ode_coupled}
@@ -33,7 +32,7 @@ def get_mechanical_model(model_dict, model):
 
 
 # TODO: Add example once interface is more stable
-class MechanicalSystem:
+class MechanicalModel:
     """A mechanical system of a kinetic microgenerator whose motion can be simulated.
 
     Attributes
@@ -207,33 +206,8 @@ class MechanicalSystem:
                           y0=self.initial_conditions,
                           max_step=t_max_step)
 
-        self.raw_output = psoln.y
         self.t = psoln.t
-
-    # TODO: Write test
-    # TODO: Write documentation
-    def _parse_output_expression(self, **kwargs):
-        """Parse and evaluate an expression of the raw output.
-
-        It is not recommended to use this helper function directly. For
-        documentation and usage, see the `get_output` method.
-
-        """
-        df_out = pd.DataFrame()
-
-        def _populate_asteval_symbol_table(aeval):
-            aeval.symtable['t'] = self.t
-            for i in range(self.raw_output.shape[0]):
-                aeval.symtable['x' + str(i+1)] = self.raw_output[i, :]
-            return aeval
-
-        aeval = Interpreter()
-        aeval = _populate_asteval_symbol_table(aeval)
-
-        for key, expr in kwargs.items():
-            df_out[key] = aeval(expr)
-
-        return df_out
+        self.raw_output = psoln.y
 
     # TODO: Update documentation
     def get_output(self, **kwargs):
@@ -265,13 +239,13 @@ class MechanicalSystem:
 
         Example
         --------
-        >>> ms = mechanical_system()
+        >>> ms = MechanicalModel()
         >>> raw_output =  np.array([[1, 2, 3, 4, 5], [1, 1, 1, 1, 1]])
         >>> print(raw_output)
         [[1 2 3 4 5]
         [1 1 1 1 1]]
         >>> ms.raw_output = raw_output
-        >>> df_output = m.get_output(an_expression='x1-x2', another_expr='x1*x1')
+        >>> df_output = ms.get_output(an_expression='x1-x2', another_expr='x1*x1')
         >>> print(df_output)
            an_expression  another_expr
         0              0             1
@@ -281,4 +255,4 @@ class MechanicalSystem:
         4              4            25
 
         """
-        return self._parse_output_expression(**kwargs)
+        return parse_output_expression(self.t, self.raw_output, **kwargs)

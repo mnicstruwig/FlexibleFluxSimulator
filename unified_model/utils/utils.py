@@ -1,6 +1,8 @@
 import warnings
+import pandas as pd
+from asteval import Interpreter
 
-from scipy import signal
+from scipy.signal import savgol_filter
 
 
 def fetch_key_from_dictionary(dictionary, key, error_message):
@@ -79,3 +81,32 @@ def _smooth_savgol(values, **kwargs):
     except ValueError:
         warnings.warn('Filter window length exceeds signal length. No filtering is being applied.', RuntimeWarning)
         return values
+
+
+# TODO: Write test
+# TODO: Write documentation
+def parse_output_expression(t, raw_output, **kwargs):
+    """Parse and evaluate an expression of the raw output.
+
+    `raw_output` is a (n, d) dimensional array where n is the number of
+    timesteps in the simulation, and d is the number of outputs.
+
+    It is not recommended to use this helper function directly. For
+    documentation and usage, see the `get_output` method.
+
+    """
+    df_out = pd.DataFrame()
+
+    def _populate_asteval_symbol_table(ast_eval_interpretor):
+        ast_eval_interpretor.symtable['t'] = t
+        for i in range(raw_output.shape[0]):
+            ast_eval_interpretor.symtable['x' + str(i + 1)] = raw_output[i, :]
+        return ast_eval_interpretor
+
+    aeval = Interpreter()
+    aeval = _populate_asteval_symbol_table(aeval)
+
+    for key, expr in kwargs.items():
+        df_out[key] = aeval(expr)
+
+    return df_out

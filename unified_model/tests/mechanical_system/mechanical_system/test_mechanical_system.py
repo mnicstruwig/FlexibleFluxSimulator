@@ -7,7 +7,7 @@ import pandas as pd
 from scipy import integrate
 
 # Local imports
-from unified_model.mechanical_system.mechanical_system import MechanicalSystem
+from unified_model.mechanical_model import MechanicalModel
 from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
 from unified_model.mechanical_system.model import ode_decoupled
 
@@ -19,9 +19,9 @@ from unified_model.tests.mechanical_system.test_data import TEST_MAGNET_SPRING_F
 from mockito import ANY, when, verify
 
 
-class TestMechanicalSystem(unittest.TestCase):
+class TestMechanicalModel(unittest.TestCase):
     """
-    Tests the MechanicalSystem class
+    Tests the MechanicalModel class
     """
 
     def setUp(self):
@@ -29,7 +29,7 @@ class TestMechanicalSystem(unittest.TestCase):
         Run before every test.
         """
 
-        self.test_mechanical_system = MechanicalSystem()
+        self.test_mechanical_system = MechanicalModel()
         self.test_model = 'ode_decoupled'
         self.test_initial_conditions = [1, 2, 3, 4]
         self.test_mechanical_system.raw_output = test_data.TEST_RAW_OUTPUT
@@ -92,12 +92,12 @@ class TestMechanicalSystem(unittest.TestCase):
         """
         Test if the mechanical system will call the appropriate solver and produce the correct output.
         """
-        test_mechanical_system = MechanicalSystem()
+        test_mechanical_system = MechanicalModel()
         test_mechanical_system.additional_model_kwargs = {}
         test_t_start = 0
         test_t_end = 1
 
-        class TestPsoln:
+        class MockPsoln:
             def __init__(self):
                 self.t = np.array([10., 20., 30.])
                 self.y = np.array([[1., 2., 3.], [4., 5., 6.]])
@@ -105,7 +105,7 @@ class TestMechanicalSystem(unittest.TestCase):
         expected_raw_output = np.array([[1., 2., 3.], [4., 5., 6.]])
         expected_t = np.array([10., 20., 30.])
 
-        mock_result = TestPsoln()
+        mock_result = MockPsoln()
         when(integrate).solve_ivp(fun=ANY, t_span=ANY, y0=ANY, max_step=ANY).thenReturn(mock_result)
         test_mechanical_system.solve(test_t_start, test_t_end)  # execute
 
