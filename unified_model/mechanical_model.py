@@ -33,10 +33,12 @@ def get_mechanical_model(model_dict, model):
 
 # TODO: Add example once interface is more stable
 class MechanicalModel:
-    """A mechanical system of a kinetic microgenerator whose motion can be simulated.
+    """A mechanical model of a kinetic microgenerator whose motion can be simulated.
 
     Attributes
     ----------
+    name : str
+        String identifier of the mechanical model.
     model : function
         The mechanical system model.
     spring : obj
@@ -62,7 +64,16 @@ class MechanicalModel:
 
     """
 
-    def __init__(self):
+    def __init__(self, name):
+        """Constructor
+
+        Parameters
+        ----------
+        name : str
+            String identifier of the mechanical model.
+
+        """
+        self.name = name
         self.model = None
         self.spring = None
         self.magnet_assembly = None

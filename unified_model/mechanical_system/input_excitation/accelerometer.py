@@ -3,6 +3,7 @@ import pandas as pd
 from numba import jit
 
 from unified_model.utils.utils import smooth_savgol
+from scipy.interpolate import UnivariateSpline
 
 
 @jit(nopython=True)
@@ -102,10 +103,18 @@ def _preprocess_acceleration_dataframe(df,
 
 
 # TODO: Reformat docstring
+# TODO: Include documentation for interpolation
 class AccelerometerInput(object):
     """Provide custom accelerometer input from a file or dataframe."""
 
-    def __init__(self, raw_accelerometer_input, accel_column, time_column, accel_unit='g', time_unit='ms', smooth=True):
+    def __init__(self,
+                 raw_accelerometer_input,
+                 accel_column,
+                 time_column,
+                 accel_unit='g',
+                 time_unit='ms',
+                 smooth=True,
+                 interpolate=False):
         """Constructor.
 
         Parameters
@@ -131,6 +140,8 @@ class AccelerometerInput(object):
         self._accel_unit = accel_unit
         self._time_unit = time_unit
         self._smooth = smooth
+        self.interpolate = interpolate
+        self.interpolator = None
 
         self.acceleration_df = _parse_raw_accelerometer_input(raw_accelerometer_input)
         self.acceleration_df = _preprocess_acceleration_dataframe(self.acceleration_df,
@@ -139,6 +150,12 @@ class AccelerometerInput(object):
                                                                   self._accel_unit,
                                                                   self._time_unit,
                                                                   self._smooth)
+
+        if self.interpolate:
+            self.interpolator = UnivariateSpline(x=self.acceleration_df['simulation_time_seconds'].values,
+                                                 y=self.acceleration_df[self._accel_column].values,
+                                                 s=0,
+                                                 ext='zeros')
 
     def get_acceleration(self, t):
         """Get the acceleration at time `t`.
@@ -154,8 +171,14 @@ class AccelerometerInput(object):
             Acceleration at time `t` in m/s^2.
 
         """
-        accel = _find_nearest_acc_value(t,
-                                        self.acceleration_df['simulation_time_seconds'].values,
-                                        self.acceleration_df[self._accel_column].values)
+        if self.interpolate:
+            # if y[0] <0 and y[1] < 0:
+            #     if self.interpolator(t) < 0:
+            #         return -self.interpolator(t)
+            #     elif self.interpolator(t) == 0:
+            #         return 0.1
+            return self.interpolator(t)
 
-        return accel
+        return _find_nearest_acc_value(t,
+                                       self.acceleration_df['simulation_time_seconds'].values,
+                                       self.acceleration_df[self._accel_column].values)

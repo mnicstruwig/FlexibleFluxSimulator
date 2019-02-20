@@ -29,17 +29,18 @@ class UnifiedModel:
     def add_governing_equations(self, governing_equations):
         self.governing_equations = governing_equations
 
-    def solve(self, t_start, t_end, y0, t_max_step=1e-5):
+    def solve(self, t_start, t_end, y0, t_max_step=1e-5, method='RK45'):
         high_level_models = {
             'mechanical_model': self.mechanical_model,
             'electrical_model': self.electrical_model,
             'coupling_model': self.coupling_model
         }
 
-        psoln = integrate.solve_ivp(fun=lambda t, y: self.governing_equations(t, y, high_level_models),
+        psoln = integrate.solve_ivp(fun=lambda t, y: self.governing_equations(t, y, **high_level_models),
                                     t_span=[t_start, t_end],
                                     y0=y0,
-                                    max_step=t_max_step)
+                                    max_step=t_max_step,
+                                    dense_output=True)
 
         self.t = psoln.t
         self.raw_solution = psoln.y

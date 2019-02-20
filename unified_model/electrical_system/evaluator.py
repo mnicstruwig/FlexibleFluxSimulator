@@ -47,7 +47,10 @@ class AdcProcessor:
         self.smooth = smooth
         self.smooth_kwargs = smooth_kwargs if not None else None
 
-    def fit_transform(self, groundtruth_dataframe, voltage_col='V', time_col='time(ms)'):
+    def fit_transform(self,
+                      groundtruth_dataframe,
+                      voltage_col='V',
+                      time_col='time(ms)'):
         """
         Extract and transform the voltage in pandas dataframe
         `groundtruth_dataframe` into a clean signal and normalize to the correct
@@ -117,13 +120,15 @@ class ElectricalSystemEvaluator:
         # Normalize
         emf_predicted = np.abs(emf_predicted)
 
-        # Sampling periods
-        sampling_rate_target = self.emf_target[1] - self.emf_target[0]
-        sampling_rate_pred = emf_predicted[1] - emf_predicted[0]
-
         # Build interpolators in order to resample.
-        interp_target = UnivariateSpline(self.time_target, self.emf_target, s=0, ext='zeros')
-        interp_pred = UnivariateSpline(time_predicted, emf_predicted, s=0, ext='zeros')
+        interp_target = UnivariateSpline(self.time_target,
+                                         self.emf_target,
+                                         s=0,
+                                         ext='zeros')
+        interp_pred = UnivariateSpline(time_predicted,
+                                       emf_predicted,
+                                       s=0,
+                                       ext='zeros')
 
         # Resample
         stop_time = np.max([self.time_target[-1], time_predicted[-1]])
@@ -142,16 +147,19 @@ class ElectricalSystemEvaluator:
         # TODO: always leading.
         # Compensate for delay
 
-        interp_pred = UnivariateSpline(self.resampled_timestamps + time_offset, resampled_emf_pred, s=0, ext='zeros')
+        interp_pred = UnivariateSpline(self.resampled_timestamps + time_offset,
+                                       resampled_emf_pred,
+                                       s=0,
+                                       ext='zeros')
         resampled_emf_pred = interp_pred(self.resampled_timestamps)
 
         self.resampled_emf_target = resampled_emf_target
         self.resampled_emf_pred = resampled_emf_pred
 
     def _is_period_constant(self, arr):
-        """Return True if the difference between values in `arr` are constant."""
+        """Return True if the difference between values in `arr` are constant"""
         diff = np.diff(arr)
-        diff = np.array([round(val, 8) for val in diff])  # Handle rounding issues
+        diff = np.array([round(val, 8) for val in diff])  # Handle rounding
         if len(np.unique(diff)) > 1:
             return False
         return True

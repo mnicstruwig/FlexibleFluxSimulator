@@ -9,8 +9,7 @@ from unified_model.electrical_system.flux.model import flux_univariate_spline
 from unified_model.electrical_system.flux.utils import FluxDatabase
 from unified_model.electrical_system.load import SimpleLoad
 from unified_model.mechanical_system.evaluator import LabeledVideoProcessor
-from unified_model.utils.testing.electrical_model import \
-    simulate_electrical_system
+from unified_model.utils.testing.testing_electrical_model import simulate_electrical_system
 
 # Prerequisites
 df_A_1_labeled = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/A/001_transcoded_subsampled_labels_2019-02-03-15:53:43.csv')
@@ -27,8 +26,8 @@ fdb = FluxDatabase(
 phi_A = fdb.query(winding_num_z='17', winding_num_r='15')
 flux_model_A = flux_univariate_spline(z_arr=fdb.z, phi_arr=phi_A, coil_center=58.5 / 1000, mm=10)
 
-df_label = df_A_2_labeled
-df_adc = df_A_2_adc
+df_label = df_A_1_labeled
+df_adc = df_A_1_adc
 
 flux_model = flux_model_A
 load_model = SimpleLoad(R=np.inf)

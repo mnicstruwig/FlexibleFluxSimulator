@@ -1,7 +1,7 @@
 import pandas as pd
-import numpy as np
 
-from unified_model.electrical_system.flux.model import flux_univariate_spline
+from unified_model.electrical_system.flux.model import flux_interpolate, flux_univariate_spline
+from unified_model.utils.utils import fetch_key_from_dictionary
 
 
 def _parse_raw_flux_input(raw_flux_input):
@@ -144,7 +144,7 @@ class FluxDatabase(object):
         self.database[db_key] = value
 
     # TODO: Add test
-    def query_to_model(self, model_cls, coil_center, mf, **kwargs):
+    def query_to_model(self, flux_model_type, coil_center, mm, **kwargs):
         """Query the database and return a flux model.
 
         This is intended to be a convenience function. It works identically
@@ -153,30 +153,44 @@ class FluxDatabase(object):
 
         Parameters
         ----------
-        model_cls : cls
-            Class of flux model to create from query.
+        flux_model_type : str
+            Name of the flux model type to use.
+            'interp' : an interpolation model.
+            'unispline' : a univariate spline interpolation model.
         coil_center : float
             The position (in metres) of the center of the coil of the
             microgenerator, relative to the *top* of the fixed magnet.
-        mf : float
+        mm : float
             The total height of the magnet assembly (in mm).
+        kwargs :
+            Keyword argument passed to the `query` method.
 
         Returns
         -------
         flux model object
-            The interpolator that can be called with `z` values to return the
-            flux linkage.
+            The interpolator object that can be called with `z` values to
+            return the flux linkage.
 
         See Also
         --------
         self.query : underlying method.
 
         """
+
+        def _get_flux_model(flux_model_str):
+            model_dict = {'interp': flux_interpolate,
+                          'unispline': flux_univariate_spline}
+            return fetch_key_from_dictionary(model_dict,
+                                             flux_model_str,
+                                             'flux model not found.')
+
+        model_cls = _get_flux_model(flux_model_type)
+
         phi = self.query(**kwargs)
         flux_model = model_cls(self.z,
                                phi,
                                coil_center,
-                               mf=mf)
+                               mm=mm)
 
         return flux_model
 
