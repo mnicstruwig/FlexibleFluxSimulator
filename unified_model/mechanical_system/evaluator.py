@@ -62,6 +62,7 @@ class LabeledVideoProcessor:
             Default value is False.
         pixel_scale : float, optional
             Manually specify the pixel scale to use (in mm per pixel).
+            Default value is None.
 
         Returns
         -------

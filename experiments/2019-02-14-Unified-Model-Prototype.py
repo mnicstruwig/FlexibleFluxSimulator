@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
@@ -14,7 +15,8 @@ from unified_model.coupling import ConstantCoupling
 from unified_model.governing_equations import unified_ode, unified_ode_mechanical_only
 from unified_model.unified import UnifiedModel
 
-from unified_model.mechanical_system.evaluator import MechanicalSystemEvaluator
+from unified_model.mechanical_system.evaluator import MechanicalSystemEvaluator, LabeledVideoProcessor
+from unified_model.electrical_system.evaluator import ElectricalSystemEvaluator
 from unified_model.utils.testing.testing_electrical_model import simulate_electrical_system, _build_y_input_vector_at_timestamps
 
 
@@ -39,7 +41,7 @@ magnet_assembly = MagnetAssembly(n_magnet=1,
                                  mat_magnet='NdFeB',
                                  mat_spacer='iron')
 
-damper = Damper(model='constant', model_kwargs={'damping_coefficient': 0.03})
+damper = Damper(model='constant', model_kwargs={'damping_coefficient': 0.04})
 accelerometer = AccelerometerInput(raw_accelerometer_input=acc_data_path,
                                    accel_column='z_G',
                                    time_column='time(ms)',
@@ -95,7 +97,7 @@ unified_model.solve(t_start=0, t_end=8,
                     t_max_step=1e-3,
                     )
 
-df = unified_model.get_result(time='t',
+df_result = unified_model.get_result(time='t',
                               x1='x1',
                               x2='x2',
                               x3='x3',
@@ -104,35 +106,25 @@ df = unified_model.get_result(time='t',
                               rel_disp = 'x3-x1',
                               rel_vel = 'x4-x2')
 
-df.plot(x='time', y='rel_disp')
-plt.show()
+df_result['emf'] = np.gradient(df_result['x5'].values)/np.gradient(df_result['time'].values)
 
-df.plot(x='time', y='x1')
-df.plot(x='time', y='x2')
-df.plot(x='time', y='x3')
-df.plot(x='time', y='x4')
-df.plot(x='time', y='x5')
-df.plot(x='time', y='rel_vel')
-
-plt.figure()
-plt.plot(np.abs(np.gradient(df['x5'].values))/np.gradient(df['time'].values), label='pred emf')
-plt.legend()
-plt.show()
-
-# Debug
-emf_values, timestamps = simulate_electrical_system(df['rel_disp'].values,
-                                                    unified_model.t,
-                                                    flux_model=unified_model.electrical_model.flux_model,
-                                                    load_model=unified_model.electrical_model.load_model,
-                                                    interpolate=False)
+###
 
 
-ys = _build_y_input_vector_at_timestamps(df['rel_disp'].values, unified_model.t)
-emf_values = [unified_model.electrical_model.get_emf(y) for y in ys]
+df_A_1 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/A/001_transcoded_subsampled_labels_2019-02-03-15:53:43.csv')
 
-plt.plot(np.abs(emf_values))
-plt.show()
+lp = LabeledVideoProcessor(L=125,
+                           mf=14,  # NB: Must include bottom of tube
+                           mm=10,
+                           seconds_per_frame=3/240)
 
-# #emf_pred = np.gradient(df['x5'].values)/np.gradient(df['time'].values)
+pixel_scale = 0.2666
+df = df_A_1
 
+y_target, time_target = lp.fit_transform(df_A_1, True, pixel_scale)
 
+mechanical_evaluator = MechanicalSystemEvaluator(y_target,
+                                                 time_target)
+
+mechanical_evaluator.fit(df_result['rel_disp'].values, df_result['time'].values)
+mechanical_evaluator.poof()
