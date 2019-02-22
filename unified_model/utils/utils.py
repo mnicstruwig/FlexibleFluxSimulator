@@ -1,7 +1,8 @@
-import warnings
+import numpy as np
 import pandas as pd
-from asteval import Interpreter
+import warnings
 
+from asteval import Interpreter
 from scipy import signal
 
 
@@ -20,8 +21,18 @@ def fetch_key_from_dictionary(dictionary, key, error_message):
         raise KeyError(error_message)
 
 
+def calc_sample_delay(x, y):
+    """Calculate the delay (in samples) between two signals using correlation.
+    """
+    corr_1 = signal.correlate(x, y)
+    corr_2 = signal.correlate(y, x)
+    sample_delay = int((np.abs(np.argmax(corr_1) -
+                        np.argmax(corr_2))) / 2)
+    return sample_delay
+
+
 # TODO: Add test
-def _smooth_butterworth(values, critical_frequency, **kwargs):
+def smooth_butterworth(values, critical_frequency, **kwargs):
     """Smooth `values` by applying a low-pass butterworth filter
 
     Parameters

@@ -4,11 +4,10 @@ import pandas as pd
 from scipy import signal
 from scipy.interpolate import UnivariateSpline
 
-from unified_model.electrical_system.evaluator import AdcProcessor, ElectricalSystemEvaluator
+from unified_model.evaluate import AdcProcessor, ElectricalSystemEvaluator, LabeledVideoProcessor
 from unified_model.electrical_system.flux.model import flux_univariate_spline
 from unified_model.electrical_system.flux.utils import FluxDatabase
 from unified_model.electrical_system.load import SimpleLoad
-from unified_model.mechanical_system.evaluator import LabeledVideoProcessor
 from unified_model.utils.testing.testing_electrical_model import simulate_electrical_system
 
 # Prerequisites
@@ -33,7 +32,7 @@ flux_model = flux_model_A
 load_model = SimpleLoad(R=np.inf)
 
 pixel_scale = 0.18745*1280/900
-lp = LabeledVideoProcessor(L=125, mf=14, mm=10, seconds_per_frame=3 / 240)
+lp = LabeledVideoProcessor(L=125, mm=10, seconds_per_frame=3 / 240)
 
 y_relative_mm, timestamps = lp.fit_transform(df_label, impute_missing_values=True, pixel_scale=pixel_scale)
 

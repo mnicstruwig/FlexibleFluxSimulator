@@ -5,7 +5,7 @@ import pandas as pd
 from unified_model.electrical_system.flux.model import flux_univariate_spline
 from unified_model.electrical_system.flux.utils import FluxDatabase
 from unified_model.electrical_system.load import SimpleLoad
-from unified_model.mechanical_system.evaluator import LabeledVideoProcessor
+from unified_model.evaluate import LabeledVideoProcessor
 from unified_model.utils.testing.electrical_model import (_build_y_input_vector_at_timestamps,
                                                           apply_rectification,
                                                           simulate_electrical_system)
@@ -32,7 +32,7 @@ df_B_3 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-mo
 df_B_4 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/B/004_transcoded_subsampled_labels_2019-02-07-16:17:31.csv')
 
 pixel_scale = 0.18745
-lp = LabeledVideoProcessor(L=125, mf=14, mm=10, seconds_per_frame=3 / 240)
+lp = LabeledVideoProcessor(L=125, mm=10, seconds_per_frame=3 / 240)
 
 fdb = FluxDatabase(
     '/home/michael/Dropbox/PhD/Python/Research/fea-flux-curves-numr[5,15]-numz[17,33,66]-wdiam[0.15]-2018-12-07.csv',

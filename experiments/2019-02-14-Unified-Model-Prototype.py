@@ -1,24 +1,22 @@
-import os
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
-from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
-from unified_model.mechanical_system.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_system.damper import Damper
-from unified_model.mechanical_system.input_excitation.accelerometer import AccelerometerInput
-from unified_model.mechanical_model import MechanicalModel
+from unified_model.coupling import ConstantCoupling
 from unified_model.electrical_model import ElectricalModel
 from unified_model.electrical_system.flux.utils import FluxDatabase
 from unified_model.electrical_system.load import SimpleLoad
-from unified_model.coupling import ConstantCoupling
-from unified_model.governing_equations import unified_ode, unified_ode_mechanical_only
+from unified_model.evaluate import (AdcProcessor, ElectricalSystemEvaluator,
+                                    LabeledVideoProcessor,
+                                    MechanicalSystemEvaluator)
+from unified_model.governing_equations import unified_ode
+from unified_model.mechanical_model import MechanicalModel
+from unified_model.mechanical_system.damper import Damper
+from unified_model.mechanical_system.input_excitation.accelerometer import \
+    AccelerometerInput
+from unified_model.mechanical_system.magnet_assembly import MagnetAssembly
+from unified_model.mechanical_system.spring.magnetic_spring import \
+    MagneticSpring
 from unified_model.unified import UnifiedModel
-
-from unified_model.mechanical_system.evaluator import MechanicalSystemEvaluator, LabeledVideoProcessor
-from unified_model.electrical_system.evaluator import ElectricalSystemEvaluator
-from unified_model.utils.testing.testing_electrical_model import simulate_electrical_system, _build_y_input_vector_at_timestamps
-
 
 # Path handling
 #file_path = os.path.abspath(__file__)
@@ -26,9 +24,28 @@ from unified_model.utils.testing.testing_electrical_model import simulate_electr
 #fea_data_path = os.path.abspath(os.path.join(dir_, '../unified_model/mechanical_system/spring/data/10x10alt.csv'))
 
 fea_data_path = './unified_model/mechanical_system/spring/data/10x10alt.csv'
-acc_data_path = './experiments/data/2018-12-20/A/log_17.csv'
-#acc_data_path = '/home/michael/Dropbox/PhD/Python/unified_model/experiments/data/2018-10-04/log_02.csv'
 
+# Accelerometer and EMF measurements
+acc_emf_A_1 = './experiments/data/2018-12-20/A/log_17.csv'
+acc_emf_A_2 = './experiments/data/2018-12-20/A/log_18.csv'
+acc_emf_A_3 = './experiments/data/2018-12-20/A/log_19.csv'
+
+acc_emf_B_1 = './experiments/data/2018-12-20/B/log_23.csv'
+
+
+# Ground-truth mechanical observations
+df_A_1 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/A/001_transcoded_subsampled_labels_2019-02-03-15:53:43.csv')
+df_A_2 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/A/002_transcoded_subsampled_labels_2019-02-06-12:42:15.csv')
+df_A_3 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/A/003_transcoded_subsampled_labels_2019-02-07-10:46:33.csv')
+
+df_B_1 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/B/001_transcoded_subsampled_labels_2019-02-07-15:12:56.csv')
+
+# SELECTION
+acc_adc_data_path = acc_emf_B_1
+df = df_B_1
+which_device = 'B'
+
+### MECHANICAL MODEL ###
 spring = MagneticSpring(fea_data_file=fea_data_path,
                         model='savgol_smoothing',
                         model_type='interp')
@@ -41,8 +58,8 @@ magnet_assembly = MagnetAssembly(n_magnet=1,
                                  mat_magnet='NdFeB',
                                  mat_spacer='iron')
 
-damper = Damper(model='constant', model_kwargs={'damping_coefficient': 0.04})
-accelerometer = AccelerometerInput(raw_accelerometer_input=acc_data_path,
+damper = Damper(model='constant', model_kwargs={'damping_coefficient': 0.05})
+accelerometer = AccelerometerInput(raw_accelerometer_input=acc_adc_data_path,
                                    accel_column='z_G',
                                    time_column='time(ms)',
                                    time_unit='ms',
@@ -55,6 +72,7 @@ mechanical_model.set_magnet_assembly(magnet_assembly)
 mechanical_model.set_damper(damper)
 mechanical_model.set_input(accelerometer)
 
+### ELECTRICAL MODEL ###
 flux_database = FluxDatabase(csv_database_path='/home/michael/Dropbox/PhD/Python/Research/fea-flux-curves-numr[5,15]-numz[17,33,66]-wdiam[0.15]-2018-12-07.csv',
                              fixed_velocity=0.35)
 
@@ -68,7 +86,6 @@ winding_num_r = {'A': '15',
                  'B': '15'}
 
 
-which_device = 'A'
 
 flux_model = flux_database.query_to_model(flux_model_type='unispline',
                                           coil_center=coil_center[which_device],
@@ -81,10 +98,13 @@ electrical_model = ElectricalModel(name='A')
 electrical_model.set_flux_model(flux_model, precompute_gradient=True)
 electrical_model.set_load_model(load_model)
 
+### COUPLING MODEL ###
 coupling_model = ConstantCoupling(c=0)
 
+### SYSTEM MODEL ###
 governing_equations = unified_ode
 
+### UNIFIED MODEL ###
 unified_model = UnifiedModel(name='Unified')
 unified_model.add_mechanical_model(mechanical_model)
 unified_model.add_electrical_model(electrical_model)
@@ -92,39 +112,52 @@ unified_model.add_coupling_model(coupling_model)
 unified_model.add_governing_equations(governing_equations)
 
 y0 = [0, 0, 0.04, 0, 0]
-unified_model.solve(t_start=0, t_end=8,
+unified_model.solve(t_start=7, t_end=15,
                     y0=y0,
                     t_max_step=1e-3,
                     )
 
+### POST-PROCESSING ###
 df_result = unified_model.get_result(time='t',
-                              x1='x1',
-                              x2='x2',
-                              x3='x3',
-                              x4='x4',
-                              x5='x5',
-                              rel_disp = 'x3-x1',
-                              rel_vel = 'x4-x2')
+                                     x1='x1',
+                                     x2='x2',
+                                     x3='x3',
+                                     x4='x4',
+                                     x5='x5',
+                                     rel_disp = 'x3-x1',
+                                     rel_vel = 'x4-x2',
+                                     my_result='x1+x2+x3'
+)
 
 df_result['emf'] = np.gradient(df_result['x5'].values)/np.gradient(df_result['time'].values)
 
-###
 
-
-df_A_1 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/A/001_transcoded_subsampled_labels_2019-02-03-15:53:43.csv')
-
-lp = LabeledVideoProcessor(L=125,
-                           mf=14,  # NB: Must include bottom of tube
-                           mm=10,
-                           seconds_per_frame=3/240)
+### COMPARISON ###
 
 pixel_scale = 0.2666
-df = df_A_1
+voltage_div_ratio = 1/0.342
 
-y_target, time_target = lp.fit_transform(df_A_1, True, pixel_scale)
+lp = LabeledVideoProcessor(L=125, mm=10, seconds_per_frame=3 / 240)
+adc = AdcProcessor(voltage_div_ratio, smooth=True)
 
-mechanical_evaluator = MechanicalSystemEvaluator(y_target,
-                                                 time_target)
+# Target values
+y_target, time_target = lp.fit_transform(df, True, pixel_scale)
+emf_target, emf_time_target = adc.fit_transform(acc_adc_data_path)
 
-mechanical_evaluator.fit(df_result['rel_disp'].values, df_result['time'].values)
-mechanical_evaluator.poof()
+# Predicted values
+y_predicted = df_result['rel_disp'].values
+emf_predicted = df_result['emf']
+time_predicted = df_result['time'].values
+
+# Evaluate mechanical system
+mech_eval = MechanicalSystemEvaluator(y_target,
+                                      time_target
+)
+mech_eval.fit(y_predicted, time_predicted)
+mech_eval.poof()
+
+# Evaluate electrical system 
+
+ec_eval = ElectricalSystemEvaluator(emf_target, emf_time_target)
+ec_eval.fit(emf_predicted, time_predicted)
+ec_eval.poof()
