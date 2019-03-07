@@ -1,9 +1,12 @@
+from fastdtw import fastdtw
+from scipy.spatial.distance import euclidean
 import numpy as np
 import pandas as pd
 import warnings
 
 from asteval import Interpreter
 from scipy import signal
+
 
 
 def fetch_key_from_dictionary(dictionary, key, error_message):
@@ -121,3 +124,25 @@ def parse_output_expression(t, raw_output, **kwargs):
         df_out[key] = aeval(expr)
 
     return df_out
+
+
+# TODO: Documentation
+def warp_signals(x1, x2):
+    """Warp and align two signals using dynamic time warping."""
+
+    distance, path = fastdtw(x1, x2, dist=euclidean)
+    path = np.array(path)
+
+    x1_indexes = path[:, 0]
+    x2_indexes = path[:, 1]
+
+    x1_warped = np.array([x1[i] for i in x1_indexes])
+    x2_warped = np.array([x2[i] for i in x2_indexes])
+
+    return x1_warped, x2_warped
+
+
+def apply_scalar_functions(x1, x2, **func):
+    """Apply a set of functions (that return a scalar result) to two arrays."""
+    results = {name: function(x1, x2) for (name, function) in zip(func.keys(), func.values())}
+    return results
