@@ -8,7 +8,6 @@ from asteval import Interpreter
 from scipy import signal
 
 
-
 def fetch_key_from_dictionary(dictionary, key, error_message):
     """
     Fetches a value from a dictionary

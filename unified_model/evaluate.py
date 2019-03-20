@@ -1,15 +1,11 @@
 import warnings
 from collections import namedtuple
 
-
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from scipy.interpolate import UnivariateSpline
 from scipy.signal import correlate
-from scipy.spatial.distance import euclidean
-from fastdtw import fastdtw
-from similaritymeasures import frechet_dist
 
 from unified_model.utils.utils import smooth_butterworth, calc_sample_delay, warp_signals, apply_scalar_functions
 
@@ -143,6 +139,10 @@ class ElectricalSystemEvaluator:
         self.emf_predict_ = None
         self.time_ = None
 
+        # Holds dynamic time-warped values
+        self.y_target_warped_ = None
+        self.y_predict_warped_ = None
+
         if not self._is_period_constant(time_target):
             warnings.warn('Timestamps for the target values are not constant \
             and this may lead to undesirable behaviour.', RuntimeWarning)
@@ -180,7 +180,24 @@ class ElectricalSystemEvaluator:
         self._fit(emf_predict, time_predict)
         return self.time_, self.emf_predict_
 
-    def poof(self, **kwargs):
+    def score(self, **metrics):
+        """Calculate the score of the predicted emf values."""
+
+        results = self._score(**metrics)
+        return results
+
+    def _score(self, **metrics):
+        self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(self.emf_predict_,
+                                                                         self.emf_target_)
+
+        metric_results = apply_scalar_functions(self.emf_predict_warped_,
+                                                self.emf_target_warped_,
+                                                **metrics)
+        Results = namedtuple('Score', metric_results.keys())
+
+        return Results(*metric_results.values())
+
+    def poof(self, include_dtw=False, **kwargs):
         """Plot the aligned target and predicted values.
 
         Parameters
@@ -192,6 +209,12 @@ class ElectricalSystemEvaluator:
         plt.plot(self.time_, self.emf_target_, label='Target', **kwargs)
         plt.plot(self.time_, self.emf_predict_, label='Predictions', **kwargs)
         plt.legend()
+
+        if include_dtw:
+            plt.figure()
+            plt.plot(self.emf_target_warped_, label='Target, time-warped')
+            plt.plot(self.emf_predict_warped_, label='Prediction, time-warped')
+            plt.legend()
         plt.show()
 
     def _fit(self, emf_predict, time_predict):
@@ -242,12 +265,6 @@ class ElectricalSystemEvaluator:
         self.emf_target_ = resampled_emf_target
         self.emf_predict_ = resampled_emf_pred
         self.time_ = resampled_timesteps
-
-    def score(self):
-        """Score the predicted emf waveform using dynamic time warping."""
-        distance, _ = fastdtw(self.emf_predict_, self.emf_target_, dist=euclidean)
-        return distance
-
 
 
 class LabeledVideoProcessor:
@@ -365,7 +382,7 @@ def impute_missing(df_missing, indexes):
     return df_missing
 
 
-class MechanicalSystemEvaluator:
+class MechanicalSystemEvaluator(object):
     """Evaluate the accuracy of a mechanical system model's output
 
     Attributes
@@ -399,7 +416,6 @@ class MechanicalSystemEvaluator:
 
     """
 
-    # TODO: Use autocorrelation to align signals
     def __init__(self, y_target, time_target):
         """Constructor
 
@@ -464,13 +480,14 @@ class MechanicalSystemEvaluator:
         return new_x, interp(new_x)
 
     def _fit(self, y_predict, time_predict):
-        """The underlying method that is called with by the `fit` class method."""
+        """The method that is called with by the `fit` class method."""
 
         self.y_predict = y_predict
         self.time_predict = time_predict
 
         # Resample the signals to the same sampling frequency
         stop_time = np.max([self.time_target[-1], time_predict[-1]])
+        self._clip_time = np.min([self.time_target[-1], time_predict[-1]])
 
         resampled_time, resampled_y_target = self._interpolate_and_resample(
             self.time_target,
@@ -517,29 +534,28 @@ class MechanicalSystemEvaluator:
         self._fit(y_predict, time_predict)
         return self.time_, self.y_predict_
 
-    def score(self, plot_dtw=False, **metrics):
+    def score(self, **metrics):
         """Score the predicted y values and (optionally) plot the DTW curve."""
         results = self._score(**metrics)
-        if plot_dtw:
-            plt.plot(self.y_target_warped_, label='Target, time-warped')
-            plt.plot(self.y_predict_warped_, label='Prediction, time-warped')
-            plt.legend()
-            plt.show()
         return results
 
     def _score(self, **metrics):
-        """Calculate the scores of the predicted y values."""
+        """Calculate the score of the predicted y values."""
 
-        self.y_predict_warped_, self.y_target_warped_ = warp_signals(self.y_predict_,
-                                                                     self.y_target_)
+        # Exclude trailing "steady-state" predictions.
+        clip_index = np.argmin(np.abs(self.time_ - self._clip_time))
 
-        metric_results = apply_scalar_functions(self.y_predict_warped_, self.y_target_warped_, **metrics)
+        self.y_predict_warped_, self.y_target_warped_ = warp_signals(self.y_predict_[:clip_index],
+                                                                     self.y_target_[:clip_index])
+
+        metric_results = apply_scalar_functions(self.y_predict_warped_,
+                                                self.y_target_warped_,
+                                                **metrics)
         Results = namedtuple('Score', metric_results.keys())
 
         return Results(*metric_results.values())
 
-    # TODO: Use something like Plotnine
-    def poof(self, **kwargs):
+    def poof(self, include_dtw=False, **kwargs):
         """
         Plot y_target and y_predicted.
 
@@ -549,7 +565,11 @@ class MechanicalSystemEvaluator:
         plt.plot(self.time_, self.y_target_, label='Target', **kwargs)
         plt.plot(self.time_, self.y_predict_, label='Prediction', **kwargs)
         plt.legend()
+
+        if include_dtw:
+            plt.figure()
+            plt.plot(self.y_target_warped_, label='Target, time-warped')
+            plt.plot(self.y_predict_warped_, label='Prediction, time-warped')
+            plt.legend()
+
         plt.show()
-
-
-

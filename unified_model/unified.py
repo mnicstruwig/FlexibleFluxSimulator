@@ -1,6 +1,7 @@
-"""
-Contains the unified model architecture that encapsulates the mechanical system, electrical system, the coupling
-between them and the master system model that describes their interaction.
+"""Contains the unified model architecture that encapsulates the mechanical
+system, electrical system, the coupling between them and the master system
+model that describes their interaction.
+
 """
 import numpy as np
 from scipy import integrate
@@ -8,7 +9,7 @@ from unified_model.utils.utils import parse_output_expression
 
 
 # TODO: Add documentation
-class UnifiedModel:
+class UnifiedModel(object):
     def __init__(self, name):
         self.name = name
         self.mechanical_model = None
@@ -17,7 +18,7 @@ class UnifiedModel:
         self.governing_equations = None
         self.raw_solution = None
         self.post_processing_pipeline = {}
-        self.t = None
+        self.time = None
 
     def add_mechanical_model(self, mechanical_model):
         self.mechanical_model = mechanical_model
@@ -52,9 +53,9 @@ class UnifiedModel:
                                     y0=y0,
                                     max_step=t_max_step)
 
-        self.t = psoln.t
+        self.time = psoln.t
         self.raw_solution = psoln.y
         self._apply_pipeline()
 
     def get_result(self, **kwargs):
-        return parse_output_expression(self.t, self.raw_solution, **kwargs)
+        return parse_output_expression(self.time, self.raw_solution, **kwargs)

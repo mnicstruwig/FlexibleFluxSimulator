@@ -2,7 +2,6 @@
 This module contains useful and commonly-used post-processing pipelines
 for the `UnifiedModel` class.
 """
-import numpy as np
 
 
 def clip_x2(y):

@@ -3,22 +3,22 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score, r2_score, median_absolute_error
 
+from collections import namedtuple
+from glob import glob
+
 from unified_model.coupling import ConstantCoupling
 from unified_model.electrical_model import ElectricalModel
 from unified_model.electrical_system.flux.utils import FluxDatabase
 from unified_model.electrical_system.load import SimpleLoad
-from unified_model.evaluate import (AdcProcessor, ElectricalSystemEvaluator,
-                                    LabeledVideoProcessor,
-                                    MechanicalSystemEvaluator)
 from unified_model.governing_equations import unified_ode
 from unified_model.mechanical_model import MechanicalModel
 from unified_model.mechanical_system.damper import Damper
-from unified_model.mechanical_system.input_excitation.accelerometer import \
-    AccelerometerInput
+from unified_model.mechanical_system.input_excitation.accelerometer import AccelerometerInput
 from unified_model.mechanical_system.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_system.spring.magnetic_spring import \
     MagneticSpring
 from unified_model.unified import UnifiedModel
+from unified_model.evaluate import ElectricalSystemEvaluator, MechanicalSystemEvaluator, LabeledVideoProcessor, AdcProcessor
 from unified_model.pipeline import clip_x2
 
 # Path handling
@@ -33,9 +33,12 @@ acc_emf_B_1 = './experiments/data/2018-12-20/B/log_23.csv'
 
 
 # Ground-truth mechanical observations
-df_A_1 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/A/001_transcoded_subsampled_labels_2019-02-03-15:53:43.csv')
-df_A_2 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/A/002_transcoded_subsampled_labels_2019-02-06-12:42:15.csv')
-df_A_3 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/A/003_transcoded_subsampled_labels_2019-02-07-10:46:33.csv')
+df_A_1 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/A/001_transcoded_subsampled_labels_2019-03-13-14:34:06.csv')
+
+Sample = namedtuple('Sample', ['acc_emf_df', 'video_labels_df'])
+def build_sample(acc_emf_csv_path, video_labels_csv_path):
+    pass
+
 
 df_B_1 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/B/001_transcoded_subsampled_labels_2019-02-07-15:12:56.csv')
 
@@ -110,10 +113,9 @@ unified_model.add_governing_equations(governing_equations)
 unified_model.add_post_processing_pipeline(clip_x2, name='clip tube velocity')
 
 y0 = [0, 0, 0.04, 0, 0]
-unified_model.solve(t_start=0, t_end=8,
+unified_model.solve(t_start=0, t_end=7,
                     y0=y0,
-                    t_max_step=1e-3,
-                    )
+                    t_max_step=1e-3)
 
 # POST-PROCESSING
 df_result = unified_model.get_result(time='t',
@@ -128,7 +130,7 @@ df_result = unified_model.get_result(time='t',
 df_result['emf'] = np.gradient(df_result['x5'].values)/np.gradient(df_result['time'].values)
 
 # COMPARISON
-pixel_scale = 0.2666
+pixel_scale = 0.18745
 voltage_div_ratio = 1/0.342
 
 lp = LabeledVideoProcessor(L=125, mm=10, seconds_per_frame=3 / 240)
@@ -143,16 +145,16 @@ y_predicted = df_result['rel_disp'].values
 emf_predicted = df_result['emf']
 time_predicted = df_result['time'].values
 
-# Evaluate mechanical system
-
 
 def corr_coeff(x1, x2):
     """Calculate the correlation coefficient."""
     return np.corrcoef(x1, x2)[0, 1]
 
+
 def max_err(x1, x2):
     """Calculate the maximum error"""
     return np.max(np.abs(np.array(x1) - np.array(x2)))
+
 
 def mean_absolute_percentage_err(x1, x2):
     """Calculate the mean absolute percentage error.
@@ -163,12 +165,19 @@ def mean_absolute_percentage_err(x1, x2):
     return np.mean(np.abs((x2 - x1)/(x2+0.000001)))*100
 
 
+def root_mean_square(x1, x2):
+    """Calculate the RMS of two signals."""
+    x1_rms = np.mean((np.sum(x1*x1)/len(x1)))
+    x2_rms = np.mean((np.sum(x2*x2)/len(x2)))
+
+    return x1_rms, x2_rms
+
+
 mech_eval = MechanicalSystemEvaluator(y_target,
                                       time_target)
 mech_eval.fit(y_predicted, time_predicted)
 
-mech_scores = mech_eval.score(plot_dtw=True,
-                              mae=mean_absolute_error,
+mech_scores = mech_eval.score(mae=mean_absolute_error,
                               mse=mean_squared_error,
                               mde=median_absolute_error,
                               corr=corr_coeff,
@@ -176,29 +185,21 @@ mech_scores = mech_eval.score(plot_dtw=True,
                               r2=r2_score,
                               max_err=max_err,
                               mape=mean_absolute_percentage_err)
-mech_eval.poof()
+
+mech_eval.poof(include_dtw=True)
 
 # Evaluate electrical system
 ec_eval = ElectricalSystemEvaluator(emf_target, emf_time_target)
 ec_eval.fit(emf_predicted, time_predicted)
-ec_eval.poof()
 
+elec_scores = ec_eval.score(rms=root_mean_square)
+ec_eval.poof(include_dtw=True)
 
+print('Mechanical System:')
 print(mech_scores)
+print('Electrical System:')
+print(elec_scores)
 
-# mech_dist, mech_path = mech_eval.score()
-# print("Mechanical distance: {}".format(mech_dist))
-# print("Electrical distance: {}".format(ec_eval.score()))
-
-# y_predict_indexes = mech_path[:, 0]
-# y_target_indexes = mech_path[:, 1]
-
-# y_predict_warped = [mech_eval.y_predict_[i] for i in y_predict_indexes]
-# y_target_warped = [mech_eval.y_target_[i] for i in y_target_indexes]
-
-# plt.plot(y_target_warped, label='warped target')
-# plt.plot(y_predict_warped, label='warped pred')
-# plt.legend()
-# plt.show()
-
-
+emf_predict_ = ec_eval.emf_predict_
+emf_target_ = ec_eval.emf_target_
+time_ = ec_eval.time_
