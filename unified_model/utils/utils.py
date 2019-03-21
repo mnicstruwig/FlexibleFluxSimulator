@@ -2,6 +2,10 @@ from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
 import numpy as np
 import pandas as pd
+
+from collections import namedtuple
+from glob import glob
+import os
 import warnings
 
 from asteval import Interpreter
@@ -9,8 +13,8 @@ from scipy import signal
 
 
 def fetch_key_from_dictionary(dictionary, key, error_message):
-    """
-    Fetches a value from a dictionary
+    """Fetch a value from a dictionary
+
     :param dictionary: The dictionary to search
     :param key: The key to look-up
     :param error_message: The error message to print when the key is not found and an exception is raised.
@@ -104,9 +108,6 @@ def parse_output_expression(t, raw_output, **kwargs):
     `raw_output` is a (n, d) dimensional array where n is the number of
     timesteps in the simulation, and d is the number of outputs.
 
-    It is not recommended to use this helper function directly. For
-    documentation and usage, see the `get_output` method.
-
     """
     df_out = pd.DataFrame()
 
@@ -125,9 +126,22 @@ def parse_output_expression(t, raw_output, **kwargs):
     return df_out
 
 
-# TODO: Documentation
 def warp_signals(x1, x2):
-    """Warp and align two signals using dynamic time warping."""
+    """Warp and align two signals using dynamic time warping.
+
+    Parameters
+    ----------
+    x1 : array
+        The first signal to be warped.
+    x2 : array
+        The second signal to be warped.
+
+    Returns
+    -------
+    tuple, length=2 * len(arrays)
+        Tuple containing the two warped signals.
+
+    """
 
     distance, path = fastdtw(x1, x2, dist=euclidean)
     path = np.array(path)
@@ -141,7 +155,66 @@ def warp_signals(x1, x2):
     return x1_warped, x2_warped
 
 
+def find_signal_limits(target, sampling_period, threshold=1e-4):
+    """Find the beginning and end of a signal using its spectrogram."""
+    freqs, times, spectrum_density = signal.spectrogram(target,
+                                                        1/sampling_period,
+                                                        nperseg=128)
+    # rows --> time, columns --> frequencies
+    spectrum_density = spectrum_density.T
+    max_density = np.array([np.max(density) for density in spectrum_density])
+
+    for i, val in enumerate(max_density):
+        if val > threshold:
+            start_index = i
+            break
+    for i, val in enumerate(max_density):
+        if val > threshold:
+            end_index = i
+
+    return times[start_index], times[end_index]
+
+
 def apply_scalar_functions(x1, x2, **func):
     """Apply a set of functions (that return a scalar result) to two arrays."""
     results = {name: function(x1, x2) for (name, function) in zip(func.keys(), func.values())}
     return results
+
+
+# TODO: Add test (might need to be a bit creative)
+# TODO: Add warning if no files are found or an unequal number of files
+# found.
+def collect_samples(base_path, labeled_video_pattern, acc_emf_pattern):
+    """Collect groundtruth samples from a directory with filename matching.
+
+    Parameters
+    ----------
+    base_path : str
+        Base path to the root directory containing the samples.
+    labeled_video_pattern : str
+        Glob-compatible pattern to use to search for the labeled video
+        .csv files.
+    acc_emf_pattern : str
+        Glob-compatible pattern to use to search for the recorded accelerometer
+        and ADC measurements .csv files.
+
+    Returns
+    -------
+    list
+        List of `Sample` objects, with attributes containing pandas dataframes
+        of the labeled video and recorded accelerometer and adc data.
+
+    """
+    Sample = namedtuple('Sample', ['acc_emf_df', 'video_labels_df'])
+
+    sample_collection = []
+
+    print(os.path.join(base_path, labeled_video_pattern))
+    print(glob(os.path.join(base_path, labeled_video_pattern)))
+
+    labeled_video_paths = glob(os.path.join(base_path, labeled_video_pattern))
+    acc_emf_paths = glob(os.path.join(base_path, acc_emf_pattern))
+
+    for aep, lvp in zip(acc_emf_paths, labeled_video_paths):
+        sample_collection.append(Sample(pd.read_csv(aep), pd.read_csv(lvp)))
+    return sample_collection

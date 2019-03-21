@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from scipy.interpolate import UnivariateSpline
 from scipy.signal import correlate
 
-from unified_model.utils.utils import smooth_butterworth, calc_sample_delay, warp_signals, apply_scalar_functions
+from unified_model.utils.utils import smooth_butterworth, calc_sample_delay, warp_signals, apply_scalar_functions, find_signal_limits
 
 
 # TODO: Write tests
@@ -189,6 +189,14 @@ class ElectricalSystemEvaluator:
     def _score(self, **metrics):
         self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(self.emf_predict_,
                                                                          self.emf_target_)
+        start_index, end_index = find_signal_limits(self.emf_predict_warped_, 1)
+        # Convert to integer indices, since `find_signal_limits` actually
+        # returns the "time" of the signal, but we have a sampling frequency
+        # of 1.
+        start_index = int(start_index)
+        end_index = int(end_index)
+        self.emf_predict_warped_ = self.emf_predict_warped_[start_index:end_index]
+        self.emf_target_warped_ = self.emf_target_warped_[start_index:end_index]
 
         metric_results = apply_scalar_functions(self.emf_predict_warped_,
                                                 self.emf_target_warped_,
@@ -551,6 +559,7 @@ class MechanicalSystemEvaluator(object):
         metric_results = apply_scalar_functions(self.y_predict_warped_,
                                                 self.y_target_warped_,
                                                 **metrics)
+        # Output "Score" class
         Results = namedtuple('Score', metric_results.keys())
 
         return Results(*metric_results.values())

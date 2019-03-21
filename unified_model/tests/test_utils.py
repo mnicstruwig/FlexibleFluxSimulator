@@ -1,13 +1,17 @@
 import numpy as np
+from scipy import signal
+
 import unittest
 
-from unified_model.utils.utils import warp_signals, apply_scalar_functions
+from unified_model.utils.utils import warp_signals, apply_scalar_functions, find_signal_limits
 
 
 class TestUtils(unittest.TestCase):
     """Test the utils.py module."""
 
     def test_warp_signals(self):
+        """Test the `warp_signals` function."""
+
         test_signal_1 = np.array([1, 2, 3, 4, 5, 4, 3, 2, 1])
         test_signal_2 = np.array([2, 5, 5, 5, 5, 5, 5, 5, 2])
 
@@ -19,8 +23,24 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(np.min(test_signal_2), np.min(warped_signal_2))
         self.assertEqual(np.max(test_signal_2), np.max(warped_signal_2))
 
+    def test_find_signal_limits(self):
+        """Test the `find_signal_limits` function."""
+        sampling_period = 0.001
+        test_time_arr = np.arange(0, 10, sampling_period)
+        test_wave = np.sin(2*np.pi*50*test_time_arr)
+        padding = np.zeros(1000)
+
+        test_signal = np.concatenate([padding, test_wave, padding])
+
+        actual_result = find_signal_limits(test_signal,
+                                           sampling_period)
+        expected_result = (1., 11.)
+
+        self.assertAlmostEqual(actual_result[0], expected_result[0], delta=0.1)
+        self.assertAlmostEqual(actual_result[1], expected_result[1], delta=0.1)
+
     def test_apply_scalar_functions(self):
-        """Test the apply_scalar_functions method"""
+        """Test the apply_scalar_functions function."""
 
         def test_mean_func(x1, x2):
             return np.mean(x1+x2)

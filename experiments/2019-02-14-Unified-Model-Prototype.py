@@ -20,6 +20,7 @@ from unified_model.mechanical_system.spring.magnetic_spring import \
 from unified_model.unified import UnifiedModel
 from unified_model.evaluate import ElectricalSystemEvaluator, MechanicalSystemEvaluator, LabeledVideoProcessor, AdcProcessor
 from unified_model.pipeline import clip_x2
+from unified_model.utils.utils import collect_samples
 
 # Path handling
 fea_data_path = './unified_model/mechanical_system/spring/data/10x10alt.csv'
@@ -33,14 +34,16 @@ acc_emf_B_1 = './experiments/data/2018-12-20/B/log_23.csv'
 
 
 # Ground-truth mechanical observations
-df_A_1 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/A/001_transcoded_subsampled_labels_2019-03-13-14:34:06.csv')
-
-Sample = namedtuple('Sample', ['acc_emf_df', 'video_labels_df'])
-def build_sample(acc_emf_csv_path, video_labels_csv_path):
-    pass
+df_A_1 = pd.read_csv('/Users/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/A/001_transcoded_subsampled_labels_2019-03-13-14:34:06.csv')
 
 
-df_B_1 = pd.read_csv('/home/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/B/001_transcoded_subsampled_labels_2019-02-07-15:12:56.csv')
+df_B_1 = pd.read_csv('/Users/michael/Dropbox/PhD/Python/Experiments/mechanical-model/2018-12-20/B/001_transcoded_subsampled_labels_2019-02-07-15:12:56.csv')
+
+
+base_groundtruth_path = './experiments/data/2018-12-20/'
+a_samples = collect_samples(base_path=base_groundtruth_path,
+                            labeled_video_pattern='B/*labels*.csv',
+                            acc_emf_pattern='B/log*.csv')
 
 # SELECTION
 acc_adc_data_path = acc_emf_A_1
@@ -75,7 +78,7 @@ mechanical_model.set_damper(damper)
 mechanical_model.set_input(accelerometer)
 
 # ELECTRICAL MODEL
-flux_database = FluxDatabase(csv_database_path='/home/michael/Dropbox/PhD/Python/Research/fea-flux-curves-numr[5,15]-numz[17,33,66]-wdiam[0.15]-2018-12-07.csv', fixed_velocity=0.35)
+flux_database = FluxDatabase(csv_database_path='/Users/michael/Dropbox/PhD/Python/Research/fea-flux-curves-numr[5,15]-numz[17,33,66]-wdiam[0.15]-2018-12-07.csv', fixed_velocity=0.35)
 
 coil_center = {'A': 58.5/1000,
                'B': 61/1000}
@@ -199,7 +202,3 @@ print('Mechanical System:')
 print(mech_scores)
 print('Electrical System:')
 print(elec_scores)
-
-emf_predict_ = ec_eval.emf_predict_
-emf_target_ = ec_eval.emf_target_
-time_ = ec_eval.time_
