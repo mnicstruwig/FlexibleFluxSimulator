@@ -6,6 +6,7 @@ model that describes their interaction.
 import numpy as np
 from scipy import integrate
 from unified_model.utils.utils import parse_output_expression
+from unified_model.evaluate import MechanicalSystemEvaluator
 
 
 # TODO: Add documentation
@@ -59,3 +60,27 @@ class UnifiedModel(object):
 
     def get_result(self, **kwargs):
         return parse_output_expression(self.time, self.raw_solution, **kwargs)
+
+    def score_mechanical_model(self,
+                               metrics_dict,
+                               video_labels_df,
+                               labeled_video_processor,
+                               prediction_expr,
+                               **kwargs):
+        """Evaluate the mechanical model using a selection of metrics."""
+
+        # Prepare target and prediction data
+        y_target, time_target = labeled_video_processor.fit_transform(video_labels_df,
+                                                                      impute_missing_values=True)
+        df_result = self.get_result(time='t',
+                                    prediction=prediction_expr)
+        y_predicted = df_result['prediction'].values
+        time_predicted = df_result['time'].values
+
+        # Evaluation
+        mechanical_evaluator = MechanicalSystemEvaluator(y_target, time_target)
+        mechanical_evaluator.fit(y_predicted, time_predicted)
+        self.mechanical_evaluator = mechanical_evaluator
+
+        mechanical_scores = mechanical_evaluator.score(**metrics_dict)
+        return mechanical_scores

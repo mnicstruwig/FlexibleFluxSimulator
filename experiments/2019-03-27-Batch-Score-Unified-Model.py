@@ -2,9 +2,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score, r2_score, median_absolute_error
+from tqdm import tqdm
 
 from collections import namedtuple
 from glob import glob
+import warnings
 
 from unified_model.coupling import ConstantCoupling
 from unified_model.electrical_model import ElectricalModel
@@ -22,6 +24,8 @@ from unified_model.evaluate import ElectricalSystemEvaluator, MechanicalSystemEv
 from unified_model.pipeline import clip_x2
 from unified_model.utils.utils import collect_samples
 from unified_model.metrics import max_err, mean_absolute_percentage_err, corr_coeff, root_mean_square
+
+warnings.simplefilter('ignore', FutureWarning)
 
 # Constants
 coil_center = {'A': 58.5/1000,
@@ -89,8 +93,8 @@ a_samples = collect_samples(base_path=base_groundtruth_path,
                             adc_pattern='A/*adc*.csv',
                             labeled_video_pattern='A/*labels*.csv')
 
-for i, sample in enumerate(a_samples[1:2]):
-    print(i)
+mechanical_scores = []
+for i, sample in enumerate(tqdm(a_samples)):
     accelerometer = AccelerometerInput(sample.acc_df,
                                        accel_column='z_G',
                                        time_column='time(ms)',
@@ -113,6 +117,22 @@ for i, sample in enumerate(a_samples[1:2]):
                         y0=initial_conditions,
                         t_max_step=1e-3)
 
+    mechanical_metrics = {'mde': median_absolute_error,
+                          'mape': mean_absolute_percentage_err,
+                          'max': max_err}
+
+    pixel_scale = 0.18745
+    labeled_video_processor = LabeledVideoProcessor(L=125,
+                                                    mm=10,
+                                                    seconds_per_frame=3/240,
+                                                    pixel_scale=pixel_scale)
+
+    mech_scores = unified_model.score_mechanical_model(metrics_dict=mechanical_metrics,
+                                                       video_labels_df=sample.video_labels_df,
+                                                       labeled_video_processor=labeled_video_processor,
+                                                       prediction_expr='x3-x1')
+    mechanical_scores.append(mech_scores)
+
 
 # POST-PROCESSING
 df_result = unified_model.get_result(time='t',
@@ -131,13 +151,13 @@ df_result = unified_model.get_result(time='t',
 pixel_scale = 0.18745
 voltage_div_ratio = 1/0.342
 
-lp = LabeledVideoProcessor(L=125, mm=10, seconds_per_frame=3 / 240)
+lp = LabeledVideoProcessor(L=125, mm=10, seconds_per_frame=3 / 240, pixel_scale=pixel_scale)
 adc = AdcProcessor(voltage_div_ratio, smooth=True)
 
 # Target values
 video_labels_df = sample.video_labels_df
 adc_df = sample.adc_df
-y_target, time_target = lp.fit_transform(video_labels_df , True, pixel_scale)
+y_target, time_target = lp.fit_transform(video_labels_df , True)
 emf_target, emf_time_target = adc.fit_transform(adc_df)
 
 # Predicted values
@@ -172,3 +192,8 @@ print('Mechanical System:')
 print(mech_scores)
 print('Electrical System:')
 print(elec_scores)
+
+mech_scores = unified_model.score_mechanical_model(metrics_dict={'mape': mean_absolute_percentage_err},
+                                                   video_labels_df=video_labels_df,
+                                                   labeled_video_processor=lp,
+                                                   prediction_expr='x3-x1')
