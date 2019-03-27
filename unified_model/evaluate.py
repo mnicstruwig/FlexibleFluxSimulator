@@ -471,24 +471,8 @@ class MechanicalSystemEvaluator(object):
         """
         self._fit(y_predict, time_predict)
 
-    # TODO: Place in `utils`
-    @staticmethod
-    def _interpolate_and_resample(x, y, num_samples=10000, new_x_range=None):
-        """Resample a signal using interpolation"""
-        interp = UnivariateSpline(x, y, s=0, ext='zeros')
-
-        if new_x_range is not None:
-            x_start = new_x_range[0]
-            x_stop = new_x_range[1]
-        else:
-            x_start = 0
-            x_stop = np.max(x)
-
-        new_x = np.linspace(x_start, x_stop, num_samples)
-        return new_x, interp(new_x)
-
     def _fit(self, y_predict, time_predict):
-        """The method that is called with by the `fit` class method."""
+        """Execute routine called with by the `fit` class method."""
 
         self.y_predict = y_predict
         self.time_predict = time_predict
@@ -521,6 +505,23 @@ class MechanicalSystemEvaluator(object):
         self.y_target_ = resampled_y_target
         self.y_predict_ = resampled_y_predicted
         self.time_ = resampled_time
+
+    # TODO: Place in `utils`
+    @staticmethod
+    def _interpolate_and_resample(x, y, num_samples=10000, new_x_range=None):
+        """Resample a signal using interpolation"""
+        interp = UnivariateSpline(x, y, s=0, ext='zeros')
+
+        if new_x_range is not None:
+            x_start = new_x_range[0]
+            x_stop = new_x_range[1]
+        else:
+            x_start = 0
+            x_stop = np.max(x)
+
+        new_x = np.linspace(x_start, x_stop, num_samples)
+        return new_x, interp(new_x)
+
 
     def fit_transform(self, y_predict, time_predict):
         """Align `y_predicted` and `y_target` in time.

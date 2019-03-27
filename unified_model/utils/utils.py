@@ -109,6 +109,15 @@ def parse_output_expression(t, raw_output, **kwargs):
     timesteps in the simulation, and d is the number of outputs.
 
     """
+
+    gradient_function = """
+def g(x, y):
+    delta_y = [i-j for i,j in zip(y[1:], y)]
+    delta_x = [i-j for i,j in zip(x[1:], x)]
+
+    # Fake last element so that length remains the same as inputs.
+    return [y/x for x, y in zip(delta_x, delta_y)] + [delta_y[-1]/delta_x[-1]]"""
+
     df_out = pd.DataFrame()
 
     def _populate_asteval_symbol_table(ast_eval_interpretor):
@@ -119,6 +128,7 @@ def parse_output_expression(t, raw_output, **kwargs):
 
     aeval = Interpreter()
     aeval = _populate_asteval_symbol_table(aeval)
+    aeval(gradient_function)  # Define gradient function
 
     for key, expr in kwargs.items():
         df_out[key] = aeval(expr)
@@ -182,21 +192,22 @@ def apply_scalar_functions(x1, x2, **func):
 
 
 # TODO: Add test (might need to be a bit creative)
-# TODO: Add warning if no files are found or an unequal number of files
-# found.
-def collect_samples(base_path, labeled_video_pattern, acc_emf_pattern):
+def collect_samples(base_path, acc_pattern, adc_pattern, labeled_video_pattern):
     """Collect groundtruth samples from a directory with filename matching.
 
     Parameters
     ----------
     base_path : str
         Base path to the root directory containing the samples.
+    acc_pattern : str
+        Glob-compatible pattern to use to search for the recorded accelerometer
+        measurements .csv files.
+    adc_pattern : str
+        Glob-compatible pattern to use to search for the recorded adc
+        measurements .csv files.
     labeled_video_pattern : str
         Glob-compatible pattern to use to search for the labeled video
         .csv files.
-    acc_emf_pattern : str
-        Glob-compatible pattern to use to search for the recorded accelerometer
-        and ADC measurements .csv files.
 
     Returns
     -------
@@ -205,16 +216,26 @@ def collect_samples(base_path, labeled_video_pattern, acc_emf_pattern):
         of the labeled video and recorded accelerometer and adc data.
 
     """
-    Sample = namedtuple('Sample', ['acc_emf_df', 'video_labels_df'])
+
+    # Holds the final result
+    Sample = namedtuple('Sample', ['acc_df', 'adc_df', 'video_labels_df'])
 
     sample_collection = []
 
-    print(os.path.join(base_path, labeled_video_pattern))
-    print(glob(os.path.join(base_path, labeled_video_pattern)))
-
+    acc_paths = glob(os.path.join(base_path, acc_pattern))
+    adc_paths = glob(os.path.join(base_path, adc_pattern))
     labeled_video_paths = glob(os.path.join(base_path, labeled_video_pattern))
-    acc_emf_paths = glob(os.path.join(base_path, acc_emf_pattern))
 
-    for aep, lvp in zip(acc_emf_paths, labeled_video_paths):
-        sample_collection.append(Sample(pd.read_csv(aep), pd.read_csv(lvp)))
+    # Sanity checks + warnings
+    if len(acc_paths) != len(adc_paths):
+        warnings.warn('Different number of acc and adc files. Things might break as a result.')
+
+    if len(labeled_video_paths) != len(acc_paths) or len(labeled_video_paths) != len(adc_paths):
+        warnings.warn('There are a different number of groundtruth files, or some of them could not be found.')
+
+    if len(labeled_video_paths) == 0 and len(acc_paths) == 0 and len(adc_paths) == 0:
+        warnings.warn('No groundtruth files were found.')
+
+    for acc, adc, lvp in zip(acc_paths, adc_paths, labeled_video_paths):
+        sample_collection.append(Sample(pd.read_csv(acc), pd.read_csv(adc), pd.read_csv(lvp)))
     return sample_collection

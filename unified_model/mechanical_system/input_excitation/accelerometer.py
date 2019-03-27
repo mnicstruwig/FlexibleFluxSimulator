@@ -105,7 +105,26 @@ def _preprocess_acceleration_dataframe(df,
 # TODO: Reformat docstring
 # TODO: Include documentation for interpolation
 class AccelerometerInput(object):
-    """Provide custom accelerometer input from a file or dataframe."""
+    """Provide custom accelerometer input from a file or dataframe.
+
+    Parameters
+    ----------
+    raw_accelerometer_input : str or pandas dataframe
+        Path to .csv file containing accelerometer data, or pandas
+        dataframe containing accelerometer data.
+    accel_column : str
+        Column containing accelerometer values.
+    time_column : str
+        Column containing time values.
+    accel_unit : {'g', 'ms2'}
+        Unit of the accelerometer values in `accel_column`.
+    time_unit : {'us', 'ms', 's'}
+        Unit of the time values in `time_column`
+    smooth : bool, optional
+        Whether to smooth the accelerometer readings.
+        Default is True.
+
+    """
 
     def __init__(self,
                  raw_accelerometer_input,
@@ -115,26 +134,8 @@ class AccelerometerInput(object):
                  time_unit='ms',
                  smooth=True,
                  interpolate=False):
-        """Constructor.
+        """Constructor"""
 
-        Parameters
-        ----------
-        raw_accelerometer_input : str or pandas dataframe
-            Path to .csv file containing accelerometer data, or pandas
-            dataframe containing accelerometer data.
-        accel_column : str
-            Column containing accelerometer values.
-        time_column : str
-            Column containing time values.
-        accel_unit : {'g', 'ms2'}
-            Unit of the accelerometer values in `accel_column`.
-        time_unit : {'us', 'ms', 's'}
-            Unit of the time values in `time_column`
-        smooth : bool, optional
-            Whether to smooth the accelerometer readings.
-            Default is True.
-
-        """
         self._accel_column = accel_column
         self._time_column = time_column
         self._accel_unit = accel_unit
