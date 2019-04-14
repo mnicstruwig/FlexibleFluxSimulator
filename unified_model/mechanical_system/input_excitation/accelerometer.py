@@ -91,9 +91,10 @@ def _preprocess_acceleration_dataframe(df,
     if accel_unit not in ['g', 'ms2']:
         raise KeyError('Acceleration unit must be specified as "g" or "ms2".')
     else:
-        if accel_unit is 'g':
+        # subtract gravity, convert to m/s^2
+        if accel_unit == 'g':
             df[accel_column] = (df[accel_column]-1)*9.81
-        if accel_unit is 'ms2':
+        if accel_unit == 'ms2':
             df[accel_column] = df[accel_column] - 9.81
 
     if smooth:
@@ -102,7 +103,7 @@ def _preprocess_acceleration_dataframe(df,
     return df
 
 
-# TODO: Reformat docstring
+# TODO: Reformat docstring -- Attributes
 # TODO: Include documentation for interpolation
 class AccelerometerInput(object):
     """Provide custom accelerometer input from a file or dataframe.

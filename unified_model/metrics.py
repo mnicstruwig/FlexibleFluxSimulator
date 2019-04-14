@@ -26,3 +26,13 @@ def root_mean_square(x1, x2):
     x2_rms = np.mean((np.sum(x2*x2)/len(x2)))
 
     return x1_rms, x2_rms
+
+
+def root_mean_square_percentage_diff(x1, x2):
+    """Calculate the percentage difference between the RMS of two signals.
+
+    Calculation is done relative to `x2`. Therefore positive values indicate
+    `x1` overestimates `x2`.
+    """
+    x1_rms, x2_rms = root_mean_square(x1, x2)
+    return (x1_rms-x2_rms)/x2_rms*100

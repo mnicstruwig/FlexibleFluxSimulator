@@ -98,11 +98,13 @@ class FluxDatabase(object):
         self.time = self.raw_database.iloc[:, 0].values/1000
         self.z = self.time * self.velocity
         self._create_index(_extract_parameter_from_str(self.raw_database.columns[1]).keys())
+
+        # Add flux curves to database
         for col in self.raw_database.columns[1:]:  # First column is time information
             key_dict = _extract_parameter_from_str(col)
             self.add(key_dict, value=self.raw_database[col].values)
 
-    def _build_db_key(self, **kwargs):
+    def _make_db_key(self, **kwargs):
         """Build a database key using the internal look-up table."""
         db_key = [None]*len(self.lut)
         for key in kwargs:
@@ -122,7 +124,10 @@ class FluxDatabase(object):
         Parameters
         ----------
         key_dict : dict
-            Key-value pairs to be used as the lookup for `value`
+            Key-value pairs to be used as the lookup for `value`. All keys
+            must be used when performing lookup, i.e. if multiple keys are
+            specified in `key_dict`, multiple keys must be used for the lookup
+            of `value`.
         value :
             Any data structure to store in the database. Accessible using
             the `query` method.
@@ -140,7 +145,7 @@ class FluxDatabase(object):
         array([1, 1, 1])
 
         """
-        db_key = self._build_db_key(**key_dict)
+        db_key = self._make_db_key(**key_dict)
         self.database[db_key] = value
 
     # TODO: Add test
@@ -162,7 +167,7 @@ class FluxDatabase(object):
             microgenerator, relative to the *top* of the fixed magnet.
         mm : float
             The total height of the magnet assembly (in mm).
-        kwargs :
+        **kwargs
             Keyword argument passed to the `query` method.
 
         Returns
@@ -218,7 +223,7 @@ class FluxDatabase(object):
         array([1, 1, 1])
 
         """
-        db_key = self._build_db_key(**kwargs)
+        db_key = self._make_db_key(**kwargs)
         return self.database[db_key]
 
     def _create_index(self, key_list):

@@ -88,6 +88,7 @@ class AdcProcessor:
 
         if self.smooth:
             critical_frequency = self.smooth_kwargs.pop('critical_frequency', 1 / 4)
+            self.critical_frequency = critical_frequency
             voltage_readings = smooth_butterworth(voltage_readings, critical_frequency)
 
         voltage_readings = voltage_readings * self.voltage_division_ratio
@@ -143,10 +144,6 @@ class ElectricalSystemEvaluator:
         self.y_target_warped_ = None
         self.y_predict_warped_ = None
 
-        if not self._is_period_constant(time_target):
-            warnings.warn('Timestamps for the target values are not constant \
-            and this may lead to undesirable behaviour.', RuntimeWarning)
-
     @staticmethod
     def _is_period_constant(arr):
         """Return True if the difference between values in `arr` are constant"""
@@ -157,7 +154,7 @@ class ElectricalSystemEvaluator:
         return True
 
     def fit(self, emf_predict, time_predict):
-        """Align `emf_predicted` and `emf_target` in time.
+        """Align `emf_predict` and `emf_target` in time.
 
         This allows the target and prediction to later be compared by plotting
         them on the same time axis.
@@ -176,63 +173,9 @@ class ElectricalSystemEvaluator:
 
         self._fit(emf_predict, time_predict)
 
-    def fit_transform(self, emf_predict, time_predict):
-        self._fit(emf_predict, time_predict)
-        return self.time_, self.emf_predict_
-
-    def score(self, **metrics):
-        """Calculate the score of the predicted emf values."""
-
-        results = self._score(**metrics)
-        return results
-
-    def _score(self, **metrics):
-        self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(self.emf_predict_,
-                                                                         self.emf_target_)
-        start_index, end_index = find_signal_limits(self.emf_predict_warped_, 1)
-        # Convert to integer indices, since `find_signal_limits` actually
-        # returns the "time" of the signal, but we have a sampling frequency
-        # of 1.
-        start_index = int(start_index)
-        end_index = int(end_index)
-        self.emf_predict_warped_ = self.emf_predict_warped_[start_index:end_index]
-        self.emf_target_warped_ = self.emf_target_warped_[start_index:end_index]
-
-        metric_results = apply_scalar_functions(self.emf_predict_warped_,
-                                                self.emf_target_warped_,
-                                                **metrics)
-        Results = namedtuple('Score', metric_results.keys())
-
-        return Results(*metric_results.values())
-
-    def poof(self, include_dtw=False, **kwargs):
-        """Plot the aligned target and predicted values.
-
-        Parameters
-        ----------
-        kwargs:
-            Kwargs passed to matplotlib.pyplot.plot function.
-
-        """
-        plt.plot(self.time_, self.emf_target_, label='Target', **kwargs)
-        plt.plot(self.time_, self.emf_predict_, label='Predictions', **kwargs)
-        plt.legend()
-
-        if include_dtw:
-            plt.figure()
-            plt.plot(self.emf_target_warped_, label='Target, time-warped')
-            plt.plot(self.emf_predict_warped_, label='Prediction, time-warped')
-            plt.legend()
-        plt.show()
-
     def _fit(self, emf_predict, time_predict):
-
-        self.emf_predicted = emf_predict
-        self.time_predicted = time_predict
-
-        if not self._is_period_constant(time_predict):
-            warnings.warn('Timestamps for the predicted values are not constant \
-            and this may lead to undesirable behaviour.', RuntimeWarning)
+        self.emf_predict = emf_predict
+        self.time_predict = time_predict
 
         # Normalize
         emf_predict = np.abs(emf_predict)
@@ -273,6 +216,60 @@ class ElectricalSystemEvaluator:
         self.emf_target_ = resampled_emf_target
         self.emf_predict_ = resampled_emf_pred
         self.time_ = resampled_timesteps
+
+    def fit_transform(self, emf_predict, time_predict):
+        self._fit(emf_predict, time_predict)
+        return self.time_, self.emf_predict_
+
+    def score(self, **metrics):
+        """Calculate the score of the predicted emf values."""
+
+        results = self._score(**metrics)
+        return results
+
+    def _score(self, **metrics):
+        self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(self.emf_predict_,
+                                                                         self.emf_target_)
+        # Clip signals
+        start_index, end_index = find_signal_limits(self.emf_predict_warped_, 1)
+
+        # Convert to integer indices, since `find_signal_limits` actually
+        # returns the "time" of the signal, but we have a sampling frequency
+        # of 1.
+        start_index = int(start_index)
+        end_index = int(end_index)
+        self.emf_predict_warped_ = self.emf_predict_warped_[start_index:end_index]
+        self.emf_target_warped_ = self.emf_target_warped_[start_index:end_index]
+
+        metric_results = apply_scalar_functions(self.emf_predict_,
+                                                self.emf_target_,
+                                                **metrics)
+        Results = namedtuple('Score', metric_results.keys())
+
+        return Results(*metric_results.values())
+
+    def poof(self, include_dtw=False, **kwargs):
+        """Plot the aligned target and predicted values.
+
+        Parameters
+        ----------
+        include_dtw : bool, optional
+            Set to `True` to also plot the dynamic-time-warped signals.
+            Default value is False.
+        kwargs:
+            Kwargs passed to matplotlib.pyplot.plot function.
+
+        """
+        plt.plot(self.time_, self.emf_target_, label='Target', **kwargs)
+        plt.plot(self.time_, self.emf_predict_, label='Predictions', **kwargs)
+        plt.legend()
+
+        if include_dtw:
+            plt.figure()
+            plt.plot(self.emf_target_warped_, label='Target, time-warped')
+            plt.plot(self.emf_predict_warped_, label='Prediction, time-warped')
+            plt.legend()
+        plt.show()
 
 
 class LabeledVideoProcessor:
@@ -523,7 +520,6 @@ class MechanicalSystemEvaluator(object):
         new_x = np.linspace(x_start, x_stop, num_samples)
         return new_x, interp(new_x)
 
-
     def fit_transform(self, y_predict, time_predict):
         """Align `y_predicted` and `y_target` in time.
 
@@ -544,6 +540,7 @@ class MechanicalSystemEvaluator(object):
         self._fit(y_predict, time_predict)
         return self.time_, self.y_predict_
 
+    # TODO: add docstring
     def score(self, **metrics):
         """Score the predicted y values and (optionally) plot the DTW curve."""
         results = self._score(**metrics)

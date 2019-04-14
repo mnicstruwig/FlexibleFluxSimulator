@@ -218,13 +218,17 @@ def collect_samples(base_path, acc_pattern, adc_pattern, labeled_video_pattern):
     """
 
     # Holds the final result
-    Sample = namedtuple('Sample', ['acc_df', 'adc_df', 'video_labels_df'])
+    Sample = namedtuple('Sample', ['acc_df', 'adc_df', 'video_labels_df', 'paths'])
 
     sample_collection = []
 
     acc_paths = glob(os.path.join(base_path, acc_pattern))
     adc_paths = glob(os.path.join(base_path, adc_pattern))
     labeled_video_paths = glob(os.path.join(base_path, labeled_video_pattern))
+
+    acc_paths.sort()
+    adc_paths.sort()
+    labeled_video_paths.sort()
 
     # Sanity checks + warnings
     if len(acc_paths) != len(adc_paths):
@@ -237,5 +241,5 @@ def collect_samples(base_path, acc_pattern, adc_pattern, labeled_video_pattern):
         warnings.warn('No groundtruth files were found.')
 
     for acc, adc, lvp in zip(acc_paths, adc_paths, labeled_video_paths):
-        sample_collection.append(Sample(pd.read_csv(acc), pd.read_csv(adc), pd.read_csv(lvp)))
+        sample_collection.append(Sample(pd.read_csv(acc), pd.read_csv(adc), pd.read_csv(lvp), [acc, adc, lvp]))
     return sample_collection
