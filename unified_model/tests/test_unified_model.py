@@ -115,7 +115,7 @@ class TestUnifiedModel(unittest.TestCase):
 
         # test
         actual_raw_solution = test_unified_model.raw_solution
-        actual_t = test_unified_model.t
+        actual_t = test_unified_model.time
 
         self.assertEqual(expected_t.tolist(), actual_t.tolist())
         self.assertEqual(expected_raw_solution.tolist(),
@@ -237,7 +237,7 @@ class TestUnifiedModel(unittest.TestCase):
 
         test_unified_model = UnifiedModel(name='test_unified_model')
         test_unified_model.raw_solution = test_y_raw_output
-        test_unified_model.t = test_time
+        test_unified_model.time = test_time
 
         actual_result = test_unified_model.get_result(time='t',
                                                       x1='x1',
