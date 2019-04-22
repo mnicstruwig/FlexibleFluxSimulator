@@ -29,7 +29,7 @@ class TestMechanicalModel(unittest.TestCase):
         Run before every test.
         """
 
-        self.test_mechanical_system = MechanicalModel()
+        self.test_mechanical_system = MechanicalModel(name='test_mechanical_model')
         self.test_model = 'ode_decoupled'
         self.test_initial_conditions = [1, 2, 3, 4]
         self.test_mechanical_system.raw_output = test_data.TEST_RAW_OUTPUT
@@ -92,7 +92,7 @@ class TestMechanicalModel(unittest.TestCase):
         """
         Test if the mechanical system will call the appropriate solver and produce the correct output.
         """
-        test_mechanical_system = MechanicalModel()
+        test_mechanical_system = MechanicalModel(name='test_mechanical_model')
         test_mechanical_system.additional_model_kwargs = {}
         test_t_start = 0
         test_t_end = 1
