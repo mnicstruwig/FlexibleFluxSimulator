@@ -12,11 +12,9 @@ from unified_model.mechanical_system.spring.magnetic_spring import MagneticSprin
 from unified_model.mechanical_system.model import ode_decoupled
 
 # Local test helpers
-from unified_model.tests.mechanical_system.utils import build_test_mechanical_system_model
-from unified_model.tests.mechanical_system.mechanical_system import test_data
-from unified_model.tests.mechanical_system.test_data import TEST_MAGNET_SPRING_FEA_PATH
+from unified_model.tests.mechanical_system.test_data.test_data import TEST_MAGNET_SPRING_FEA_PATH, TEST_RAW_OUTPUT, TEST_TIME_STEPS
 
-from mockito import ANY, when, verify
+from mockito import ANY, when
 
 
 class TestMechanicalModel(unittest.TestCase):
@@ -32,8 +30,8 @@ class TestMechanicalModel(unittest.TestCase):
         self.test_mechanical_system = MechanicalModel(name='test_mechanical_model')
         self.test_model = 'ode_decoupled'
         self.test_initial_conditions = [1, 2, 3, 4]
-        self.test_mechanical_system.raw_output = test_data.TEST_RAW_OUTPUT
-        self.test_mechanical_system.t = test_data.TEST_TIME_STEPS
+        self.test_mechanical_system.raw_output = TEST_RAW_OUTPUT
+        self.test_mechanical_system.t = TEST_TIME_STEPS
 
     def test_set_model(self):
         """
