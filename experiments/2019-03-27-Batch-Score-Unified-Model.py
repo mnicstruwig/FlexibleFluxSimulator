@@ -76,7 +76,9 @@ for device in ['A', 'B', 'C']:
                                                        winding_num_r=winding_num_r[device],
                                                        coil_height=coil_height[device])
 
-load_model = SimpleLoad(np.inf)  # open-circuit
+# LOAD
+load_model = SimpleLoad(np.inf)
+
 electrical_model = ElectricalModel(name='elec_system')
 electrical_model.set_load_model(load_model)
 

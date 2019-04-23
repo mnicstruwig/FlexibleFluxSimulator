@@ -1,8 +1,9 @@
-"""Contains the unified model architecture that encapsulates the mechanical
+"""
+Contains the unified model architecture that encapsulates the mechanical
 system, electrical system, the coupling between them and the master system
 model that describes their interaction.
-
 """
+
 import numpy as np
 from scipy import integrate
 from unified_model.utils.utils import parse_output_expression
