@@ -80,6 +80,7 @@ class AdcProcessor:
 
         numpy array
             Timestamps of each voltage measurement.
+
         """
         if isinstance(groundtruth_dataframe, str):
             groundtruth_dataframe = pd.read_csv(groundtruth_dataframe)
