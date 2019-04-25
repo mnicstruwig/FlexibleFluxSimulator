@@ -10,7 +10,6 @@ from scipy.signal import correlate
 from unified_model.utils.utils import smooth_butterworth, calc_sample_delay, warp_signals, apply_scalar_functions, find_signal_limits
 
 
-# TODO: Write tests
 class AdcProcessor:
     """Post-processor for measured ADC data using Teensy logger.
 
@@ -88,7 +87,7 @@ class AdcProcessor:
         voltage_readings = groundtruth_dataframe[voltage_col].values
 
         if self.smooth:
-            critical_frequency = self.smooth_kwargs.pop('critical_frequency', 1 / 4)
+            critical_frequency = self.smooth_kwargs.pop('critical_frequency', 1/4)
             self.critical_frequency = critical_frequency
             voltage_readings = smooth_butterworth(voltage_readings, critical_frequency)
 
