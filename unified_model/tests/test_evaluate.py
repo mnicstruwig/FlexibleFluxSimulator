@@ -6,6 +6,7 @@ from numpy.testing import assert_array_equal
 import pandas as pd
 
 from unified_model.evaluate import AdcProcessor, ElectricalSystemEvaluator
+from scipy.interpolate import UnivariateSpline
 
 
 class TestAdcProcessor(unittest.TestCase):
@@ -85,4 +86,98 @@ class TestAdcProcessor(unittest.TestCase):
 
 class TestElectricalSystemEvaluator(unittest.TestCase):
     """Test the ElectricalSystemEvaluator class."""
-    pass
+
+    def test_fit(self):
+        """Test the fit method."""
+        test_emf_target = np.array([1, 2, 3, 4, 5, 4, 3, 2, 1])
+        test_time_target = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        test_emf_predict = np.array([1, 2, 3, 4, 5, 6, 5, 4, 3])
+        test_time_predict = test_time_target
+
+        test_electrical_system_evaluator = ElectricalSystemEvaluator(emf_target=test_emf_target,
+                                                                     time_target=test_time_target)
+
+        # Before fit
+        self.assertTrue(test_electrical_system_evaluator.emf_target_ is None)
+        self.assertTrue(test_electrical_system_evaluator.emf_predict_ is None)
+        self.assertTrue(test_electrical_system_evaluator.time_ is None)
+
+        test_electrical_system_evaluator.fit(emf_predict=test_emf_predict,
+                                             time_predict=test_time_target)
+
+        assert_array_equal(test_emf_predict, test_electrical_system_evaluator.emf_predict)
+        assert_array_equal(test_time_predict, test_electrical_system_evaluator.time_predict)
+
+        self.assertTrue(isinstance(test_electrical_system_evaluator.emf_target_, np.ndarray))
+        self.assertTrue(len(test_electrical_system_evaluator.emf_target_) > 1)
+        self.assertTrue(isinstance(test_electrical_system_evaluator.emf_predict_, np.ndarray))
+        self.assertTrue(len(test_electrical_system_evaluator.emf_predict_) > 1)
+        self.assertTrue(isinstance(test_electrical_system_evaluator.time_, np.ndarray))
+        self.assertTrue(len(test_electrical_system_evaluator.time_) > 1)
+
+    def test_fit_transform(self):
+        """Test the fit_transform method."""
+        test_emf_target = np.array([1, 2, 3, 4, 5, 4, 3, 2, 1])
+        test_time_target = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        test_emf_predict = np.array([1, 2, 3, 4, 5, 6, 5, 4, 3])
+        test_time_predict = test_time_target
+
+        expected_emf_predict = np.array([1, 2, 3, 4, 5, 6, 5, 4, 3])
+        expected_time = test_time_target
+
+        test_electrical_system_evaluator = ElectricalSystemEvaluator(emf_target=test_emf_target,
+                                                                     time_target=test_time_target)
+
+        # We test the fit method separately. So let's mock it out
+        # here for testing purposes.
+        def mock_fit(self, *args, **kwargs):
+            self.time_ = expected_time
+            self.emf_predict_ = expected_emf_predict
+
+        with patch('unified_model.evaluate.ElectricalSystemEvaluator._fit', new=mock_fit):
+            actual_time, actual_emf_predict = test_electrical_system_evaluator.fit_transform(emf_predict=test_emf_predict,
+                                                                                             time_predict=test_time_predict)
+            assert_array_equal(expected_time, actual_time)
+            assert_array_equal(expected_emf_predict, actual_emf_predict)
+
+    def test_score(self):
+        """Test the score method."""
+        test_emf_target = np.array([1, 2, 3, 4, 5, 4, 3, 2, 1])
+        test_time_target = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        test_emf_predict = np.array([1, 2, 3, 4, 5, 6, 5, 4, 3])
+        test_time_predict = test_time_target
+
+        test_electrical_system_evaluator = ElectricalSystemEvaluator(emf_target=test_emf_target,
+                                                                     time_target=test_time_target)
+        test_time_ = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        test_emf_predict_ = np.array([1, 2, 3, 4, 5, 6, 5, 4, 3])
+
+        # We test the fit method separately. So let's mock it out
+        # here for testing purposes.
+        def mock_fit(self, emf_predict, time_predict):
+            self.emf_predict_ = emf_predict  # Fake resampled predicted values
+            self.time_ = time_predict  # Fake resampled timestamps
+            self.emf_target_ = self.emf_target  # Fake resampled target values
+
+        with patch('unified_model.evaluate.ElectricalSystemEvaluator.fit', new=mock_fit):
+            # Mock `fit` method
+            test_electrical_system_evaluator.fit(emf_predict=test_emf_predict,
+                                                 time_predict=test_time_target)
+
+            def test_metric_mean(x, y):
+                return np.mean([x, y])
+
+            def test_metric_max(x, y):
+                return np.max([x, y])
+
+            expected_mean = test_metric_mean(test_electrical_system_evaluator.emf_predict_,
+                                             test_electrical_system_evaluator.emf_target_)
+
+            expected_max = test_metric_max(test_electrical_system_evaluator.emf_predict_,
+                                           test_electrical_system_evaluator.emf_target_)
+
+            actual_result = test_electrical_system_evaluator.score(mean=test_metric_mean,
+                                                                   max_value=test_metric_max)
+
+            self.assertEqual(expected_mean, actual_result.mean)
+            self.assertEqual(expected_max, actual_result.max_value)

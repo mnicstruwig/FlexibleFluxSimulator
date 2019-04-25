@@ -98,7 +98,6 @@ class AdcProcessor:
 
 
 # TODO: Write tests
-# TODO: Add Documentation
 class ElectricalSystemEvaluator:
     """Evaluate the accuracy of an electrical system model's output.
 
@@ -127,7 +126,17 @@ class ElectricalSystemEvaluator:
     """
 
     def __init__(self, emf_target, time_target):
-        """Constructor"""
+        """Constructor.
+
+        Parameters
+        ----------
+        emf_target : ndarray
+            The target EMF values that will serve as the groundtruth.
+        time_target : ndarray
+            The corresponding timestamps of `emf_target` that will serve
+            as the groundtruth.
+
+        """
 
         # Holds original values
         self.emf_target = emf_target
@@ -144,23 +153,20 @@ class ElectricalSystemEvaluator:
         self.y_target_warped_ = None
         self.y_predict_warped_ = None
 
-    @staticmethod
-    def _is_period_constant(arr):
-        """Return True if the difference between values in `arr` are constant"""
-        diff = np.diff(arr)
-        diff = np.array([round(val, 8) for val in diff])  # Handle rounding
-        if len(np.unique(diff)) > 1:
-            return False
-        return True
-
     def fit(self, emf_predict, time_predict):
-        """Align `emf_predict` and `emf_target` in time.
+        """Align `emf_predict` with `emf_target` in time.
 
         This allows the target and prediction to later be compared by plotting
         them on the same time axis.
 
         The alignment is performed using signal correlation and resampling of
-        both the target and predicted emf waveforms.
+        both the target and predicted emf waveforms using interpolation.
+
+        Note: As a result of the interpolation method being a univariate spline,
+        if the emf signals contain discontinuities, this may cause some
+        interpolation errors and low-frequency deviations from the original
+        signals. This very rarely occurs with these kinds of signals, but
+        it is something to be aware of if unexpected results are obtained.
 
         Parameters
         ----------
@@ -174,6 +180,7 @@ class ElectricalSystemEvaluator:
         self._fit(emf_predict, time_predict)
 
     def _fit(self, emf_predict, time_predict):
+        """Implement the functionality of the `fit` method."""
         self.emf_predict = emf_predict
         self.time_predict = time_predict
 
@@ -206,6 +213,7 @@ class ElectricalSystemEvaluator:
         # TODO: Design some mechanism to shift the correct signal
         # TODO: For now, we're assuming the predicted signal is
         # TODO: always leading.
+
         # Compensate for delay
         interp_pred = UnivariateSpline(resampled_timesteps + time_offset,
                                        resampled_emf_pred,
@@ -218,16 +226,74 @@ class ElectricalSystemEvaluator:
         self.time_ = resampled_timesteps
 
     def fit_transform(self, emf_predict, time_predict):
+        """Align `emf_predict` with `emf_target` in time and return the
+        result.
+
+        Parameters
+        ----------
+        emf_predict : ndarray
+            The predicted emf values produced by the electrical system.
+        time_predict : ndarray
+            The corresponding time values assosciated with `emf_predicted`.
+
+        See Also
+        --------
+        ElectricalSystemEvaluator.fit : function
+            The underlying method that is called.
+
+        Returns
+        -------
+        time_ : array
+            Common timestamps of both the resampled emf predicted signal and
+            emf target signal.
+        emf_predict_ : array
+            Resample and interpolated values of the emf predicted signal values.
+
+        """
         self._fit(emf_predict, time_predict)
         return self.time_, self.emf_predict_
 
     def score(self, **metrics):
-        """Calculate the score of the predicted emf values."""
+        """Evaluate the electrical model using a selection of metrics.
+
+        A `Score` object is returned containing the results.
+
+        Parameters
+        ----------
+        **metrics : Metrics to compute on the interpolated predicted and target
+        electrical data. Keys will be used to set the attributes of the Score
+        object. Values must be the function used to compute the metric. Each
+        function must accept arguments (arr_predict, arr_target) as input,
+        where `arr_predict` and `arr_target` are numpy arrays that contain the
+        predicted values and target values, respectively. The return value of
+        the functions can have any shape.
+
+        Returns
+        -------
+        Instance of `Score`
+            Score object that contains the results of the computed metrics.
+            Attributes names are the keys passed to `score`, and their values
+            are the outputs of the passed metric functions.
+
+        Example
+        -------
+        >>> emf_target = np.array([1, 2, 3, 4, 3, 2, 1])
+        >>> time_target = np.array([1, 2, 3, 4, 5, 6, 7])
+        >>> emf_predict = np.array([1, 2, 3, 4, 5, 2, 1])
+        >>> time_predict = np.array([1, 2, 3, 4, 5, 6, 7])
+        >>> es_evaluator = ElectricalSystemEvaluator(emf_target, time_target)
+        >>> es_evaluator.fit(emf_predict, time_predict)
+        Calculate the score using any function of your choice
+        >>> es_evaluator.score(mean_difference=(lambda x, y: np.mean(x-y)), max_value=(lambda x,y: np.max([x, y])))
+        Score(mean_difference=0.21169084032224028, max_value=5.078793981160988)
+
+        """
 
         results = self._score(**metrics)
         return results
 
     def _score(self, **metrics):
+        """Implement the underlying functionality of the `score` method."""
         self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(self.emf_predict_,
                                                                          self.emf_target_)
         # Clip signals
@@ -367,6 +433,8 @@ class LabeledVideoProcessor:
         return df['y_prime_mm'].values / 1000, timestamps
 
 
+# TODO: Complete documentation
+# TODO: Write tests
 def impute_missing(df_missing, indexes):
     """Impute missing values from the labeled video data.
 

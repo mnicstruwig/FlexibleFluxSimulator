@@ -357,11 +357,13 @@ class UnifiedModel(object):
         Parameters
         ----------
         metrics_dict: dict
-            Metrics to compute on the predicted and target mechanical data.
-            Keys must be the name of the metric returned in the Results object.
-            Values must be the function used to compute the metric. The
-            function must accept to numpy arrays (arr_predict, arr_target) as
-            input.
+            Metrics to compute on the predicted and target electrical data.
+            Keys will be used to set the attributes of the Score object.
+            Values must be the function used to compute the metric. Each function
+            must accept arguments (arr_predict, arr_target) as input, where
+            `arr_predict` and `arr_target` are numpy arrays that contain the
+            predicted values and target values, respectively. The return value
+            of the functions can have any shape.
         adc_df : dataframe
             Dataframe containing groundtruth ADC data. This dataframe is
             produced by the OpenCV-based CLI helper script.
@@ -370,7 +372,7 @@ class UnifiedModel(object):
             processing the groundtruth ADC data.
         prediction_expr : str
             Expression that is evaluated and used as the predictions for the
-            mechanical system. *Any* reasonable expression is possible. You
+            electrical system. *Any* reasonable expression is possible. You
             can refer to each of the differential equations referenced by the
             `governing_equations` using the letter `x` with the number appended.
             For example, `x1` refers to the first differential equation, and
@@ -381,6 +383,10 @@ class UnifiedModel(object):
             return_evaluator : bool
                 Whether to return the evaluator used to score the electrical
                 system.
+
+        Returns
+        -------
+
 
         See Also
         --------
