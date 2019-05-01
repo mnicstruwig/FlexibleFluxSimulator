@@ -51,7 +51,7 @@ def apply_rectification(emf_values):
         else:
             e = 0
 
-        emf_values[i]= e
+        emf_values[i] = e
     return emf_values
 
 
@@ -59,7 +59,9 @@ def apply_rectification(emf_values):
 def simulate_electrical_system(y_relative_mm, timestamps, flux_model, load_model, interpolate=True):
     """Simulate the electrical system using pre-calculated input vectors.
 
-    i.e. By avoiding integration and solving the numerical system."""
+    i.e. By avoiding integration / solving the numerical system.
+
+    """
 
     x3 = y_relative_mm
 
@@ -75,6 +77,6 @@ def simulate_electrical_system(y_relative_mm, timestamps, flux_model, load_model
     electrical_model.set_load_model(load_model)
 
     emf_values = np.array([electrical_model.get_emf(y) for y in ys])
+    current_values = np.array([electrical_model.get_current(y) for y in ys])
 
-    return emf_values, timestamps
-
+    return timestamps, emf_values, current_values

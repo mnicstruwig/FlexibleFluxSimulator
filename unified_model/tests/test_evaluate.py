@@ -181,3 +181,23 @@ class TestElectricalSystemEvaluator(unittest.TestCase):
 
             self.assertEqual(expected_mean, actual_result.mean)
             self.assertEqual(expected_max, actual_result.max_value)
+
+
+    def test_poof(self):
+        """Test the poof method."""
+
+        test_electrical_system_evaluator = ElectricalSystemEvaluator(None, None)
+
+        test_time_ = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        test_emf_target_ = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        test_emf_predict_ = np.array([1, 2, 3, 4, 5, 6, 5, 4, 3])
+
+        test_electrical_system_evaluator.time_ = test_time_
+        test_electrical_system_evaluator.emf_predict_ = test_emf_predict_
+        test_electrical_system_evaluator.emf_target_ = test_emf_target_
+
+        with patch('unified_model.evaluate.plt', return_value=None) as mock_pyplot:
+            test_electrical_system_evaluator.poof(include_dtw=False)
+
+            mock_pyplot.assert_called_with(test_electrical_system_evaluator.time_,
+                                           test_electrical_system_evaluator.emf_target_)

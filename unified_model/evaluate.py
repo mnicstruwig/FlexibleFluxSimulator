@@ -3,7 +3,7 @@ from collections import namedtuple
 
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 from scipy.interpolate import UnivariateSpline
 from scipy.signal import correlate
 
