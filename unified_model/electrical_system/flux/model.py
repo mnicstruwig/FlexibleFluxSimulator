@@ -34,9 +34,8 @@ def flux_interpolate(z_arr, phi_arr, coil_center, mm):
     return interpolator
 
 
-# TODO: Complete documentation
 def flux_univariate_spline(z_arr, phi_arr, coil_center, mm):
-    """Model flux curve by interpolating between values using univariate spline.
+    """Model the flux curve by interpolating between values using univariate spline.
 
     This flux model supports pre-computation of the gradient.
 
