@@ -27,7 +27,6 @@ def _parse_raw_flux_input(raw_flux_input):
         return raw_flux_input
 
 
-# TODO: Add tests
 class FluxDatabase(object):
     """Convert .csv produced by Maxwell parametric simulation into a flux database.
 
@@ -150,7 +149,6 @@ class FluxDatabase(object):
         db_key = self._make_db_key(**key_dict)
         self.database[db_key] = value
 
-    # TODO: Add test
     def query_to_model(self, flux_model_type, coil_center, mm, **kwargs):
         """Query the database and return a flux model.
 

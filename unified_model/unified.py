@@ -106,11 +106,11 @@ class UnifiedModel(object):
         The governing equations describe the behaviour of the entire system,
         and control the manner in which the various components interact.
 
-        Must accept arguments `t` and `y` keyword arguments `mechanical_model`,
-        `electrical_model` and `coupling_model`.The structure and return value
-        of `governing_equations` must be of the same as functions solved by
-        `scipy.integrate.solve_ivp` (but have the additional keyword arguments
-        specified above).
+        Must accept arguments `t` and `y` and keyword arguments
+        `mechanical_model`, `electrical_model` and `coupling_model`.The
+        structure and return value of `governing_equations` must be of the same
+        as functions solved by `scipy.integrate.solve_ivp` (but have the
+        additional keyword arguments specified above).
 
         Parameters
         ----------
@@ -120,8 +120,9 @@ class UnifiedModel(object):
 
         See Also
         --------
-        scipy.integrate.solve_ivp : `governing_equations` must be compatible
-            with the class of function solved by `scipy.integrate.solve_ivp`.
+        scipy.integrate.solve_ivp : function
+            `governing_equations` must be compatible with the class of function
+            solved by `scipy.integrate.solve_ivp`.
 
         """
         self.governing_equations = governing_equations

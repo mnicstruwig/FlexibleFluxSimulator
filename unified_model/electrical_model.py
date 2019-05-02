@@ -1,6 +1,6 @@
 import numpy as np
 
-
+# TODO: Move to utils
 def _gradient(f, x, delta_x=1e-3):
     """Compute the gradient of function `f` at point `y` relative to `x`"""
     gradient = (f(x + delta_x) - f(x - delta_x))/(2*delta_x)
@@ -9,7 +9,6 @@ def _gradient(f, x, delta_x=1e-3):
     return gradient
 
 
-# TODO: Add tests + documentation
 class ElectricalModel:
     """A model of an electrical system.
 
@@ -64,7 +63,7 @@ class ElectricalModel:
             self.precompute_gradient = True
 
     def set_load_model(self, load_model):
-        """ Assign a load model
+        """Assign a load model
 
         Parameters
         ----------
@@ -75,19 +74,66 @@ class ElectricalModel:
         self.load_model = load_model
 
     def get_flux_gradient(self, y):
-        """Get the gradient of the flux relative to z."""
-        x1, x2, x3, x4, x5 = y
+        """Return the instantaneous gradient of the flux relative to z.
+
+        Parameters
+        ----------
+        y : ndarray
+            The `y` input vector that is supplied to the set of governing
+            equations, with shape (n,), where `n` is the number of equations
+            in the set of governing equations.
+
+        Returns
+        -------
+        ndarray
+            The instantaneous flux gradient.
+
+        """
+        x1, x2, x3, x4, x5 = y  # TODO: Remove reliance on hard-coding.
         if self.precompute_gradient is True:
             return self.flux_gradient(x3-x1)
         return _gradient(self.flux_model, x3-x1)
 
     def get_emf(self, y):
-        x1, x2, x3, x4, x5 = y
+        """Return the instantaneous emf produced by the electrical system.
+
+        Note, this is the open-circuit emf and *not* the emf supplied to
+        the load.
+
+        Parameters
+        ----------
+        y : ndarray
+            The `y` input vector that is supplied to the set of governing
+            equations, with shape (n,), where `n` is the number of equations
+            in the set of governing equations.
+
+        Returns
+        -------
+        ndarray
+            The instantaneous emf.
+
+        """
+        x1, x2, x3, x4, x5 = y  # TODO: Remove reliance on hard-coding
         dphi_dz = self.get_flux_gradient(y)
         emf = dphi_dz * (x4 - x2)
         return emf
 
     def get_current(self, y):
+        """Return the instantaneous current produced by the electrical system.
+
+        Parameters
+        ----------
+        y : ndarray
+            The `y` input vector that is supplied to the set of governing
+            equations, with shape (n,), where `n` is the number of equations
+            in the set of governing equations.
+
+        Returns
+        -------
+        ndarray
+            The instantaneous current.
+
+        """
         x1, x2, x3, x4, x5 = y
         dphi_dz = self.get_flux_gradient(y)
         emf = dphi_dz * (x4-x2)
