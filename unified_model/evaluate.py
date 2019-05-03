@@ -333,7 +333,7 @@ class ElectricalSystemEvaluator:
         if include_dtw:
             plt.figure()
             plt.plot(self.emf_target_warped_, label='Target, time-warped')
-            plt.plot(self.emf_predict_warped_, label='Prediction, time-warped')
+            plt.plot(self.emf_predict_warped_, label='Predictions, time-warped')
             plt.legend()
         plt.show()
 

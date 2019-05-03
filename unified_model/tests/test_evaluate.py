@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, call
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -182,8 +182,7 @@ class TestElectricalSystemEvaluator(unittest.TestCase):
             self.assertEqual(expected_mean, actual_result.mean)
             self.assertEqual(expected_max, actual_result.max_value)
 
-
-    def test_poof(self):
+    def test_poof_no_dtw(self):
         """Test the poof method."""
 
         test_electrical_system_evaluator = ElectricalSystemEvaluator(None, None)
@@ -199,5 +198,56 @@ class TestElectricalSystemEvaluator(unittest.TestCase):
         with patch('unified_model.evaluate.plt', return_value=None) as mock_pyplot:
             test_electrical_system_evaluator.poof(include_dtw=False)
 
-            mock_pyplot.assert_called_with(test_electrical_system_evaluator.time_,
-                                           test_electrical_system_evaluator.emf_target_)
+
+            expected_call_target = call(test_electrical_system_evaluator.time_,
+                                        test_electrical_system_evaluator.emf_target_,
+                                        label='Target')
+            expected_call_predictions = call(test_electrical_system_evaluator.time_,
+                                             test_electrical_system_evaluator.emf_predict_,
+                                             label='Predictions')
+
+            expected_calls = [expected_call_target, expected_call_predictions]
+
+            mock_pyplot.plot.assert_has_calls(expected_calls, any_order=True)
+
+    def test_poof_dtw(self):
+        """Test the poof with the dtw flag enabled."""
+
+        test_electrical_system_evaluator = ElectricalSystemEvaluator(None, None)
+
+        test_time_ = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        test_emf_target_ = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        test_emf_predict_ = np.array([1, 2, 3, 4, 5, 6, 5, 4, 3])
+
+        test_emf_target_warped_ = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1])
+        test_emf_predict_warped_ = np.array([2, 2, 2, 2, 2, 2, 2, 2, 2])
+
+        test_electrical_system_evaluator.time_ = test_time_
+        test_electrical_system_evaluator.emf_predict_ = test_emf_predict_
+        test_electrical_system_evaluator.emf_target_ = test_emf_target_
+        test_electrical_system_evaluator.emf_predict_warped_ = test_emf_predict_warped_
+        test_electrical_system_evaluator.emf_target_warped_ = test_emf_target_warped_
+
+        with patch('unified_model.evaluate.plt', return_value=None) as mock_pyplot:
+            test_electrical_system_evaluator.poof(include_dtw=True)
+
+
+            expected_call_target = call(test_electrical_system_evaluator.time_,
+                                        test_electrical_system_evaluator.emf_target_,
+                                        label='Target')
+            expected_call_predictions = call(test_electrical_system_evaluator.time_,
+                                             test_electrical_system_evaluator.emf_predict_,
+                                             label='Predictions')
+
+            expected_call_target_warped = call(test_electrical_system_evaluator.emf_target_warped_,
+                                               label='Target, time-warped')
+
+            expected_call_predictions_warped = call(test_electrical_system_evaluator.emf_predict_warped_,
+                                                    label='Predictions, time-warped')
+
+            expected_calls = [expected_call_target,
+                              expected_call_predictions,
+                              expected_call_target_warped,
+                              expected_call_predictions_warped]
+
+            mock_pyplot.plot.assert_has_calls(expected_calls, any_order=True)
