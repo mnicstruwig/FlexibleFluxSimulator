@@ -411,9 +411,8 @@ class LabeledVideoProcessor:
         df = groundtruth_dataframe
 
         # TODO: Add test for this case.
-        if self.pixel_scale is None:
-            missing_pixel_scale = np.any(df['y_pixel_scale'] == -1)
-            if missing_pixel_scale:
+        if self.pixel_scale is None:  # If we don't manually set pixel scale...
+            if np.any(df['y_pixel_scale'] == -1):  # ... and it isn't in the parsed file.
                 raise ValueError('Dataframe contains missing pixel scale values and the pixel scale is not been '
                                  'manually specified.')
         else:
@@ -424,6 +423,7 @@ class LabeledVideoProcessor:
         df['y_prime_mm'] = df['y_mm']  # Get actual position
         df.loc[df['top_of_magnet'] == 1, 'y_prime_mm'] = df['y_prime_mm'] - self.mm
 
+        # Correct calculations made with missing values, if they exist.
         if impute_missing_values:
             missing_indexes = df.query('start_y == -1').index.values
             df = impute_missing(df, missing_indexes)
@@ -433,23 +433,60 @@ class LabeledVideoProcessor:
         return df['y_prime_mm'].values / 1000, timestamps
 
 
-# TODO: Complete documentation
-# TODO: Write tests
 def impute_missing(df_missing, indexes):
     """Impute missing values from the labeled video data.
 
     The missing values are imputed by calculating the velocity of the magnet
     assembly from the previous two timestamps and inferring a displacement
     based on that.
+
+    Parameters
+    ----------
+    df_missing : dataframe
+        Dataframe containing all the measurements, including missing
+        measurements. Must at least contain columns `start_y`, which is used to
+        indicate missing values, and column `y_prime_mm` which is the target
+        column for the corrections.
+    indexes : array
+        Indexes in `df_missing` where there are missing values.
+
+
+    Returns
+    -------
+    dataframe
+        Updated dataframe with missing values replaced by imputed values.
+
+    Raises
+    ------
+    ValueError
+        If there are too many sequential missing values to be able to impute
+        the missing values. This can typically occurs when two or more
+        subsequent readings are missing.
+
+    Notes
+    -----
+    The `start_y` column is used to determine whether there are skipped /
+    missing values in `df_missing.` Values of -1 are considered "missing".
+    Note, however, that the `y_prime_mm` column contains the actual target
+    values, and so *this* is the column that contains the imputed missing
+    values.
+
+    The reason for this is that the `start_y` and `end_y` values are not
+    relative to any fixed reference point, and so corrections must be made
+    relative to a fixed reference point, which is the case for the values of
+    `y_prime_mm`.
+
     """
     for index in indexes:
         start_velocity_calc = index - 2
         end_velocity_calc = index - 1
 
-        # sanity check
-        if df_missing.loc[start_velocity_calc, 'start_y'] == -1 or df_missing.loc[end_velocity_calc, 'start_y'] == -1:
-            warnings.warn('Warning: unable to impute all missing values.')
-            break
+        # Check we have enough points to calculate velocity
+        try:
+            if df_missing.loc[start_velocity_calc, 'start_y'] == -1 or df_missing.loc[end_velocity_calc, 'start_y'] == -1:
+                raise ValueError('Too many sequential missing values to be able to impute all missing values.')
+        except KeyError:
+            raise IndexError('Too few points available to calculate velocity and impute missing values.')
 
         velocity = df_missing.loc[end_velocity_calc, 'y_prime_mm'] - df_missing.loc[start_velocity_calc, 'y_prime_mm']
         df_missing.loc[index, 'y_prime_mm'] = df_missing.loc[index - 1, 'y_prime_mm'] + velocity
@@ -588,6 +625,7 @@ class MechanicalSystemEvaluator(object):
         new_x = np.linspace(x_start, x_stop, num_samples)
         return new_x, interp(new_x)
 
+    # TODO: Add return statement documentation
     def fit_transform(self, y_predict, time_predict):
         """Align `y_predicted` and `y_target` in time.
 
@@ -608,7 +646,7 @@ class MechanicalSystemEvaluator(object):
         self._fit(y_predict, time_predict)
         return self.time_, self.y_predict_
 
-    # TODO: add docstring
+    # TODO: add docstring, similar to ElectricalSystemEvaluator
     def score(self, **metrics):
         """Score the predicted y values and (optionally) plot the DTW curve."""
         results = self._score(**metrics)
@@ -631,6 +669,8 @@ class MechanicalSystemEvaluator(object):
 
         return Results(*metric_results.values())
 
+
+    # TODO: Complete documentation
     def poof(self, include_dtw=False, **kwargs):
         """
         Plot y_target and y_predicted.
