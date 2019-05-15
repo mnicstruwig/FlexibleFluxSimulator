@@ -1,13 +1,14 @@
-import warnings
 from collections import namedtuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from scipy.interpolate import UnivariateSpline
 from scipy.signal import correlate
 
-from unified_model.utils.utils import smooth_butterworth, calc_sample_delay, warp_signals, apply_scalar_functions, find_signal_limits
+from unified_model.utils.utils import (apply_scalar_functions,
+                                       calc_sample_delay, find_signal_limits,
+                                       smooth_butterworth, warp_signals)
 
 
 class AdcProcessor:
@@ -127,7 +128,7 @@ class ElectricalSystemEvaluator:
 
     def __init__(self, emf_target, time_target):
         """Constructor.
-
+        
         Parameters
         ----------
         emf_target : ndarray
@@ -236,18 +237,18 @@ class ElectricalSystemEvaluator:
         time_predict : ndarray
             The corresponding time values assosciated with `emf_predicted`.
 
-        See Also
-        --------
-        ElectricalSystemEvaluator.fit : function
-            The underlying method that is called.
-
         Returns
         -------
         time_ : array
             Common timestamps of both the resampled emf predicted signal and
             emf target signal.
         emf_predict_ : array
-            Resample and interpolated values of the emf predicted signal values.
+            Resampled and interpolated values of the emf predicted signal values.
+
+        See Also
+        --------
+        ElectricalSystemEvaluator.fit : function
+            The underlying method that is called.
 
         """
         self._fit(emf_predict, time_predict)
@@ -625,7 +626,6 @@ class MechanicalSystemEvaluator(object):
         new_x = np.linspace(x_start, x_stop, num_samples)
         return new_x, interp(new_x)
 
-    # TODO: Add return statement documentation
     def fit_transform(self, y_predict, time_predict):
         """Align `y_predicted` and `y_target` in time.
 
@@ -642,13 +642,59 @@ class MechanicalSystemEvaluator(object):
         time_predict : ndarray, optional
             The corresponding timestamps of the values in `y_predicted`.
 
+        Returns
+        -------
+        time_ : array
+            Common timestamps of both the resampled y prediction and
+            y target values.
+        y_predict_ : array
+            Resampled and interpolated values of the y predicted signal values
+
+        See Also
+        --------
+        MechanicalSystemEvaluator.fit : function
+            The underlying method that is called.
+
         """
         self._fit(y_predict, time_predict)
         return self.time_, self.y_predict_
 
-    # TODO: add docstring, similar to ElectricalSystemEvaluator
     def score(self, **metrics):
-        """Score the predicted y values and (optionally) plot the DTW curve."""
+        """Evaluate the mechanical model using a selection of metrics.
+
+        A `Score` object is returned containing the results.
+
+        Parameters
+        ----------
+        **metrics : Metrics to compute on the interpolated predicted and target
+        electrical data. Keys will be used to set the attributes of the Score
+        object. Values must be the function used to compute the metric. Each
+        function must accept arguments (arr_predict, arr_target) as input,
+        where `arr_predict` and `arr_target` are numpy arrays that contain the
+        predicted values and target values, respectively. The return value of
+        the functions can have any shape.
+
+        Returns
+        -------
+        Instance of `Score`
+            Score object that contains the results of the computed metrics.
+            Attributes names are the keys passed to `score`, and their values
+            are the outputs of the passed metric functions.
+
+        Example
+        -------
+        >>> y_target = np.array([1, 2, 3, 4, 3, 2, 1])
+        >>> time_target = np.array([1, 2, 3, 4, 5, 6, 7])
+        >>> y_predict = np.array([1, 2, 3, 4, 5, 2, 1])
+        >>> time_predict = np.array([1, 2, 3, 4, 5, 6, 7])
+        >>> ms_evaluator = MechanicalSystemEvaluator(y_target, time_target)
+        >>> ms_evaluator.fit(y_predict, time_predict)
+        Calculate the score using any function of your choice
+        >>> ms_evaluator.score(mean_difference=(lambda x, y: np.mean(x-y)),
+        ... max_value=(lambda x,y: np.max([x, y])))
+        Score(mean_difference=0.05925911092493251, max_value=5.07879398116099)
+
+        """
         results = self._score(**metrics)
         return results
 
@@ -669,14 +715,17 @@ class MechanicalSystemEvaluator(object):
 
         return Results(*metric_results.values())
 
-
-    # TODO: Complete documentation
     def poof(self, include_dtw=False, **kwargs):
-        """
-        Plot y_target and y_predicted.
+        """Plot the aligned target and predicted values.
 
-        Also plot the time-warped versions if they have been calculated using
-        the `score` method.
+        Parameters
+        ----------
+        include_dtw : bool, optional
+            Set to `True` to also plot the dynamic-time-warped signals.
+            Default value is False.
+        kwargs:
+            Kwargs passed to matplotlib.pyplot.plot function.
+
         """
         plt.plot(self.time_, self.y_target_, label='Target', **kwargs)
         plt.plot(self.time_, self.y_predict_, label='Prediction', **kwargs)
