@@ -44,3 +44,4 @@ class TestMagnetAssembly(unittest.TestCase):
         """
         self.test_magnet_assembly.weight = 100
         self.assertEqual(self.test_magnet_assembly.get_weight(), 100)
+

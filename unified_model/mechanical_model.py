@@ -21,8 +21,6 @@ class MechanicalModel:
         The damper model that represents losses in the mechanical system.
     input_ : obj
         The mechanical input that is applied to the system.
-    initial_condition : array_like
-        Initial conditions of the mechanical system model.
     raw_output : array_like
         Raw solution output returned by the numerical solver,
         `scipy.integrate.solve_ivp`.
@@ -30,9 +28,6 @@ class MechanicalModel:
         Time values of solution output.
     electrical_system: obj
         Electrical system that has been coupled to the mechanical system.
-    coupling : obj
-        Coupling that models the interaction between the mechanical and attached
-        electrical system.
 
     """
 
@@ -46,29 +41,22 @@ class MechanicalModel:
 
         """
         self.name = name
-        self.model = None
         self.spring = None
         self.magnet_assembly = None
         self.damper = None
         self.input_ = None
         self.results = None
-        self.initial_conditions = None
         self.raw_output = None
         self.t = None
         self.electrical_system = None
-        self.coupling = None
 
-    def set_initial_conditions(self, initial_conditions):
-        """Set the initial conditions of the mechanical system.
-
-        Parameters
-        ----------
-        initial_conditions : (float,) array_like
-            Initial conditions for each of the differential equations in the
-            mechanical_system model.
-
-        """
-        self.initial_conditions = initial_conditions
+    def __str__(self):
+        def pretty_str(dict_):
+            str_ = ""
+            for key, val in dict_.items():
+                str_ = str_ + f"{key} :" + str(val) + "\n"
+            return str_
+        return "Mechanical Model:\n" + pretty_str(self.__dict__)
 
     def set_spring(self, spring):
         """Add a spring to the mechanical system
@@ -117,18 +105,3 @@ class MechanicalModel:
 
         """
         self.magnet_assembly = magnet_assembly
-
-    def attach_electrical_system(self, electrical_system, coupling):
-        """Attach an electrical system.
-
-        Parameters
-        ----------
-        electrical_model : obj
-            Electrical system model to attach to the mechanical system
-        coupling : obj
-            Coupling that models the interaction between the mechanical
-            and electrical system.
-
-        """
-        self.electrical_system = electrical_system
-        self.coupling = coupling

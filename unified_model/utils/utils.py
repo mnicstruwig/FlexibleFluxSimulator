@@ -3,6 +3,7 @@ from scipy.spatial.distance import euclidean
 import numpy as np
 import pandas as pd
 
+from itertools import zip_longest
 from collections import namedtuple
 from glob import glob
 import os
@@ -216,11 +217,8 @@ def collect_samples(base_path, acc_pattern, adc_pattern, labeled_video_pattern):
         of the labeled video and recorded accelerometer and adc data.
 
     """
-
     # Holds the final result
     Sample = namedtuple('Sample', ['acc_df', 'adc_df', 'video_labels_df', 'paths'])
-
-    sample_collection = []
 
     acc_paths = glob(os.path.join(base_path, acc_pattern))
     adc_paths = glob(os.path.join(base_path, adc_pattern))
@@ -230,7 +228,7 @@ def collect_samples(base_path, acc_pattern, adc_pattern, labeled_video_pattern):
     adc_paths.sort()
     labeled_video_paths.sort()
 
-    # Sanity checks + warnings
+    # TODO: Move these sanity checks to /after/ reading in the files.
     if len(acc_paths) != len(adc_paths):
         warnings.warn('Different number of acc and adc files. Things might break as a result.')
 
@@ -240,6 +238,20 @@ def collect_samples(base_path, acc_pattern, adc_pattern, labeled_video_pattern):
     if len(labeled_video_paths) == 0 and len(acc_paths) == 0 and len(adc_paths) == 0:
         warnings.warn('No groundtruth files were found.')
 
-    for acc, adc, lvp in zip(acc_paths, adc_paths, labeled_video_paths):
-        sample_collection.append(Sample(pd.read_csv(acc), pd.read_csv(adc), pd.read_csv(lvp), [acc, adc, lvp]))
+    acc_dfs = [pd.read_csv(acc_path) for acc_path in acc_paths]
+    adc_dfs = [pd.read_csv(adc_path) for adc_path in adc_paths]
+    lvp_dfs = [pd.read_csv(lvp_path) for lvp_path in labeled_video_paths]
+
+    paths = zip_longest(acc_paths,
+                        adc_paths,
+                        labeled_video_paths,
+                        fillvalue=None)
+
+    sample_collection = [Sample(acc, adc, lvp, path)
+                         for acc, adc, lvp, path
+                         in zip_longest(acc_dfs,
+                                        adc_dfs,
+                                        lvp_dfs,
+                                        paths,
+                                        fillvalue=None)]
     return sample_collection
