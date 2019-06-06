@@ -1,8 +1,4 @@
-from unified_model.mechanical_system.model import ode_decoupled
-from unified_model.governing_equations import unified_ode_coupled
-
-MODEL_DICT = {'ode_decoupled': ode_decoupled,
-              'unified_ode_coupled': unified_ode_coupled}
+from unified_model.utils.utils import pretty_str
 
 
 # TODO: Add example once interface is more stable
@@ -26,8 +22,6 @@ class MechanicalModel:
         `scipy.integrate.solve_ivp`.
     t : array_like
         Time values of solution output.
-    electrical_system: obj
-        Electrical system that has been coupled to the mechanical system.
 
     """
 
@@ -45,17 +39,10 @@ class MechanicalModel:
         self.magnet_assembly = None
         self.damper = None
         self.input_ = None
-        self.results = None
-        self.raw_output = None
         self.t = None
-        self.electrical_system = None
 
     def __str__(self):
-        def pretty_str(dict_):
-            str_ = ""
-            for key, val in dict_.items():
-                str_ = str_ + f"{key} :" + str(val) + "\n"
-            return str_
+        """Return string representation of the MechanicalModel"""
         return "Mechanical Model:\n" + pretty_str(self.__dict__)
 
     def set_spring(self, spring):

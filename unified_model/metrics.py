@@ -22,8 +22,8 @@ def mean_absolute_percentage_err(x1, x2):
 
 def root_mean_square(x1, x2):
     """Calculate the RMS of two signals."""
-    x1_rms = np.mean((np.sum(x1*x1)/len(x1)))
-    x2_rms = np.mean((np.sum(x2*x2)/len(x2)))
+    x1_rms = np.sqrt((np.sum(x1*x1)/len(x1)))
+    x2_rms = np.sqrt((np.sum(x2*x2)/len(x2)))
 
     return x1_rms, x2_rms
 

@@ -54,7 +54,7 @@ def _preprocess_acceleration_dataframe(df,
                                        accel_unit,
                                        time_unit,
                                        smooth=True):
-    """Perform pre-processing operations on the raw acceleration dataframe.
+    """Pre-process the raw acceleration dataframe.
 
     This includes converting the time to seconds, converting the acceleration
     to the m/s^2 and removing gravity, and smooth the acceleration curve in
@@ -103,27 +103,20 @@ def _preprocess_acceleration_dataframe(df,
     return df
 
 
-# TODO: Reformat docstring -- Attributes
-# TODO: Include documentation for interpolation
 class AccelerometerInput(object):
     """Provide custom accelerometer input from a file or dataframe.
 
-    Parameters
+    Attributes
     ----------
-    raw_accelerometer_input : str or pandas dataframe
-        Path to .csv file containing accelerometer data, or pandas
-        dataframe containing accelerometer data.
-    accel_column : str
-        Column containing accelerometer values.
-    time_column : str
-        Column containing time values.
-    accel_unit : {'g', 'ms2'}
-        Unit of the accelerometer values in `accel_column`.
-    time_unit : {'us', 'ms', 's'}
-        Unit of the time values in `time_column`
-    smooth : bool, optional
-        Whether to smooth the accelerometer readings.
-        Default is True.
+    smooth : bool
+        True if the the accelerometer input has been smoothed.
+    interpolate : bool
+        True if the accelerometer input is available as an interpolation.
+    interpolator : UnivariateSpline
+        If `interpolate` is True, this holds the interpolator object of the
+        accelerometer readings. None otherwise.
+    acceleration_df : dataframe
+        The processed accelerometer readings in dataframe format.
 
     """
 
@@ -135,23 +128,46 @@ class AccelerometerInput(object):
                  time_unit='ms',
                  smooth=True,
                  interpolate=False):
-        """Constructor"""
+        """Constructor
+
+        Parameters
+        ----------
+        raw_accelerometer_input : str or pandas dataframe
+            Path to .csv file containing accelerometer data, or pandas
+            dataframe containing accelerometer data.
+        accel_column : str
+            Column containing accelerometer values.
+        time_column : str
+            Column containing time values.
+        accel_unit : {'g', 'ms2'}
+            Unit of the accelerometer values in `accel_column`.
+        time_unit : {'us', 'ms', 's'}
+            Unit of the time values in `time_column`
+        smooth : bool, optional
+            Whether to smooth the accelerometer readings.
+            Default is True.
+        interpolate : bool, optional
+            Whether to model the accelerometer input as an interpolator object.
+            The interpolation object is available under `self.interpolator`.
+
+        """
 
         self._accel_column = accel_column
         self._time_column = time_column
         self._accel_unit = accel_unit
         self._time_unit = time_unit
-        self._smooth = smooth
+        self.smooth = smooth
         self.interpolate = interpolate
         self.interpolator = None
 
         self.acceleration_df = _parse_raw_accelerometer_input(raw_accelerometer_input)
+        # TODO: Separate processed accelerometer from raw accelerometer
         self.acceleration_df = _preprocess_acceleration_dataframe(self.acceleration_df,
                                                                   self._accel_column,
                                                                   self._time_column,
                                                                   self._accel_unit,
                                                                   self._time_unit,
-                                                                  self._smooth)
+                                                                  self.smooth)
 
         if self.interpolate:
             self.interpolator = UnivariateSpline(x=self.acceleration_df['simulation_time_seconds'].values,

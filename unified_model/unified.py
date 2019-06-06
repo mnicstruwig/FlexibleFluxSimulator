@@ -8,6 +8,7 @@ import numpy as np
 from scipy import integrate
 from unified_model.utils.utils import parse_output_expression
 from unified_model.evaluate import MechanicalSystemEvaluator, ElectricalSystemEvaluator
+from unified_model.utils.utils import pretty_str
 
 
 class UnifiedModel(object):
@@ -60,6 +61,10 @@ class UnifiedModel(object):
         self.raw_solution = None
         self.post_processing_pipeline = {}
         self.time = None
+
+    def __str__(self):
+        """Return string representation of the UnifiedModel"""
+        return "Unified Model:\n" + pretty_str(self.__dict__)
 
     def add_mechanical_model(self, mechanical_model):
         """Add a mechanical model to the unified model

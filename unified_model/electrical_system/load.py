@@ -10,13 +10,17 @@ class SimpleLoad:
         """Constructor."""
         self.R = R
 
-    def get_current(self, emf):
-        if np.isinf(self.R):
+    def get_current(self, emf, coil_resistance):
+        """Get the current through the load."""
+        if np.isinf(self.R) or np.isinf(coil_resistance):
             return 0
-        return emf/self.R
+        v_load = emf*self.R/(self.R + coil_resistance)
+        return v_load/self.R
 
     def get_voltage(self, current):
+        """Get the voltage over the load."""
         pass
 
     def get_power(self, **kwargs):
+        """Get the power dissipated in the load."""
         pass

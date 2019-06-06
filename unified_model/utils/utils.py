@@ -12,6 +12,12 @@ import warnings
 from asteval import Interpreter
 from scipy import signal
 
+def pretty_str(dict_):
+    """Get a pretty string representation of a dictionary."""
+    str_ = ""
+    for key, val in dict_.items():
+        str_ = str_ + f"{key} : {val}" + "\n"
+    return str_
 
 def fetch_key_from_dictionary(dictionary, key, error_message):
     """Fetch a value from a dictionary
@@ -65,7 +71,6 @@ def smooth_butterworth(values, critical_frequency, **kwargs):
     """
     if 'N' not in kwargs:
         N = 6
-    # noinspection PyTupleAssignmentBalance
     b, a = signal.butter(N, Wn=critical_frequency, btype='low', output='ba')
     filtered_values = signal.lfilter(b, a, values)
     return filtered_values

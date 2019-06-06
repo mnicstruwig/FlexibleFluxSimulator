@@ -147,7 +147,7 @@ unified_models = {'A': [],
                   'B': [],
                   'C': []}
 
-for sample_collection in ['A', 'B', 'C']:
+for sample_collection in ['A']:
     for i, sample in enumerate(tqdm(samples_dict[sample_collection])):
 
         # Set Accelerometer
@@ -215,6 +215,7 @@ for sample_collection in ['A', 'B', 'C']:
         electrical_evals[sample_collection].append(e_eval)
         mechanical_evals[sample_collection].append(m_eval)
         unified_models[sample_collection].append(unified_model)
+
 
 def pretty_print_scores(score_dict):
     for key, score_collection in score_dict.items():

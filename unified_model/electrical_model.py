@@ -1,4 +1,5 @@
 import numpy as np
+from unified_model.utils.utils import pretty_str
 
 # TODO: Move to utils
 def _gradient(f, x, delta_x=1e-3):
@@ -19,6 +20,10 @@ class ElectricalModel:
     flux_model : fun
         Function that returns the flux linkage of a coil when the position of a
         magnet assembly's bottom edge is passed to it.
+    coil_resistance: float
+        The resistance of the coil in Ohms.
+        Default value is `np.inf`, which is equivalent to an open-circuit
+        system.
     load_model : obj
         A load model.
     flux_gradient : fun
@@ -38,9 +43,14 @@ class ElectricalModel:
         """
         self.name = name
         self.flux_model = None
+        self.coil_resistance = np.inf
         self.load_model = None
         self.flux_gradient = None
         self.precompute_gradient = False
+
+    def __str__(self):
+        """Return string representation of the ElectricalModel"""
+        return "Electrical Model:\n" + pretty_str(self.__dict__)
 
     def set_flux_model(self, flux_model, precompute_gradient=False):
         """Assign a flux model.
@@ -61,6 +71,10 @@ class ElectricalModel:
         if precompute_gradient:
             self.flux_gradient = self.flux_model.derivative()
             self.precompute_gradient = True
+
+    def set_coil_resistance(self, R):
+        """Set the resistance of the coil"""
+        self.coil_resistance = R
 
     def set_load_model(self, load_model):
         """Assign a load model
@@ -137,4 +151,4 @@ class ElectricalModel:
         x1, x2, x3, x4, x5 = y
         dphi_dz = self.get_flux_gradient(y)
         emf = dphi_dz * (x4-x2)
-        return self.load_model.get_current(emf)
+        return self.load_model.get_current(emf, self.coil_resistance)

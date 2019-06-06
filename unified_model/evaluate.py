@@ -90,7 +90,8 @@ class AdcProcessor:
         if self.smooth:
             critical_frequency = self.smooth_kwargs.pop('critical_frequency', 1/4)
             self.critical_frequency = critical_frequency
-            voltage_readings = smooth_butterworth(voltage_readings, critical_frequency)
+            voltage_readings = smooth_butterworth(voltage_readings,
+                                                  critical_frequency)
 
         voltage_readings = voltage_readings * self.voltage_division_ratio
         voltage_readings = voltage_readings - np.mean(voltage_readings)
@@ -128,7 +129,7 @@ class ElectricalSystemEvaluator:
 
     def __init__(self, emf_target, time_target):
         """Constructor.
-        
+
         Parameters
         ----------
         emf_target : ndarray
@@ -215,7 +216,7 @@ class ElectricalSystemEvaluator:
         # TODO: For now, we're assuming the predicted signal is
         # TODO: always leading.
 
-        # Compensate for delay
+        # Compensate for delay between signals
         interp_pred = UnivariateSpline(resampled_timesteps + time_offset,
                                        resampled_emf_pred,
                                        s=0,
@@ -301,8 +302,8 @@ class ElectricalSystemEvaluator:
         start_index, end_index = find_signal_limits(self.emf_predict_warped_, 1)
 
         # Convert to integer indices, since `find_signal_limits` actually
-        # returns the "time" of the signal, but we have a sampling frequency
-        # of 1.
+        # returns the "time" of the signal, but we have a sampling frequency of
+        # 1.
         start_index = int(start_index)
         end_index = int(end_index)
         self.emf_predict_warped_ = self.emf_predict_warped_[start_index:end_index]
@@ -478,12 +479,15 @@ def impute_missing(df_missing, indexes):
     `y_prime_mm`.
 
     """
+    print(indexes)
     for index in indexes:
         start_velocity_calc = index - 2
         end_velocity_calc = index - 1
 
         # Check we have enough points to calculate velocity
         try:
+            # `-1` indicates missing values. Check if our points used for
+            # inference are _also_ unlabelled.
             if df_missing.loc[start_velocity_calc, 'start_y'] == -1 or df_missing.loc[end_velocity_calc, 'start_y'] == -1:
                 raise ValueError('Too many sequential missing values to be able to impute all missing values.')
         except KeyError:
