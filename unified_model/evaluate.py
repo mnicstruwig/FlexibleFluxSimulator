@@ -299,18 +299,19 @@ class ElectricalSystemEvaluator:
         self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(self.emf_predict_,
                                                                          self.emf_target_)
         # Clip signals
-        start_index, end_index = find_signal_limits(self.emf_predict_warped_, 1)
+        start_index, end_index = find_signal_limits(self.emf_predict_, 1)
 
         # Convert to integer indices, since `find_signal_limits` actually
         # returns the "time" of the signal, but we have a sampling frequency of
         # 1.
         start_index = int(start_index)
         end_index = int(end_index)
-        self.emf_predict_warped_ = self.emf_predict_warped_[start_index:end_index]
-        self.emf_target_warped_ = self.emf_target_warped_[start_index:end_index]
+        self.time_clipped_ = self.time_[start_index:end_index]
+        self.emf_predict_clipped_ = self.emf_predict_[start_index:end_index]
+        self.emf_target_clipped_ = self.emf_target_[start_index:end_index]
 
-        metric_results = apply_scalar_functions(self.emf_predict_,
-                                                self.emf_target_,
+        metric_results = apply_scalar_functions(self.emf_predict_clipped_,
+                                                self.emf_target_clipped_,
                                                 **metrics)
         Results = namedtuple('Score', metric_results.keys())
 
@@ -328,8 +329,8 @@ class ElectricalSystemEvaluator:
             Kwargs passed to matplotlib.pyplot.plot function.
 
         """
-        plt.plot(self.time_, self.emf_target_, label='Target', **kwargs)
-        plt.plot(self.time_, self.emf_predict_, label='Predictions', **kwargs)
+        plt.plot(self.time_clipped_, self.emf_target_clipped_, label='Target', **kwargs)
+        plt.plot(self.time_clipped_, self.emf_predict_clipped_, label='Predictions', **kwargs)
         plt.legend()
 
         if include_dtw:
@@ -488,8 +489,11 @@ def impute_missing(df_missing, indexes):
         try:
             # `-1` indicates missing values. Check if our points used for
             # inference are _also_ unlabelled.
+            # TODO: Turn this check into a function w/ tests
             if df_missing.loc[start_velocity_calc, 'start_y'] == -1 or df_missing.loc[end_velocity_calc, 'start_y'] == -1:
-                raise ValueError('Too many sequential missing values to be able to impute all missing values.')
+                start_velocity_calc = start_velocity_calc - 1
+                if df_missing.loc[start_velocity_calc, 'start_y'] == -1 or df_missing.loc[end_velocity_calc, 'start_y'] == -1:
+                    raise ValueError('Too many sequential missing values to be able to impute all missing values.')
         except KeyError:
             raise IndexError('Too few points available to calculate velocity and impute missing values.')
 

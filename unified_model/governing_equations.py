@@ -39,13 +39,14 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     x1, x2, x3, x4, x5 = y
 
     # Make the sudden stop of the tube slightly less harsh
-    if x1 <= 0.025 and x2 <= 0:
-        x2 = x2/4
+    if x1 <= 0.015 and x2 <= 0:
+        x1 = 0
+        x2 = x2/10
 
     # prevent tube from going through bottom.
-    if x1 <= 0 and x2 <= 0:
-        x1 = 0
-        x2 = 0
+    # if x1 <= 0 and x2 <= 0:
+    #     x1 = 0
+    #     x2 = 0
 
     x1_dot = x2
     x2_dot = input_.get_acceleration(t)

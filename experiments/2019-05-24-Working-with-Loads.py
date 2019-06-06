@@ -2,9 +2,10 @@ from experiments.config import abc
 
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score, r2_score, median_absolute_error
 
 from unified_model.metrics import *
-from unified_model.evaluate import AdcProcessor
+from unified_model.evaluate import AdcProcessor, LabeledVideoProcessor
 from unified_model.unified import UnifiedModel
 from unified_model.coupling import ConstantCoupling
 from unified_model.electrical_model import ElectricalModel
@@ -28,7 +29,7 @@ a_samples = collect_samples(base_path=base_groundtruth_path,
 mechanical_model = MechanicalModel(name='Mechanical Model')
 mechanical_model.set_spring(abc.spring)
 mechanical_model.set_magnet_assembly(abc.magnet_assembly)
-mechanical_model.set_damper(DamperConstant(damping_coefficient=0.055))  # Tweaking will need to happen
+mechanical_model.set_damper(DamperConstant(damping_coefficient=0.03))  # Tweaking will need to happen
 
 
 accelerometer_inputs = [AccelerometerInput(raw_accelerometer_input=sample.acc_df,
@@ -46,10 +47,10 @@ mechanical_model.set_input(accelerometer_inputs[which_sample])  # Choose which i
 
 electrical_model = ElectricalModel(name=None)
 electrical_model.set_coil_resistance(abc.coil_resistance['A'])  # Guessing this value for the time being
-electrical_model.set_load_model(SimpleLoad(R=np.inf))  # Make sure this is correct!
+electrical_model.set_load_model(SimpleLoad(R=30))  # Make sure this is correct!
 electrical_model.set_flux_model(abc.flux_models['A'], precompute_gradient=True)
 
-coupling_model = ConstantCoupling(c=0)  # This will need to be found.
+coupling_model = ConstantCoupling(c=0.3)  # This will need to be found.
 
 unified_model = UnifiedModel(name='Unified Model')
 unified_model.add_mechanical_model(mechanical_model)
@@ -74,6 +75,26 @@ result = unified_model.get_result(time='t',
                                   emf='g(t, x5)')
 
 # Mechanical Scoring
+pixel_scale = 0.1785  # Huawei P10
+# pixel_scale = 0.18745 # Samsung S7
+
+labeled_video_processor = LabeledVideoProcessor(L=125,
+                                                mm=10,
+                                                seconds_per_frame=2/118,
+                                                pixel_scale=pixel_scale)
+
+mechanical_metrics = {'mde': median_absolute_error,
+                      'mape': mean_absolute_percentage_err,
+                      'max': max_err}
+
+mech_scores, m_eval = unified_model.score_mechanical_model(metrics_dict=mechanical_metrics,
+                                                           video_labels_df=a_samples[which_sample].video_labels_df,
+                                                           labeled_video_processor=labeled_video_processor,
+                                                           prediction_expr='x3-x1',
+                                                           return_evaluator=True)
+
+m_eval.poof(True)
+
 # Will only be handled once video has been labeled.
 
 # EMF Scoring
@@ -84,8 +105,8 @@ electrical_metrics = {'rms': root_mean_square,
 voltage_division_ratio = 1/0.342
 
 adc_processor = AdcProcessor(voltage_division_ratio=voltage_division_ratio,
-                             smooth=False,
-                             critical_frequency=1 / 8)
+                             smooth=True,
+                             critical_frequency=1 / 4)
 
 emf_scores, e_eval = unified_model.score_electrical_model(metrics_dict=electrical_metrics,
                                                           adc_df=a_samples[which_sample].adc_df,
