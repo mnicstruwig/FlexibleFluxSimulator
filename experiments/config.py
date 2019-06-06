@@ -23,9 +23,9 @@ abc_coil_center = {'A': 59/1000,
                    'B': 61/1000,
                    'C': 63/1000}
 
-abc_coil_resistance = {'A': 20,
-                       'B': 40,
-                       'C': 60}
+abc_coil_resistance = {'A': 12.5,
+                       'B': 23.5,
+                       'C': 17.8}
 
 abc_winding_num_z = {'A': '17',
                      'B': '33',
