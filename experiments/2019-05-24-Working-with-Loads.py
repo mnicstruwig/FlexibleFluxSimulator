@@ -27,6 +27,7 @@ a_samples = collect_samples(base_path=base_groundtruth_path,
                             labeled_video_pattern='A/*labels*.csv')
 
 mechanical_model = MechanicalModel(name='Mechanical Model')
+mechanical_model.set_max_height(113/1000)
 mechanical_model.set_spring(abc.spring)
 mechanical_model.set_magnet_assembly(abc.magnet_assembly)
 mechanical_model.set_damper(DamperConstant(damping_coefficient=0.03))  # Tweaking will need to happen
@@ -68,6 +69,8 @@ unified_model.solve(t_start=0,
 result = unified_model.get_result(time='t',
                                   x1='x1',
                                   x2='x2',
+                                  x3='x3',
+                                  x4='x4',
                                   acc='g(t, x2)',
                                   rel_pos='x3-x1',
                                   rel_vel='x4-x2',
@@ -93,7 +96,7 @@ mech_scores, m_eval = unified_model.score_mechanical_model(metrics_dict=mechanic
                                                            prediction_expr='x3-x1',
                                                            return_evaluator=True)
 
-m_eval.poof(True)
+m_eval.poof()
 
 # Will only be handled once video has been labeled.
 

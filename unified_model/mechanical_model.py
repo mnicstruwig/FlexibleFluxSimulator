@@ -9,6 +9,9 @@ class MechanicalModel:
     ----------
     name : str
         String identifier of the mechanical model.
+    max_height : float
+        The maximum height of the microgenerator (in metres). The magnet
+        assembly cannot exceed this limit.
     spring : obj
         The spring model attached to the magnet assembly and the tube.
     magnet_assembly : obj
@@ -35,6 +38,7 @@ class MechanicalModel:
 
         """
         self.name = name
+        self.max_height = None
         self.spring = None
         self.magnet_assembly = None
         self.damper = None
@@ -44,6 +48,17 @@ class MechanicalModel:
     def __str__(self):
         """Return string representation of the MechanicalModel"""
         return "Mechanical Model:\n" + pretty_str(self.__dict__)
+
+    def set_max_height(self, max_height):
+        """Set the maximum height of the microgenerator tube.
+
+        Parameters
+        ----------
+        max_height : float
+            The maximum height of the microgenerator tube.
+
+        """
+        self.max_height = max_height
 
     def set_spring(self, spring):
         """Add a spring to the mechanical system

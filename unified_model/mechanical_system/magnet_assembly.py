@@ -95,6 +95,6 @@ class MagnetAssembly(object):
     # TODO: Add test
     def get_height(self):
         """
-        Return the height of the magnet assembly in mm.
+        Return the height of the magnet assembly in m.
         """
-        return self.n_magnet*self.h_magnet + (self.n_magnet - 1)*self.h_spacer
+        return (self.n_magnet*self.h_magnet + (self.n_magnet - 1)*self.h_spacer)/1000
