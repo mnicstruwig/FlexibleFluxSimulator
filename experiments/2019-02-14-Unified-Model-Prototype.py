@@ -62,7 +62,7 @@ accelerometer = AccelerometerInput(raw_accelerometer_input=acc_adc_data_path,
                                    interpolate=True)
 
 mechanical_model = MechanicalModel(name='mech_system')
-mechanical_model.set_spring(spring)
+mechanical_model.set_magnetic_spring(spring)
 mechanical_model.set_magnet_assembly(magnet_assembly)
 mechanical_model.set_damper(damper)
 mechanical_model.set_input(accelerometer)

@@ -431,7 +431,7 @@ class LabeledVideoProcessor:
             missing_indexes = df.query('start_y == -1').index.values
             df = impute_missing(df, missing_indexes)
 
-        timestamps = np.arange(0, round(len(df) * self.spf, 8), self.spf)
+        timestamps = np.linspace(0, (len(df)-1)*self.spf, len(df))
 
         return df['y_prime_mm'].values / 1000, timestamps
 
@@ -480,7 +480,6 @@ def impute_missing(df_missing, indexes):
     `y_prime_mm`.
 
     """
-    print(indexes)
     for index in indexes:
         start_velocity_calc = index - 2
         end_velocity_calc = index - 1

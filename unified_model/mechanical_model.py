@@ -12,8 +12,11 @@ class MechanicalModel:
     max_height : float
         The maximum height of the microgenerator (in metres). The magnet
         assembly cannot exceed this limit.
-    spring : obj
-        The spring model attached to the magnet assembly and the tube.
+    magnetic_spring : obj
+        The magnetic spring model that is attached to the magnet assembly
+        and the tube.
+    mechanical_spring : obj
+        The mechanical spring model that is attached to the tube.
     magnet_assembly : obj
         The magnet assembly model.
     damper : obj
@@ -39,7 +42,8 @@ class MechanicalModel:
         """
         self.name = name
         self.max_height = None
-        self.spring = None
+        self.magnetic_spring = None
+        self.mechanical_spring = None
         self.magnet_assembly = None
         self.damper = None
         self.input_ = None
@@ -60,16 +64,29 @@ class MechanicalModel:
         """
         self.max_height = max_height
 
-    def set_spring(self, spring):
-        """Add a spring to the mechanical system
+    def set_magnetic_spring(self, spring):
+        """Add a magnetic spring to the mechanical system.
 
         Parameters
         ----------
         spring : obj
-            The spring model attached to the magnet assembly and the tube.
+            The magnetic spring model attached to the magnet assembly and the
+            tube.
 
         """
-        self.spring = spring
+        self.magnetic_spring = spring
+
+    def set_mechanical_spring(self, spring):
+        """Add a mechanical spring to the mechanical system.
+
+        Parameters
+        ----------
+        spring : obj
+            The mechanical spring model attached to the magnet assembly and the
+            tube.
+
+        """
+        self.mechanical_spring = spring
 
     def set_damper(self, damper):
         """Add a damper to the mechanical system

@@ -32,7 +32,7 @@ def build_test_mechanical_system_model():
                              t_footstep_start=1)
 
     test_mechanical_system = MechanicalModel()
-    test_mechanical_system.set_spring(test_spring)
+    test_mechanical_system.set_magnetic_spring(test_spring)
     test_mechanical_system.set_damper(test_damper)
     test_mechanical_system.set_input(test_footstep)
     test_mechanical_system.set_magnet_assembly(test_magnet_assembly)

@@ -1,4 +1,6 @@
 import numpy as np
+from fastdtw import fastdtw
+from scipy.spatial.distance import euclidean
 
 
 def corr_coeff(x1, x2):
@@ -36,3 +38,9 @@ def root_mean_square_percentage_diff(x1, x2):
     """
     x1_rms, x2_rms = root_mean_square(x1, x2)
     return (x1_rms-x2_rms)/x2_rms*100
+
+
+def dtw_euclid_distance(x1, x2):
+    """Calculate the distance between two signals using dynamic time warping."""
+    distance, path = fastdtw(x1, x2, dist=euclidean)
+    return distance

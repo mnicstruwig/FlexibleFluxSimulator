@@ -98,7 +98,7 @@ class MagneticSpring(object):
         :param z: Distance between two magnets
         :return: Force between two magnets in Newtons
         """
-        if self.model_type is 'interp':
+        if self.model_type == 'interp':
             return self.model(z)
         return self.model(z, *self.model_parameters)
 

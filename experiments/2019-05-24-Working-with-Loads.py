@@ -12,6 +12,7 @@ from unified_model.electrical_model import ElectricalModel
 from unified_model.electrical_system.load import SimpleLoad
 from unified_model.mechanical_model import MechanicalModel
 from unified_model.mechanical_system.damper import DamperConstant
+from unified_model.mechanical_system.spring.mechanical_spring import MechanicalSpring
 from unified_model.mechanical_system.input_excitation.accelerometer import AccelerometerInput
 from unified_model.utils.utils import collect_samples
 from unified_model.governing_equations import unified_ode
@@ -26,11 +27,20 @@ a_samples = collect_samples(base_path=base_groundtruth_path,
                             adc_pattern='A/*adc*.csv',
                             labeled_video_pattern='A/*labels*.csv')
 
+max_height = 110/1000
+
+mechanical_spring = MechanicalSpring(push_direction='down',
+                                     position=max_height,
+                                     pure=False,
+                                     strength=1000,
+                                     damper_constant=0.05)
+
 mechanical_model = MechanicalModel(name='Mechanical Model')
-mechanical_model.set_max_height(113/1000)
-mechanical_model.set_spring(abc.spring)
+mechanical_model.set_max_height(110/1000)
+mechanical_model.set_magnetic_spring(abc.spring)
+mechanical_model.set_mechanical_spring(mechanical_spring)
 mechanical_model.set_magnet_assembly(abc.magnet_assembly)
-mechanical_model.set_damper(DamperConstant(damping_coefficient=0.03))  # Tweaking will need to happen
+mechanical_model.set_damper(DamperConstant(damping_coefficient=0.045))  # Tweaking will need to happen
 
 
 accelerometer_inputs = [AccelerometerInput(raw_accelerometer_input=sample.acc_df,
@@ -46,12 +56,12 @@ accelerometer_inputs = [AccelerometerInput(raw_accelerometer_input=sample.acc_df
 which_sample = 1
 mechanical_model.set_input(accelerometer_inputs[which_sample])  # Choose which input to system
 
-electrical_model = ElectricalModel(name=None)
+electrical_model = ElectricalModel(name='Electrical Model')
 electrical_model.set_coil_resistance(abc.coil_resistance['A'])  # Guessing this value for the time being
 electrical_model.set_load_model(SimpleLoad(R=30))  # Make sure this is correct!
 electrical_model.set_flux_model(abc.flux_models['A'], precompute_gradient=True)
 
-coupling_model = ConstantCoupling(c=0.3)  # This will need to be found.
+coupling_model = ConstantCoupling(c=0.0)  # This will need to be found.
 
 unified_model = UnifiedModel(name='Unified Model')
 unified_model.add_mechanical_model(mechanical_model)
@@ -76,9 +86,10 @@ result = unified_model.get_result(time='t',
                                   rel_vel='x4-x2',
                                   flux='x5',
                                   emf='g(t, x5)')
-
+ 
 # Mechanical Scoring
-pixel_scale = 0.1785  # Huawei P10
+# pixel_scale = 0.1785  # Huawei P10
+pixel_scale = 0.18451  # Huawei P10 alternative
 # pixel_scale = 0.18745 # Samsung S7
 
 labeled_video_processor = LabeledVideoProcessor(L=125,
@@ -96,9 +107,7 @@ mech_scores, m_eval = unified_model.score_mechanical_model(metrics_dict=mechanic
                                                            prediction_expr='x3-x1',
                                                            return_evaluator=True)
 
-m_eval.poof()
-
-# Will only be handled once video has been labeled.
+m_eval.poof(True)
 
 # EMF Scoring
 
@@ -115,11 +124,13 @@ emf_scores, e_eval = unified_model.score_electrical_model(metrics_dict=electrica
                                                           adc_df=a_samples[which_sample].adc_df,
                                                           adc_processor=adc_processor,
                                                           prediction_expr='g(t, x5)',
-                                                          return_evaluator=True)
+                                                          return_evaluator=True,
+                                                          closed_circuit=True)
 
 # result.plot(x='time', y='rel_pos') result.plot(x='time', y='flux')
 # result.plot(x='time', y='emf')
 # plt.figure()
 e_eval.poof(True)
+
 
 print(emf_scores)

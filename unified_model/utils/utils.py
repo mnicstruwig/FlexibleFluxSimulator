@@ -1,16 +1,17 @@
-from fastdtw import fastdtw
-from scipy.spatial.distance import euclidean
-import numpy as np
-import pandas as pd
-
-from itertools import zip_longest
-from collections import namedtuple
-from glob import glob
 import os
 import warnings
+from collections import namedtuple
+from glob import glob
+from itertools import product, zip_longest
+from typing import Tuple
 
+import numpy as np
+import pandas as pd
 from asteval import Interpreter
+from fastdtw import fastdtw
 from scipy import signal
+from scipy.spatial.distance import euclidean
+
 
 def pretty_str(dict_):
     """Get a pretty string representation of a dictionary."""
@@ -18,6 +19,7 @@ def pretty_str(dict_):
     for key, val in dict_.items():
         str_ = str_ + f"{key} : {val}" + "\n"
     return str_
+
 
 def fetch_key_from_dictionary(dictionary, key, error_message):
     """Fetch a value from a dictionary
@@ -142,7 +144,7 @@ def g(x, y):
     return df_out
 
 
-def warp_signals(x1, x2):
+def warp_signals(x1, x2, return_distance=False):
     """Warp and align two signals using dynamic time warping.
 
     Parameters
@@ -168,6 +170,8 @@ def warp_signals(x1, x2):
     x1_warped = np.array([x1[i] for i in x1_indexes])
     x2_warped = np.array([x2[i] for i in x2_indexes])
 
+    if return_distance:
+        return x1_warped, x2_warped, distance
     return x1_warped, x2_warped
 
 
@@ -192,7 +196,27 @@ def find_signal_limits(target, sampling_period, threshold=1e-4):
 
 
 def apply_scalar_functions(x1, x2, **func):
-    """Apply a set of functions (that return a scalar result) to two arrays."""
+    """Apply a set of functions (that return a scalar result) to two arrays.
+
+    Parameters
+    ----------
+    x1 : array
+        The first array.
+    x2 : array
+        The second array.
+    **func
+        The functions should be provided as a dictionary, `func` where the keys
+        are the names of the sub-result that will be returned, and the values of
+        `func` are the functions to be applied.
+
+    Returns
+    -------
+    dict
+        Results are returned as dictionary where the keys are the same as the
+        keys provided by `func` and the values are the results of the applied
+        functions.
+
+    """
     results = {name: function(x1, x2) for (name, function) in zip(func.keys(), func.values())}
     return results
 
@@ -260,3 +284,50 @@ def collect_samples(base_path, acc_pattern, adc_pattern, labeled_video_pattern):
                                         paths,
                                         fillvalue=None)]
     return sample_collection
+
+
+# TODO: Add test
+def build_paramater_grid(param_dict: dict, func_dict: dict = None) -> Tuple:
+    """Build a grid of parameters for performing gridsearch.
+
+    Functions can optionally be applied to the input parameters, which is
+    useful when you wish to instantiate objects for use in the grid search.
+
+    Parameters
+    ----------
+    param_dict : dict
+        Dictionary where the keys are the names of the parameters, and the
+        values are a list containing the values the parameter must have.
+        If `func_dict` is provided, the keys of the parameters must match those
+        of `func_dict`.
+    func_dict : dict, optional
+        Dictionary defining functions to be applied to values of `param_dict`.
+        Keys must match the keys in `param_dict`.
+
+    Returns
+    -------
+    parameter_grid : list
+        A list containing all product permutations of the parameters, with
+        functions in `funct_dict` applied (if `func_dict` was specified).
+    value_grid : list
+        A iterable containing the product permutation of the *values* of the
+        parameters. This is useful when `func_dict` is specified, and the
+        original values of the parameters would otherwise be lost (such as
+        in the case where an object is returned). `value_grid` is only returned
+        if `func_dict` is not None.
+
+    """
+    if func_dict:
+        try:
+            assert list(param_dict.keys()) == list(func_dict.keys())
+        except AssertionError:
+            raise AssertionError('The parameter keys and the function keys do\
+            not match.')
+
+        parameter_grid = {}
+        for key, values in param_dict.items():
+            parameter_grid[key] = [func_dict[key](value) for value in values]
+
+        return list(product(*parameter_grid.values())), list(product(*param_dict.values()))
+
+    return list(product(*param_dict.values()))

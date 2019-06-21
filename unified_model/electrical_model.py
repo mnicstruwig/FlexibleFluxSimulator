@@ -108,7 +108,7 @@ class ElectricalModel:
             return self.flux_gradient(x3-x1)
         return _gradient(self.flux_model, x3-x1)
 
-    def get_emf(self, y):
+    def get_emf(self, y, load_model=None):
         """Return the instantaneous emf produced by the electrical system.
 
         Note, this is the open-circuit emf and *not* the emf supplied to

@@ -3,7 +3,9 @@ Contains the unified model architecture that encapsulates the mechanical
 system, electrical system, the coupling between them and the master system
 model that describes their interaction.
 """
-
+from glob import glob
+import os
+import cloudpickle
 import numpy as np
 from scipy import integrate
 from unified_model.utils.utils import parse_output_expression
@@ -65,6 +67,34 @@ class UnifiedModel(object):
     def __str__(self):
         """Return string representation of the UnifiedModel"""
         return "Unified Model:\n" + pretty_str(self.__dict__)
+
+    def persist_to_disk(self, path):
+        """Persists a unified model to disk"""
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+        else:
+            raise FileExistsError('The path already exists.')
+
+        for key, val in self.__dict__.items():
+            component_path = path + key + '.pkl'
+            with open(component_path, 'wb') as f:
+                cloudpickle.dump(val, f)
+
+    @classmethod
+    def load_from_disk(self, path):
+        """Load a unified model from disk."""
+        unified_model = UnifiedModel(name=None)
+
+        files = glob(path + '*')
+        keys = [f.split('.pkl')[0].split('/')[-1] for f in files]  # TODO: Use regex instead
+
+        for key, file_ in zip(keys, files):
+            with open(file_, 'rb') as f:
+                unified_model.__dict__[key] = cloudpickle.load(f)
+
+        return unified_model
+
 
     def add_mechanical_model(self, mechanical_model):
         """Add a mechanical model to the unified model
@@ -386,6 +416,10 @@ class UnifiedModel(object):
             functions can also be applied to the differential equations. These
             are referenced in the "See Also" section below.
         **kwargs
+            closed_circuit : bool
+                If True, consider the voltage across the *load*, and not the
+                open-circuit voltage across the whole system.
+                Default value is False.
             return_evaluator : bool
                 Whether to return the evaluator used to score the electrical
                 system.
@@ -428,6 +462,11 @@ class UnifiedModel(object):
                                     prediction=prediction_expr)
         emf_predict = df_result['prediction'].values
         time_predict = df_result['time'].values
+
+        if kwargs.pop('closed_circuit', False):
+            R_coil = self.electrical_model.coil_resistance
+            R_load = self.electrical_model.load_model.R
+            emf_predict = emf_predict*(R_load/(R_load+R_coil))
 
         # Scoring
         electrical_evaluator = ElectricalSystemEvaluator(emf_target, time_target)

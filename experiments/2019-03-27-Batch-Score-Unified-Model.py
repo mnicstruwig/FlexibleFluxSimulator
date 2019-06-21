@@ -60,7 +60,7 @@ magnet_assembly = MagnetAssembly(n_magnet=1,
 
 damper = Damper(model='constant', model_kwargs={'damping_coefficient': 0.05})
 mechanical_model = MechanicalModel(name='mech_system')
-mechanical_model.set_spring(spring)
+mechanical_model.set_magnetic_spring(spring)
 mechanical_model.set_magnet_assembly(magnet_assembly)
 mechanical_model.set_damper(damper)
 

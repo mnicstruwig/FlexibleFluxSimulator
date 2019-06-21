@@ -63,35 +63,23 @@ def _get_assembly_max_position(tube_pos, assembly_height, max_height):
 
 
 def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
-    spring = mechanical_model.spring
+    magnetic_spring = mechanical_model.magnetic_spring
+    mechanical_spring = mechanical_model.mechanical_spring
     damper = mechanical_model.damper
     input_ = mechanical_model.input_
     magnet_assembly = mechanical_model.magnet_assembly
 
-    # tube displacement, tube velocity, magnet displacement, magnet velocity, flux
+    # tube displ., tube velocity, magnet displ. , magnet velocity, flux
     x1, x2, x3, x4, x5 = y
 
     # Make the sudden stop of the tube slightly less harsh
     if x1 <= 0.015 and x2 <= 0:
         x2 = x2/3
 
-
     # prevent tube from going through bottom.
     if x1 <= 0 and x2 <= 0:
         x1 = 0
         x2 = 0
-
-    # prevent magnet assembly from going through the top
-    if _is_assembly_above_max_height(tube_pos=x1,
-                                     mag_pos=x3,
-                                     assembly_height=magnet_assembly.get_height(),
-                                     max_height=mechanical_model.max_height) and (x4-x2) >= 0:
-
-        x3 = _get_assembly_max_position(tube_pos=x1,
-                                        assembly_height=magnet_assembly.get_height(),
-                                        max_height=mechanical_model.max_height)
-
-        x4 = x2
 
     x1_dot = x2
     x2_dot = input_.get_acceleration(t)
@@ -110,9 +98,16 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     if (x4 - x2) > 0:
         coupling_force = np.abs(coupling_force)
 
-    x4_dot = (spring.get_force(x3 - x1) - magnet_assembly.get_weight() -
-              damper.get_force(x4 - x2) -
-              coupling_force) / magnet_assembly.get_mass()
+    try:
+        mechanical_spring_force = mechanical_spring.get_force(x3-x1, x4-x2)
+    except AttributeError:
+        mechanical_spring_force = 0
+
+    x4_dot = (+ magnetic_spring.get_force(x3 - x1)
+              - mechanical_spring_force
+              - magnet_assembly.get_weight()
+              - damper.get_force(x4 - x2)
+              - coupling_force) / magnet_assembly.get_mass()
 
     x5_dot = emf
 
