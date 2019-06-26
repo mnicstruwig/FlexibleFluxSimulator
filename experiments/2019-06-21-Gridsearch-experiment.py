@@ -124,3 +124,4 @@ def scores_to_dataframe(scores, param_values_grid, param_names):
 
 
 df = scores_to_dataframe(scores, val_grid, param_names=['friction_damping', 'spring_damping', 'em_coupling'])
+df.to_csv('result.csv')
