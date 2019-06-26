@@ -1,4 +1,5 @@
 from config import abc
+import cloudpickle
 from itertools import product
 import os
 import numpy as np
@@ -49,9 +50,9 @@ def make_mechanical_spring(damper_constant):
                             pure=False,
                             damper_constant=damper_constant)
 
-damping_coefficients = np.linspace(0.01, 0.5, 2)
+damping_coefficients = np.linspace(0.01, 1, 30)
 mech_spring_coefficients = [0.0125]  # Found from investigation
-constant_coupling_values = np.linspace(0.5, 2, 2)
+constant_coupling_values = np.linspace(0.0, 3, 30)
 
 param_dict = {'damper': damping_coefficients,
               'mechanical_spring': mech_spring_coefficients,
@@ -122,6 +123,11 @@ def scores_to_dataframe(scores, param_values_grid, param_names):
 
 
 df = scores_to_dataframe(scores, val_grid, param_names=['friction_damping', 'spring_damping', 'em_coupling'])
+
+df.to_csv('result.csv')
+
+with open('mech_evals.pkl', 'wb') as f:
+    cloudpickle.dump(mech_evals, f)
 
 # from plotnine import *
 # p = ggplot(aes(x='friction_damping', y='em_coupling', size='dtw_euclid'), df)
