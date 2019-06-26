@@ -57,7 +57,7 @@ abc_spring = MagneticSpring(fea_data_file=abc_spring_fea_data_path,
                             model='savgol_smoothing',
                             model_type='interp')
 
-abc_flux_database = FluxDatabase(csv_database_path='/home/michael/Dropbox/PhD/Python/Research/fea-flux-curves-numr[5,15]-numz[17,33,66]-wdiam[0.15]-cheight[8,12,14]-2019-04-11.csv', fixed_velocity=0.35)
+abc_flux_database = FluxDatabase(csv_database_path='./data/fea-flux-curves/fea-flux-curves-numr[5,15]-numz[17,33,66]-wdiam[0.15]-cheight[8,12,14]-2019-04-11.csv', fixed_velocity=0.35)
 
 abc_flux_models = {}
 for device in ['A', 'B', 'C']:
