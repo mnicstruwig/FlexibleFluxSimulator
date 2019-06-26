@@ -322,6 +322,10 @@ class UnifiedModel(object):
             return_evaluator : bool
                 Whether to return the evaluator used to score the electrical
                 system.
+            use_processed_signals : bool
+                If True, score on the processed (i.e. Dynamic Time Warped)
+                signals. If False, score on the resampled and time-aligned
+                signals without Dynamic Time Warping. Default value is True.
 
         See Also
         --------
@@ -371,7 +375,13 @@ class UnifiedModel(object):
         mechanical_evaluator.fit(y_predict, time_predict)
         self.mechanical_evaluator = mechanical_evaluator
 
-        mechanical_scores = mechanical_evaluator.score(**metrics_dict)
+        use_processed_signals = kwargs.pop('use_processed_signals', True)
+        if use_processed_signals:
+            mechanical_scores = mechanical_evaluator.score(use_processed_signals=True,
+                                                           **metrics_dict)
+        else:
+            mechanical_scores = mechanical_evaluator.score(use_processed_signals=False,
+                                                           **metrics_dict)
 
         if kwargs.pop('return_evaluator', None):
             return mechanical_scores, mechanical_evaluator

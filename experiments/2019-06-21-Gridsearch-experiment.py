@@ -7,7 +7,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_v
 from tqdm import tqdm
 
 from unified_model.metrics import *
-from unified_model.evaluate import AdcProcessor, LabeledVideoProcessor
+from unified_model.evaluate import AdcProcessor, LabeledVideoProcessor, MechanicalSystemEvaluator
 from unified_model.unified import UnifiedModel
 from unified_model.coupling import ConstantCoupling
 from unified_model.electrical_model import ElectricalModel
@@ -46,9 +46,9 @@ def make_mechanical_spring(damper_constant):
                             pure=False,
                             damper_constant=damper_constant)
 
-damping_coefficients = np.linspace(0.01, 0.5, 20)
+damping_coefficients = np.linspace(0.01, 0.5, 2)
 mech_spring_coefficients = [0.0125]  # Found from investigation
-constant_coupling_values = np.linspace(0.5, 2, 20)
+constant_coupling_values = np.linspace(0.5, 2, 2)
 
 param_dict = {'damper': damping_coefficients,
               'mechanical_spring': mech_spring_coefficients,
@@ -66,18 +66,16 @@ labeled_video_processor = LabeledVideoProcessor(L=125,
                                                 seconds_per_frame=2/118,
                                                 pixel_scale=pixel_scale)
 
-mechanical_metrics = {'mde': median_absolute_error,
-                      'mape': mean_absolute_percentage_err,
-                      'max': max_err,
-                      'dtw_euclid': dtw_euclid_distance}
+mechanical_metrics = {'dtw_euclid': dtw_euclid_distance}
 
 
 def search_grid(sample_collection, base_unified_model, param_grid):
     pass
 
-# TODO: URGENT ---> make sure there's a way of updating the accelerometer input!!
+
 # TODO: Make a utility to do this
 scores = []
+mech_evals = []
 which_sample = 1
 for damper, mech_spring, coupling in tqdm(list(param_grid)):
     # Update
@@ -92,14 +90,14 @@ for damper, mech_spring, coupling in tqdm(list(param_grid)):
                         t_max_step=1e-3,
                         y0=[0., 0., 0.04, 0., 0.])
 
-    # Score
     mech_scores, m_eval = unified_model.score_mechanical_model(metrics_dict=mechanical_metrics,
                                                                video_labels_df=a_samples[which_sample].video_labels_df,
                                                                labeled_video_processor=labeled_video_processor,
                                                                prediction_expr='x3-x1',
-                                                               return_evaluator=True)
+                                                               return_evaluator=True,
+                                                               use_processed_signals=False)
     scores.append(mech_scores)
-
+    mech_evals.append(m_eval)
 
 
 def scores_to_dataframe(scores, param_values_grid, param_names):
@@ -122,8 +120,8 @@ def scores_to_dataframe(scores, param_values_grid, param_names):
 
 df = scores_to_dataframe(scores, val_grid, param_names=['friction_damping', 'spring_damping', 'em_coupling'])
 
-from plotnine import *
-p = ggplot(aes(x='friction_damping', y='em_coupling', size='dtw_euclid'), df)
-p = p + geom_point()
-p.__repr__()
+# from plotnine import *
+# p = ggplot(aes(x='friction_damping', y='em_coupling', size='dtw_euclid'), df)
+# p = p + geom_point()
+# p.__repr__()
 

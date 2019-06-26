@@ -36,7 +36,7 @@ def fetch_key_from_dictionary(dictionary, key, error_message):
         raise KeyError(error_message)
 
 
-def calc_sample_delay(x, y):
+def get_sample_delay(x, y):
     """Calculate the delay (in samples) between two signals using correlation.
     """
     corr_1 = signal.correlate(x, y)

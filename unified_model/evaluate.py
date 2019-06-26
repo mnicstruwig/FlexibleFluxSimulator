@@ -7,7 +7,7 @@ from scipy.interpolate import UnivariateSpline
 from scipy.signal import correlate
 
 from unified_model.utils.utils import (apply_scalar_functions,
-                                       calc_sample_delay, find_signal_limits,
+                                       get_sample_delay, find_signal_limits,
                                        smooth_butterworth, warp_signals)
 
 
@@ -487,11 +487,13 @@ def impute_missing(df_missing, indexes):
         # Check we have enough points to calculate velocity
         try:
             # `-1` indicates missing values. Check if our points used for
-            # inference are _also_ unlabelled.
+            # imputing are _also_ unlabelled.
             # TODO: Turn this check into a function w/ tests
-            if df_missing.loc[start_velocity_calc, 'start_y'] == -1 or df_missing.loc[end_velocity_calc, 'start_y'] == -1:
+            if df_missing.loc[end_velocity_calc, 'start_y'] == -1:
+                raise ValueError('Too few many sequential missing values to be able to impute all missing values.')
+            if df_missing.loc[start_velocity_calc, 'start_y'] == -1:
                 start_velocity_calc = start_velocity_calc - 1
-                if df_missing.loc[start_velocity_calc, 'start_y'] == -1 or df_missing.loc[end_velocity_calc, 'start_y'] == -1:
+                if df_missing.loc[start_velocity_calc, 'start_y'] == -1:
                     raise ValueError('Too many sequential missing values to be able to impute all missing values.')
         except KeyError:
             raise IndexError('Too few points available to calculate velocity and impute missing values.')
@@ -589,6 +591,7 @@ class MechanicalSystemEvaluator(object):
         self.time_predict = time_predict
 
         # Resample the signals to the same sampling frequency
+        # This is required for calculating the sample delay between them.
         stop_time = np.max([self.time_target[-1], time_predict[-1]])
         self._clip_time = np.min([self.time_target[-1], time_predict[-1]])
 
@@ -604,23 +607,56 @@ class MechanicalSystemEvaluator(object):
             new_x_range=(0, stop_time)
         )
 
-        # Remove the delay between the signals
-        sample_delay = calc_sample_delay(resampled_y_target,
-                                         resampled_y_predicted)
+        # Calculate the sample delay
+        sample_delay = get_sample_delay(resampled_y_target,
+                                        resampled_y_predicted)
 
+        # Remove the delay between the signals
         time_delay = resampled_time[sample_delay]
         _, resampled_y_predicted = self._interpolate_and_resample(resampled_time - time_delay,
                                                                   resampled_y_predicted,
-                                                                  new_x_range=[0, stop_time])
+                                                                  new_x_range=(0, stop_time))
         # Store results
         self.y_target_ = resampled_y_target
         self.y_predict_ = resampled_y_predicted
         self.time_ = resampled_time
 
+        # Exclude trailing (i.e. steady state) portion of the predicted waveform.
+        clip_index = np.argmin(np.abs(self.time_ - self._clip_time))
+        self.y_predict_warped_, self.y_target_warped_ = warp_signals(self.y_predict_[:clip_index],
+                                                                     self.y_target_[:clip_index])
+
     # TODO: Place in `utils`
     @staticmethod
     def _interpolate_and_resample(x, y, num_samples=10000, new_x_range=None):
-        """Resample a signal using interpolation"""
+        """Resample a signal using interpolation.
+
+        This is useful for resampling two different signals with different
+        sampling frequencies so that they have the same sampling frequency,
+        which can be achieved by resampling both signals to have the same
+        `num_samples` and `new_x_range`.
+
+        Parameters
+        ----------
+        x : array_like
+            The input values that correspond to output values `y`.
+        y : array_like
+            The output values to be interpolated.
+        num_samples : int
+            The number of sampling points that should be used in the resampled
+            signal.
+        new_x_range : tuple(int, int)
+            The range of x values for which the resampled values should be
+            returned.
+
+        Returns
+        -------
+        new_x : array
+            The new x values.
+        interp: array
+            The new resampled values of `y` corresponding to `new_x`.
+
+        """
         interp = UnivariateSpline(x, y, s=0, ext='zeros')
 
         if new_x_range is not None:
@@ -666,20 +702,26 @@ class MechanicalSystemEvaluator(object):
         self._fit(y_predict, time_predict)
         return self.time_, self.y_predict_
 
-    def score(self, **metrics):
+    def score(self, use_processed_signals: bool = True, **metrics):
         """Evaluate the mechanical model using a selection of metrics.
 
         A `Score` object is returned containing the results.
 
         Parameters
         ----------
-        **metrics : Metrics to compute on the interpolated predicted and target
-        electrical data. Keys will be used to set the attributes of the Score
-        object. Values must be the function used to compute the metric. Each
-        function must accept arguments (arr_predict, arr_target) as input,
-        where `arr_predict` and `arr_target` are numpy arrays that contain the
-        predicted values and target values, respectively. The return value of
-        the functions can have any shape.
+        use_processed_signals : bool
+            If True, score on the processed (i.e. Dynamic Time Warped)
+            signals. If False, score on the resampled and time-aligned signals
+            without Dynamic Time Warping.
+            Default value is True.
+        **metrics :
+            Metrics to compute on the interpolated predicted and target
+            electrical data. Keys will be used to set the attributes of the
+            Score object. Values must be the function used to compute the
+            metric. Each function must accept arguments (arr_predict,
+            arr_target) as input, where `arr_predict` and `arr_target` are
+            numpy arrays that contain the predicted values and target values,
+            respectively. The return value of the functions can have any shape.
 
         Returns
         -------
@@ -702,21 +744,20 @@ class MechanicalSystemEvaluator(object):
         Score(mean_difference=0.05925911092493251, max_value=5.07879398116099)
 
         """
-        results = self._score(**metrics)
+        results = self._score(use_processed_signals, **metrics)
         return results
 
-    def _score(self, **metrics):
+    def _score(self, use_processed_signals: bool, **metrics):
         """Calculate the score of the predicted y values."""
 
-        # Exclude trailing "steady-state" predictions.
-        clip_index = np.argmin(np.abs(self.time_ - self._clip_time))
-
-        self.y_predict_warped_, self.y_target_warped_ = warp_signals(self.y_predict_[:clip_index],
-                                                                     self.y_target_[:clip_index])
-
-        metric_results = apply_scalar_functions(self.y_predict_warped_,
-                                                self.y_target_warped_,
-                                                **metrics)
+        if use_processed_signals:
+            metric_results = apply_scalar_functions(self.y_predict_warped_,
+                                                    self.y_target_warped_,
+                                                    **metrics)
+        else:
+            metric_results = apply_scalar_functions(self.y_predict_,
+                                                    self.y_target_,
+                                                    **metrics)
         # Output "Score" class
         Results = namedtuple('Score', metric_results.keys())
 
