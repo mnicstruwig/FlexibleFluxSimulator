@@ -86,6 +86,11 @@ class UnifiedModel(object):
         """Load a unified model from disk."""
         unified_model = UnifiedModel(name=None)
 
+        try:
+            assert os.path.isdir(path)
+        except AssertionError:
+            raise FileNotFoundError('Path to model does not exist')
+
         files = glob(path + '*')
         keys = [f.split('.pkl')[0].split('/')[-1] for f in files]  # TODO: Use regex instead
 

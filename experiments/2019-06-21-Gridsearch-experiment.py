@@ -1,5 +1,6 @@
 from config import abc
 from itertools import product
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -20,9 +21,11 @@ from unified_model.utils.utils import collect_samples, build_paramater_grid
 from unified_model.governing_equations import unified_ode
 from unified_model.pipeline import clip_x2
 
-unified_model = UnifiedModel.load_from_disk('./my_saved_model/')
+base_dir = os.getcwd()
 
-base_groundtruth_path = './experiments/data/2019-05-23/'
+unified_model = UnifiedModel.load_from_disk('../my_saved_model/')
+
+base_groundtruth_path = './data/2019-05-23/'
 a_samples = collect_samples(base_path=base_groundtruth_path,
                             acc_pattern='A/*acc*.csv',
                             adc_pattern='A/*adc*.csv',

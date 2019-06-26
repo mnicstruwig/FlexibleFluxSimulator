@@ -1,10 +1,15 @@
 """
 Constants for each microgenerator device / collection of devices.
 """
+import os
+
 from collections import namedtuple
 from unified_model.electrical_system.flux.utils import FluxDatabase
 from unified_model.mechanical_system.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
+
+
+base_dir = os.getcwd()
 
 config_parameters = ['coil_center',
                      'coil_resistance',
@@ -47,7 +52,7 @@ abc_magnet_assembly = MagnetAssembly(n_magnet=1,
                                      mat_magnet='NdFeB',
                                      mat_spacer='iron')
 
-abc_spring_fea_data_path = './unified_model/mechanical_system/spring/data/10x10alt.csv'
+abc_spring_fea_data_path = os.path.join(base_dir, '../unified_model/mechanical_system/spring/data/10x10alt.csv')
 abc_spring = MagneticSpring(fea_data_file=abc_spring_fea_data_path,
                             model='savgol_smoothing',
                             model_type='interp')
