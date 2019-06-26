@@ -1,3 +1,4 @@
+import copy
 import os
 import warnings
 from collections import namedtuple
@@ -324,10 +325,99 @@ def build_paramater_grid(param_dict: dict, func_dict: dict = None) -> Tuple:
             raise AssertionError('The parameter keys and the function keys do\
             not match.')
 
-        parameter_grid = {}
+        processed_param_dict = {}
         for key, values in param_dict.items():
-            parameter_grid[key] = [func_dict[key](value) for value in values]
+            # Apply functions to parameter grid
+            processed_param_dict[key] = [func_dict[key](value) for value in values]
 
+        parameter_product = list(product(*processed_param_dict.values()))
+        value_grid = list(product(*param_dict.values()))
+
+        parameter_grid = []
+        for param_set in parameter_product:
+            dict_ = {key: param
+                     for key, param
+                     in zip(param_dict.keys(), param_set)}
+
+            parameter_grid.append(dict_)
+
+        return parameter_grid, value_grid
         return list(product(*parameter_grid.values())), list(product(*param_dict.values()))
 
     return list(product(*param_dict.values()))
+
+
+def update_nested_attributes(primary, update_dict):
+    """
+    Update a number of parameters in a multi-tiered object and return a copy.
+
+    Parameters
+    ----------
+    primary : object
+        The object to update.
+    update_dict : dict
+        A dictionary whose keys should be a "dot" expression for the nested
+        attributes to be updated, and whose values should be the new values
+        for these attributes.
+        Example key: 'primary_attribute.secondary_attribute.target_attribute'.
+
+    Returns
+    -------
+    object
+        The updated object.
+
+    """
+    new_primary = copy.deepcopy(primary)
+    for key, val in update_dict.items():
+        new_primary = update_attribute(new_primary,
+                                       key,
+                                       val)
+    return new_primary
+
+
+# TODO: Add tests
+def update_attribute(primary, key_expr, value):
+    """
+    Update a key in a nested dictionary and return a copy.
+
+
+    Parameters
+    ----------
+    primary : object
+        The object (that may contain nested objects as attributes) to be
+        updated.
+    key_expr : str
+        The dotted expression of the nested path of the key to update.
+        Eg: `primary_key.secondary_key.target_key`. Keys must correspond
+        to nested dictionary in `primary`.
+    value:
+        The new value for the key at `key_expr`.
+
+    Returns
+    -------
+    dict
+        The updated dictionary.
+
+    Examples
+    --------
+    >>> dict_ = {'a': {'b': {'c': 'my_nested_value'}}}
+    >>> new_dict = update_nested_dict(dict_, 'a.b.c', 'new_value')
+    >>> new_dict
+    {'a': {'b': {'c': 'new_value'}}}
+    >>> dict
+    {'a': {'b': {'c': 'my_nested_value'}}}
+
+    """
+    new_primary = copy.deepcopy(primary)
+    new_primary_dict = new_primary.__dict__
+    keys = key_expr.split('.')
+
+    if len(keys) == 1:
+        new_primary_dict[keys[0]] = value
+    else:
+        temp = new_primary_dict
+        for key in keys[:-1]:  # Loop through keys except last one
+            temp = temp[key]  # Enter the next dictionary
+        temp.__dict__[keys[-1]] = value  # Set value at deepest key
+
+    return new_primary

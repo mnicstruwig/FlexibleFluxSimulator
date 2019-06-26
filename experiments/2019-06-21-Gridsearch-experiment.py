@@ -17,13 +17,13 @@ from unified_model.mechanical_model import MechanicalModel
 from unified_model.mechanical_system.damper import DamperConstant
 from unified_model.mechanical_system.spring.mechanical_spring import MechanicalSpring
 from unified_model.mechanical_system.input_excitation.accelerometer import AccelerometerInput
-from unified_model.utils.utils import collect_samples, build_paramater_grid
+from unified_model.utils.utils import collect_samples, build_paramater_grid, update_nested_attributes
 from unified_model.governing_equations import unified_ode
 from unified_model.pipeline import clip_x2
 
 base_dir = os.getcwd()
 
-unified_model = UnifiedModel.load_from_disk('../my_saved_model/')
+base_unified_model = UnifiedModel.load_from_disk('../my_saved_model/')
 
 base_groundtruth_path = './data/2019-05-23/'
 a_samples = collect_samples(base_path=base_groundtruth_path,
@@ -53,13 +53,13 @@ damping_coefficients = np.linspace(0.01, 0.5, 2)
 mech_spring_coefficients = [0.0125]  # Found from investigation
 constant_coupling_values = np.linspace(0.5, 2, 2)
 
-param_dict = {'damper': damping_coefficients,
-              'mechanical_spring': mech_spring_coefficients,
-              'coupling': constant_coupling_values}
+param_dict = {'mechanical_model.damper': damping_coefficients,
+              'mechanical_model.mechanical_spring': mech_spring_coefficients,
+              'coupling_model': constant_coupling_values}
 
-func_dict = {'damper': DamperConstant,
-             'mechanical_spring': make_mechanical_spring,
-             'coupling': ConstantCoupling}
+func_dict = {'mechanical_model.damper': DamperConstant,
+             'mechanical_model.mechanical_spring': make_mechanical_spring,
+             'coupling_model': ConstantCoupling}
 
 param_grid, val_grid = build_paramater_grid(param_dict, func_dict)
 
@@ -73,32 +73,34 @@ mechanical_metrics = {'dtw_euclid': dtw_euclid_distance}
 
 
 def search_grid(sample_collection, base_unified_model, param_grid):
-    pass
+    """Do a grid search"""
+#    for sample in sample_collection:
 
 
-# TODO: Make a utility to do this
+
 scores = []
 mech_evals = []
 which_sample = 1
-for damper, mech_spring, coupling in tqdm(list(param_grid)):
-    # Update
-    unified_model.mechanical_model.set_input(accelerometer_inputs[which_sample])
-    unified_model.mechanical_model.set_damper(damper)
-    unified_model.mechanical_model.set_mechanical_spring(mech_spring)
-    unified_model.add_coupling_model(coupling)
 
-    # Solve
-    unified_model.solve(t_start=0,
-                        t_end=10,
-                        t_max_step=1e-3,
-                        y0=[0., 0., 0.04, 0., 0.])
+y_target, time_target = labeled_video_processor.fit_transform(a_samples[which_sample].video_labels_df)
 
-    mech_scores, m_eval = unified_model.score_mechanical_model(metrics_dict=mechanical_metrics,
-                                                               video_labels_df=a_samples[which_sample].video_labels_df,
-                                                               labeled_video_processor=labeled_video_processor,
-                                                               prediction_expr='x3-x1',
-                                                               return_evaluator=True,
-                                                               use_processed_signals=False)
+for param_set in tqdm(param_grid):
+    new_unified_model = update_nested_attributes(base_unified_model,
+                                                 update_dict=param_set)
+
+    new_unified_model.solve(t_start=0,
+                            t_end=10,
+                            t_max_step=1e-3,
+                            y0=[0., 0., 0.04, 0., 0.])
+
+
+    mech_scores, m_eval = new_unified_model.score_mechanical_model(metrics_dict=mechanical_metrics,
+                                                                   y_target=y_target,
+                                                                   time_target=time_target,
+                                                                   prediction_expr='x3-x1',
+                                                                   return_evaluator=True,
+                                                                   use_processed_signals=False)
+
     scores.append(mech_scores)
     mech_evals.append(m_eval)
 
@@ -122,9 +124,3 @@ def scores_to_dataframe(scores, param_values_grid, param_names):
 
 
 df = scores_to_dataframe(scores, val_grid, param_names=['friction_damping', 'spring_damping', 'em_coupling'])
-
-# from plotnine import *
-# p = ggplot(aes(x='friction_damping', y='em_coupling', size='dtw_euclid'), df)
-# p = p + geom_point()
-# p.__repr__()
-

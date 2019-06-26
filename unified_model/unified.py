@@ -289,9 +289,11 @@ class UnifiedModel(object):
 
     def score_mechanical_model(self,
                                metrics_dict,
-                               video_labels_df,
-                               labeled_video_processor,
                                prediction_expr,
+                               video_labels_df=None,
+                               labeled_video_processor=None,
+                               y_target=None,
+                               time_target=None,
                                **kwargs):
         """Evaluate the mechanical model using a selection of metrics.
 
@@ -308,12 +310,6 @@ class UnifiedModel(object):
             Values must be the function used to compute the metric. The
             function must accept to numpy arrays (arr_predict, arr_target) as
             input.
-        video_labels_df : dataframe
-            Dataframe containing groundtruth mechanical data. This dataframe is
-            produced by the OpenCV-based CLI helper script.
-        labeled_video_processor : object
-            Instantiated `LabeledVideoProcessor` object that will be used for
-            processing the groundtruth video-labels data.
         prediction_expr : str
             Expression that is evaluated and used as the predictions for the
             mechanical system. *Any* reasonable expression is possible. You
@@ -323,6 +319,20 @@ class UnifiedModel(object):
             `x2` refers to the second differential equation. Some additional
             functions can also be applied to the differential equations. These
             are referenced in the "See Also" section below.
+        video_labels_df : dataframe, optional
+            Dataframe containing groundtruth mechanical data. This dataframe is
+            produced by the OpenCV-based CLI helper script.
+        labeled_video_processor : object, optional
+            Instantiated `LabeledVideoProcessor` object that will be used for
+            processing the groundtruth video-labels data.
+        y_target : array, optional
+            Manually specify the target values. Specifying `y_target` will
+            take precedence over the labels processed from
+            `labeled_video_processor` and `video_labels_df`.
+        time_target : array, optional
+            Manually specify the corresponding target time values. Specifying
+            `y_target` will  take precedence over the labels processed from
+            `labeled_video_processor` and `video_labels_df`.
         **kwargs
             return_evaluator : bool
                 Whether to return the evaluator used to score the electrical
@@ -367,7 +377,9 @@ class UnifiedModel(object):
         """
 
         # Prepare target and prediction data
-        y_target, time_target = labeled_video_processor.fit_transform(video_labels_df,
+        if y_target is None or time_target is None:
+            print('Processing from file')
+            y_target, time_target = labeled_video_processor.fit_transform(video_labels_df,
                                                                       impute_missing_values=True)
         # Calculate prediction using expression
         df_result = self.get_result(time='t',

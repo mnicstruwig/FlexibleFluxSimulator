@@ -621,6 +621,9 @@ class MechanicalSystemEvaluator(object):
         self.y_predict_ = resampled_y_predicted
         self.time_ = resampled_time
 
+    def _calc_dtw(self):
+        """Perform dynamic time warping on prediction and targets."""
+
         # Exclude trailing (i.e. steady state) portion of the predicted waveform.
         clip_index = np.argmin(np.abs(self.time_ - self._clip_time))
         self.y_predict_warped_, self.y_target_warped_ = warp_signals(self.y_predict_[:clip_index],
@@ -751,6 +754,7 @@ class MechanicalSystemEvaluator(object):
         """Calculate the score of the predicted y values."""
 
         if use_processed_signals:
+            self._calc_dtw()
             metric_results = apply_scalar_functions(self.y_predict_warped_,
                                                     self.y_target_warped_,
                                                     **metrics)
@@ -780,6 +784,10 @@ class MechanicalSystemEvaluator(object):
         plt.legend()
 
         if include_dtw:
+
+            if self.y_predict_warped_ is None:
+                self._calc_dtw()
+
             plt.figure()
             plt.plot(self.y_target_warped_, label='Target, time-warped')
             plt.plot(self.y_predict_warped_, label='Prediction, time-warped')

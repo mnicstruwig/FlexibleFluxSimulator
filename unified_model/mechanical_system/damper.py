@@ -1,4 +1,5 @@
 from unified_model.utils.utils import fetch_key_from_dictionary
+from unified_model.utils.utils import pretty_str
 
 
 class DamperSurfaceArea(object):
@@ -45,6 +46,10 @@ class DamperConstant(object):
         :return: The force exerted by the damper in Newtons.
         """
         return self.damping_coefficient * velocity
+
+    def __str__(self):
+        """Return string representation of the Damper."""
+        return "DamperConstant:\n" + pretty_str(self.__dict__)
 
 
 DAMPER_DICT = {
