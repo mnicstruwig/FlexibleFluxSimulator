@@ -1,4 +1,4 @@
-from experiments.config import abc
+from config import abc
 from itertools import product
 import numpy as np
 import pandas as pd
