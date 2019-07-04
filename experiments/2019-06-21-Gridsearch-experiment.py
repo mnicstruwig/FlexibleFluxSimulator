@@ -3,6 +3,7 @@ from itertools import product
 import os
 import numpy as np
 import pandas as pd
+from plotnine import *
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score, r2_score, median_absolute_error
 from tqdm import tqdm
@@ -49,9 +50,14 @@ def make_mechanical_spring(damper_constant):
                             pure=False,
                             damper_constant=damper_constant)
 
-damping_coefficients = np.linspace(0.01, 0.5, 2)
+damping_coefficients = np.linspace(0.01, 0.5, 5)
 mech_spring_coefficients = [0.0125]  # Found from investigation
-constant_coupling_values = np.linspace(0.5, 2, 2)
+constant_coupling_values = np.linspace(0.5, 2, 5)
+
+# Single-values
+# damping_coefficients = [0.035385]
+# mech_spring_coefficients = [0.0125]
+# constant_coupling_values = [0.153846]
 
 param_dict = {'mechanical_model.damper': damping_coefficients,
               'mechanical_model.mechanical_spring': mech_spring_coefficients,
@@ -80,9 +86,10 @@ def search_grid(sample_collection, base_unified_model, param_grid):
 
 scores = []
 mech_evals = []
-which_sample = 1
+which_sample = 3
 
-y_target, time_target = labeled_video_processor.fit_transform(a_samples[which_sample].video_labels_df)
+y_target, time_target = labeled_video_processor.fit_transform(a_samples[which_sample].video_labels_df,
+                                                              impute_missing_values=True)
 
 for param_set in tqdm(param_grid):
     new_unified_model = update_nested_attributes(base_unified_model,
@@ -90,7 +97,7 @@ for param_set in tqdm(param_grid):
 
     new_unified_model.solve(t_start=0,
                             t_end=10,
-                            t_max_step=1e-3,
+                            t_max_step=1e-1,
                             y0=[0., 0., 0.04, 0., 0.])
 
 
@@ -125,3 +132,10 @@ def scores_to_dataframe(scores, param_values_grid, param_names):
 
 df = scores_to_dataframe(scores, val_grid, param_names=['friction_damping', 'spring_damping', 'em_coupling'])
 df.to_csv('result.csv')
+
+# target_df = pd.read_csv('w1_result.csv')
+# target_df = df_1e2
+
+p = ggplot(aes(x='friction_damping', y='em_coupling', size='dtw_euclid'), df)
+p = p + geom_point()
+p.__repr__()

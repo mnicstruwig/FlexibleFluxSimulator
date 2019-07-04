@@ -10,6 +10,14 @@ class SimpleLoad:
         """Constructor."""
         self.R = R
 
+    def __str__(self):
+        return 'SimpleLoad: {} Ohms'.format(self.R)
+
+    def __repr__(self):
+        # Couldn't discover a nicer way to do this
+        class_path = str(self.__class__).split("'")[1]
+        return '{}(R={})'.format(class_path, self.R)
+
     def get_current(self, emf, coil_resistance):
         """Get the current through the load."""
         if np.isinf(self.R) or np.isinf(coil_resistance):
