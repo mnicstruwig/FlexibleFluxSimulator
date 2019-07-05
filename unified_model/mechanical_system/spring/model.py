@@ -13,7 +13,6 @@ def savgol_smoothing(z_arr, force_arr):
     return interp
 
 
-
 def coulombs_law(z, m):
     """
     Coulomb's Law for two identical monopoles

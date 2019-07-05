@@ -1,6 +1,7 @@
 import numpy as np
 from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
+from sklearn.metrics import mutual_info_score
 
 
 def corr_coeff(x1, x2):
@@ -42,5 +43,10 @@ def root_mean_square_percentage_diff(x1, x2):
 
 def dtw_euclid_distance(x1, x2):
     """Calculate the distance between two signals using dynamic time warping."""
-    distance, path = fastdtw(x1, x2, dist=euclidean)
+    distance, path = fastdtw(x1, x2, 1)
     return distance
+
+
+def mutual_information_score(x1, x2):
+    joint = np.histogram2d(x1, x2, 100)[0]
+    return mutual_info_score(None, None, joint)

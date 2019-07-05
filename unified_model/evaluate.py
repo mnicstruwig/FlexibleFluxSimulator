@@ -96,7 +96,7 @@ class AdcProcessor:
         voltage_readings = voltage_readings * self.voltage_division_ratio
         voltage_readings = voltage_readings - np.mean(voltage_readings)
 
-        return voltage_readings, groundtruth_dataframe[time_col].values / 1000
+        return voltage_readings, 1.5*groundtruth_dataframe[time_col].values / 1000
 
 
 # TODO: Write tests
@@ -348,8 +348,6 @@ class LabeledVideoProcessor:
     ----------
     L : float
         Height of the microgenerator tube in mm.
-    mf : float
-        Height of the fixed magnet at the bottom of the tube in mm.
     mm : float
         Height of the moving magnet assembly in mm.
     seconds_per_frame : float
@@ -357,6 +355,10 @@ class LabeledVideoProcessor:
         This is typically found in the `subsampled_seconds_per_frame` key
         of the generated .DONE file when using the OpenCV-based CLI
         helper script.
+    pixel_scale : float, optional
+        The pixel scale to use (in mm per pixel). This value will override
+        the recorded pixel values in the groundtruth_dataframe.
+        Default value is None.
 
     """
 
@@ -403,12 +405,11 @@ class LabeledVideoProcessor:
 
         Returns
         -------
-        numpy array
+        mag_bottom_pos : array
             Position of the bottom of the magnet assembly relative to the
-            top of the fixed magnet.
-
-        numpy array
-            Timestamp of each position.
+            top of the fixed magnet. Unit is metres.
+        timestamps : array
+            Timestamp of each position. Unit is seconds.
 
         """
         df = groundtruth_dataframe
@@ -421,9 +422,10 @@ class LabeledVideoProcessor:
         else:
             df['y_pixel_scale'] = self.pixel_scale
 
-        df['y'] = np.abs(df['end_y'] - df['start_y'])  # Get position metric
-        df['y_mm'] = df['y'] * df['y_pixel_scale']  # Adjust for pixel scale
+        df['y'] = np.abs(df['end_y'] - df['start_y'])  # Calculate position
+        df['y_mm'] = df['y'] * df['y_pixel_scale']  # Adjust with pixel scale
         df['y_prime_mm'] = df['y_mm']  # Get actual position
+        # Adjust for top / bottom of magnet during labeling process
         df.loc[df['top_of_magnet'] == 1, 'y_prime_mm'] = df['y_prime_mm'] - self.mm
 
         # Correct calculations made with missing values, if they exist.
@@ -616,6 +618,10 @@ class MechanicalSystemEvaluator(object):
         _, resampled_y_predicted = self._interpolate_and_resample(resampled_time - time_delay,
                                                                   resampled_y_predicted,
                                                                   new_x_range=(0, stop_time))
+
+        # Clip signals
+        clip_index = np.argmin(np.abs(resampled_time - self._clip_time))
+
         # Store results
         self.y_target_ = resampled_y_target
         self.y_predict_ = resampled_y_predicted

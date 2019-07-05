@@ -378,7 +378,6 @@ class UnifiedModel(object):
 
         # Prepare target and prediction data
         if y_target is None or time_target is None:
-            print('Processing from file')
             y_target, time_target = labeled_video_processor.fit_transform(video_labels_df,
                                                                       impute_missing_values=True)
         # Calculate prediction using expression

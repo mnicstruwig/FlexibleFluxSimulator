@@ -32,13 +32,13 @@ abc_coil_resistance = {'A': 12.5,
                        'B': 23.5,
                        'C': 17.8}
 
-abc_winding_num_z = {'A': '17',
-                     'B': '33',
-                     'C': '66'}
-
 abc_winding_num_r = {'A': '15',
                      'B': '15',
                      'C': '5'}
+
+abc_winding_num_z = {'A': '17',
+                     'B': '33',
+                     'C': '66'}
 
 abc_coil_height = {'A': '0.008meter',
                    'B': '0.012meter',
