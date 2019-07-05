@@ -96,7 +96,7 @@ class AdcProcessor:
         voltage_readings = voltage_readings * self.voltage_division_ratio
         voltage_readings = voltage_readings - np.mean(voltage_readings)
 
-        return voltage_readings, 1.5*groundtruth_dataframe[time_col].values / 1000
+        return voltage_readings, groundtruth_dataframe[time_col].values / 1000
 
 
 # TODO: Write tests
