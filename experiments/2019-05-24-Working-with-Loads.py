@@ -21,7 +21,7 @@ from unified_model.pipeline import clip_x2
 import warnings
 warnings.simplefilter('ignore')
 
-base_groundtruth_path = './experiments/data/2019-05-23/'
+base_groundtruth_path = './data/2019-05-23/'
 a_samples = collect_samples(base_path=base_groundtruth_path,
                             acc_pattern='A/*acc*.csv',
                             adc_pattern='A/*adc*.csv',
@@ -38,7 +38,7 @@ mechanical_spring = MechanicalSpring(push_direction='down',
 mechanical_model = MechanicalModel(name='Mechanical Model')
 mechanical_model.set_max_height(110/1000)
 mechanical_model.set_magnetic_spring(abc.spring)
-mechanical_model.set_mechanical_spring(mechanical_spring)
+# mechanical_model.set_mechanical_spring(mechanical_spring)  # <-- do more investigating with this guy
 mechanical_model.set_magnet_assembly(abc.magnet_assembly)
 mechanical_model.set_damper(DamperConstant(damping_coefficient=0.045))  # Tweaking will need to happen
 
@@ -53,15 +53,15 @@ accelerometer_inputs = [AccelerometerInput(raw_accelerometer_input=sample.acc_df
                         for sample
                         in a_samples]
 
-which_sample = 1
+which_sample = 3
 mechanical_model.set_input(accelerometer_inputs[which_sample])  # Choose which input to system
 
 electrical_model = ElectricalModel(name='Electrical Model')
 electrical_model.set_coil_resistance(abc.coil_resistance['A'])  # Guessing this value for the time being
 electrical_model.set_load_model(SimpleLoad(R=30))  # Make sure this is correct!
-electrical_model.set_flux_model(abc.flux_models['A'], precompute_gradient=True)
+electrical_model.set_flux_model(abc.flux_models['A'], abc.dflux_models['A'])
 
-coupling_model = ConstantCoupling(c=0.0)  # This will need to be found.
+coupling_model = ConstantCoupling(c=1.0)  # This will need to be found.
 
 unified_model = UnifiedModel(name='Unified Model')
 unified_model.add_mechanical_model(mechanical_model)
@@ -72,7 +72,7 @@ unified_model.add_post_processing_pipeline(clip_x2, name='clip tube velocity')
 
 # Execute and collect results
 unified_model.solve(t_start=0,
-                    t_end=10,
+                    t_end=8,
                     t_max_step=1e-3,
                     y0=[0., 0., 0.04, 0., 0.])
 
@@ -117,8 +117,7 @@ electrical_metrics = {'rms': root_mean_square,
 voltage_division_ratio = 1/0.342
 
 adc_processor = AdcProcessor(voltage_division_ratio=voltage_division_ratio,
-                             smooth=True,
-                             critical_frequency=1 / 4)
+                             smooth=True)
 
 emf_scores, e_eval = unified_model.score_electrical_model(metrics_dict=electrical_metrics,
                                                           adc_df=a_samples[which_sample].adc_df,

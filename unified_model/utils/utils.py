@@ -73,7 +73,7 @@ def smooth_butterworth(values, critical_frequency, **kwargs):
 
     """
     if 'N' not in kwargs:
-        N = 6
+        N = 9
     b, a = signal.butter(N, Wn=critical_frequency, btype='low', output='ba')
     filtered_values = signal.lfilter(b, a, values)
     return filtered_values
@@ -108,6 +108,13 @@ def smooth_savgol(values, **kwargs):
         warnings.warn('Filter window length exceeds signal length. No filtering is being applied.', RuntimeWarning)
         return values
 
+
+def grad(func, x, dx=1e-5):
+    """Compute the gradient of function `func` at point `x` relative to `dx`"""
+    dfunc_dx = (func(x + dx) - func(x - dx))/(2*dx)
+    if np.isinf(dfunc_dx):
+        return 0.0
+    return dfunc_dx
 
 # TODO: Write test
 # TODO: Write documentation

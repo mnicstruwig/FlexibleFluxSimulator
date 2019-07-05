@@ -40,7 +40,7 @@ def acc_factory(data_path='./data/2019-05-23/A/log_03_acc.csv'):
     return interp1d(df['time(ms)']/1000, filtered, fill_value=0, bounds_error=False)
 
 
-def coupling_factory(c=2, rl=30, rc=12.5):
+def coupling_factory(c=0.5, rl=30, rc=12.5):
 
     def _coupling(emf):
         i = emf / (rl + rc)
@@ -64,7 +64,7 @@ def flux_factory(data_path='./data/fea-flux-curves/fea-flux-curves-numr[5,15]-nu
     z_max_pos = new_z[max_idx]
 
     # Reposition peak to center of coil
-    new_z = new_z - (z_max_pos - coil_center)
+    new_z = new_z - (z_max_pos - coil_center - 5/1000)  # 5 --> mm / 2, magnet center
 
     # Re-interpolate
     phi_interp = interp1d(new_z, new_phi, bounds_error=False, fill_value=0, kind='quadratic')

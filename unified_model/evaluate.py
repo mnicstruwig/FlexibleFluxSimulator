@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.interpolate import UnivariateSpline
-from scipy.signal import correlate
+from scipy.signal import correlate, detrend
 
 from unified_model.utils.utils import (apply_scalar_functions,
                                        get_sample_delay, find_signal_limits,
@@ -88,14 +88,13 @@ class AdcProcessor:
         voltage_readings = groundtruth_dataframe[voltage_col].values
 
         if self.smooth:
-            critical_frequency = self.smooth_kwargs.pop('critical_frequency', 1/4)
+            critical_frequency = self.smooth_kwargs.pop('critical_frequency', 1/5)
             self.critical_frequency = critical_frequency
             voltage_readings = smooth_butterworth(voltage_readings,
                                                   critical_frequency)
 
+        voltage_readings = detrend(voltage_readings)
         voltage_readings = voltage_readings * self.voltage_division_ratio
-        voltage_readings = voltage_readings - np.mean(voltage_readings)
-
         return voltage_readings, groundtruth_dataframe[time_col].values / 1000
 
 

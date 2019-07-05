@@ -195,12 +195,12 @@ class FluxDatabase(object):
         model_cls = _get_flux_model(flux_model_type)
 
         phi = self.query(**kwargs)
-        flux_model = model_cls(self.z,
-                               phi,
-                               coil_center,
-                               mm=mm)
+        flux_model, dflux_model = model_cls(self.z,
+                                            phi,
+                                            coil_center,
+                                            mm=mm)
 
-        return flux_model
+        return flux_model, dflux_model
 
     def query(self, **kwargs):
         """Query the database

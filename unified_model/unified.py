@@ -492,7 +492,7 @@ class UnifiedModel(object):
         if kwargs.pop('closed_circuit', False):
             R_coil = self.electrical_model.coil_resistance
             R_load = self.electrical_model.load_model.R
-            emf_predict = emf_predict*(R_load/(R_load+R_coil))
+            emf_predict = emf_predict*(R_load/(R_load+R_coil))  # Load voltage
 
         # Scoring
         electrical_evaluator = ElectricalSystemEvaluator(emf_target, time_target)

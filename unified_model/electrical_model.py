@@ -1,6 +1,7 @@
 import numpy as np
 from unified_model.utils.utils import pretty_str
 
+
 # TODO: Move to utils
 def _gradient(f, x, delta_x=1e-3):
     """Compute the gradient of function `f` at point `y` relative to `x`"""
@@ -52,25 +53,22 @@ class ElectricalModel:
         """Return string representation of the ElectricalModel"""
         return "Electrical Model:\n" + pretty_str(self.__dict__)
 
-    def set_flux_model(self, flux_model, precompute_gradient=False):
+    def set_flux_model(self, flux_model, dflux_model):
         """Assign a flux model.
 
         Parameters
         ----------
-        flux_model : fun
+        flux_model : function
             Function that returns the flux linkage of a coil when the position
             of a magnet assembly's bottom edge is passed to it.
-        precompute_gradient : bool
-            Precompute the gradient of `flux_model`, if supported (such as in
-            the case of a `scipy.interpolate` object`).
-            Default value is False.
+        flux_model : function
+            Function that returns the derivative of the flux linkage of a coil
+            (relative to `z` i.e. the position of a magnet assembly's bottom
+            edge) when the position of a magnet assembly's bottom edge is passed to it.
 
         """
         self.flux_model = flux_model
-
-        if precompute_gradient:
-            self.flux_gradient = self.flux_model.derivative()
-            self.precompute_gradient = True
+        self.dflux_model = dflux_model
 
     def set_coil_resistance(self, R):
         """Set the resistance of the coil"""
@@ -108,7 +106,7 @@ class ElectricalModel:
             return self.flux_gradient(x3-x1)
         return _gradient(self.flux_model, x3-x1)
 
-    def get_emf(self, y, load_model=None):
+    def get_emf(self, mag_pos, mag_vel):
         """Return the instantaneous emf produced by the electrical system.
 
         Note, this is the open-circuit emf and *not* the emf supplied to
@@ -127,12 +125,11 @@ class ElectricalModel:
             The instantaneous emf.
 
         """
-        x1, x2, x3, x4, x5 = y  # TODO: Remove reliance on hard-coding
-        dphi_dz = self.get_flux_gradient(y)
-        emf = dphi_dz * (x4 - x2)
+        dphi_dz = self.dflux_model(mag_pos)
+        emf = dphi_dz * (mag_vel)
         return emf
 
-    def get_current(self, y):
+    def get_current(self, emf_oc):
         """Return the instantaneous current produced by the electrical system.
 
         Parameters
@@ -148,7 +145,11 @@ class ElectricalModel:
             The instantaneous current.
 
         """
-        x1, x2, x3, x4, x5 = y
-        dphi_dz = self.get_flux_gradient(y)
-        emf = dphi_dz * (x4-x2)
-        return self.load_model.get_current(emf, self.coil_resistance)
+        if not self.load_model:
+            return 0
+
+        r_load = self.load_model.R
+        r_coil = self.coil_resistance
+
+        v_load = emf_oc * r_load / (r_load + r_coil)
+        return v_load / r_load

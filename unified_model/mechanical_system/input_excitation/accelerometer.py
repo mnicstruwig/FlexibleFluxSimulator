@@ -88,6 +88,9 @@ def _preprocess_acceleration_dataframe(df,
 
     df['simulation_time_seconds'] = df[time_column] * time_conversion_table[time_unit]
 
+    if smooth:
+        df[accel_column] = smooth_savgol(df[accel_column], window_length=7, polyorder=3)
+
     if accel_unit not in ['g', 'ms2']:
         raise KeyError('Acceleration unit must be specified as "g" or "ms2".')
     else:
@@ -96,9 +99,6 @@ def _preprocess_acceleration_dataframe(df,
             df[accel_column] = (df[accel_column]-1)*9.81
         if accel_unit == 'ms2':
             df[accel_column] = df[accel_column] - 9.81
-
-    if smooth:
-        df[accel_column] = smooth_savgol(df[accel_column])  # Apply smoothing filter
 
     return df
 
