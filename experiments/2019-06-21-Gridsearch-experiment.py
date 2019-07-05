@@ -22,7 +22,6 @@ from unified_model.utils.utils import collect_samples, build_paramater_grid, upd
 from unified_model.governing_equations import unified_ode
 from unified_model.pipeline import clip_x2
 
-base_dir = os.getcwd()
 
 base_unified_model = UnifiedModel.load_from_disk('../my_saved_model/')
 
@@ -43,6 +42,7 @@ accelerometer_inputs = [AccelerometerInput(raw_accelerometer_input=sample.acc_df
                         for sample
                         in a_samples]
 
+
 def make_mechanical_spring(damper_constant):
     return MechanicalSpring(push_direction='down',
                             position=110/1000,
@@ -50,8 +50,9 @@ def make_mechanical_spring(damper_constant):
                             pure=False,
                             damper_constant=damper_constant)
 
-damping_coefficients = np.linspace(0.01, 0.5, 5)
-mech_spring_coefficients = [0.0125]  # Found from investigation
+
+damping_coefficients = np.linspace(0.01, 0.05, 5)
+mech_spring_coefficients = np.linspace(0, 0.25, 5) #[0.0125]  # Found from investigation
 constant_coupling_values = np.linspace(0.5, 2, 5)
 
 # Single-values
@@ -75,7 +76,9 @@ labeled_video_processor = LabeledVideoProcessor(L=125,
                                                 seconds_per_frame=2/118,
                                                 pixel_scale=pixel_scale)
 
-mechanical_metrics = {'dtw_euclid': dtw_euclid_distance}
+mechanical_metrics = {'dtw_euclid': dtw_euclid_distance,
+                      'corrcoef': corr_coeff,
+                      'mif': mutual_information_score}
 
 
 def search_grid(sample_collection, base_unified_model, param_grid):
@@ -86,7 +89,7 @@ def search_grid(sample_collection, base_unified_model, param_grid):
 
 scores = []
 mech_evals = []
-which_sample = 3
+which_sample = 2
 
 y_target, time_target = labeled_video_processor.fit_transform(a_samples[which_sample].video_labels_df,
                                                               impute_missing_values=True)
@@ -97,7 +100,7 @@ for param_set in tqdm(param_grid):
 
     new_unified_model.solve(t_start=0,
                             t_end=10,
-                            t_max_step=1e-1,
+                            t_max_step=1e-2,
                             y0=[0., 0., 0.04, 0., 0.])
 
 
