@@ -145,10 +145,11 @@ df = scores_to_dataframe(mech_scores, val_grid, param_names=['friction_damping',
 df_elec = scores_to_dataframe(elec_scores, val_grid, param_names=['friction_damping', 'spring_damping', 'em_coupling'])
 
 df['abs_rms_perc_diff'] = np.abs(df_elec['rms_perc_diff'])
+df['dtw_euclid_e'] = df_elec['dtw_euclid_e']
 df.to_csv('result.csv')
 # target_df = pd.read_csv('w1_result.csv')
 # target_df = df_1e2
 
-p = ggplot(aes(x='friction_damping', y='em_coupling', size='dtw_euclid'), df)
+p = ggplot(aes(x='friction_damping', y='em_coupling', size='dtw_euclid_e'), df)
 p = p + geom_point()
 p.__repr__()

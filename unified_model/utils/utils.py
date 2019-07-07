@@ -127,15 +127,17 @@ def parse_output_expression(t, raw_output, **kwargs):
 
     """
 
-    gradient_function = """
-def g(x, y):
-    delta_y = [i-j for i,j in zip(y[1:], y)]
-    delta_x = [i-j for i,j in zip(x[1:], x)]
+# def g(x, y):
+#     delta_y = [i-j for i,j in zip(y[1:], y)]
+#     delta_x = [i-j for i,j in zip(x[1:], x)]
 
-    # Fake last element so that length remains the same as inputs.
-    return [y/x for x, y in zip(delta_x, delta_y)] + [delta_y[-1]/delta_x[-1]]"""
+#     # Fake last element so that length remains the same as inputs.
+#     return [y/x for x, y in zip(delta_x, delta_y)] + [delta_y[-1]/delta_x[-1]]
 
     df_out = pd.DataFrame()
+
+    def gradient_function(x, y):
+        return np.gradient(y)/np.gradient(x)
 
     def _populate_asteval_symbol_table(ast_eval_interpretor):
         ast_eval_interpretor.symtable['t'] = t
@@ -145,10 +147,19 @@ def g(x, y):
 
     aeval = Interpreter()
     aeval = _populate_asteval_symbol_table(aeval)
-    aeval(gradient_function)  # Define gradient function
 
     for key, expr in kwargs.items():
-        df_out[key] = aeval(expr)
+        if 'g(' in expr:
+            split = expr.split(',')
+            x = split[0].split('(')[1]
+            y = split[1].split(')')[0]
+            y = y.strip()
+            x = aeval(x)
+            y = aeval(y)
+
+            df_out[key] = gradient_function(x, y)
+        else:
+            df_out[key] = aeval(expr)
 
     return df_out
 

@@ -151,8 +151,8 @@ class ElectricalSystemEvaluator:
         self.time_ = None
 
         # Holds dynamic time-warped values
-        self.y_target_warped_ = None
-        self.y_predict_warped_ = None
+        self.emf_target_warped_ = None
+        self.emf_predict_warped_ = None
 
     def fit(self, emf_predict, time_predict):
         """Align `emf_predict` with `emf_target` in time.
@@ -254,7 +254,14 @@ class ElectricalSystemEvaluator:
         self._fit(emf_predict, time_predict)
         return self.time_, self.emf_predict_
 
-    def score(self, **metrics):
+    def _calc_dtw(self):
+        """Perform dynamic time warping on prediction and targets."""
+
+        # Exclude trailing (i.e. steady state) portion of the predicted waveform.
+        self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(self.emf_predict_clipped_,
+                                                                         self.emf_target_clipped_)
+
+    def score(self, use_processed_signals: bool = True, **metrics):
         """Evaluate the electrical model using a selection of metrics.
 
         A `Score` object is returned containing the results.
@@ -290,28 +297,37 @@ class ElectricalSystemEvaluator:
 
         """
 
-        results = self._score(**metrics)
+        results = self._score(use_processed_signals, **metrics)
         return results
 
-    def _score(self, **metrics):
-        """Implement the underlying functionality of the `score` method."""
-        self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(self.emf_predict_,
-                                                                         self.emf_target_)
-        # Clip signals
-        start_index, end_index = find_signal_limits(self.emf_predict_, 1)
+    def _clip_signals(self):
+        """Clip the target and predicted signals to only the active parts."""
+        start_index, end_index = find_signal_limits(target=self.emf_predict_,
+                                                    sampling_period=1)
 
         # Convert to integer indices, since `find_signal_limits` actually
         # returns the "time" of the signal, but we have a sampling frequency of
-        # 1.
+        # 1, so we can directly convert to integer indexes.
         start_index = int(start_index)
         end_index = int(end_index)
         self.time_clipped_ = self.time_[start_index:end_index]
         self.emf_predict_clipped_ = self.emf_predict_[start_index:end_index]
         self.emf_target_clipped_ = self.emf_target_[start_index:end_index]
 
-        metric_results = apply_scalar_functions(self.emf_predict_clipped_,
-                                                self.emf_target_clipped_,
-                                                **metrics)
+    def _score(self, use_processed_signals: bool, **metrics):
+        """Implement the underlying functionality of the `score` method."""
+
+        self._clip_signals()
+
+        if use_processed_signals:
+            self._calc_dtw()
+            metric_results = apply_scalar_functions(self.emf_predict_warped_,
+                                                    self.emf_target_warped_,
+                                                    **metrics)
+        else:
+            metric_results = apply_scalar_functions(self.emf_predict_clipped_,
+                                                    self.emf_target_clipped_,
+                                                    **metrics)
         Results = namedtuple('Score', metric_results.keys())
 
         return Results(*metric_results.values())
@@ -333,6 +349,8 @@ class ElectricalSystemEvaluator:
         plt.legend()
 
         if include_dtw:
+            if not self.emf_target_warped_:
+                self._calc_dtw()
             plt.figure()
             plt.plot(self.emf_target_warped_, label='Target, time-warped')
             plt.plot(self.emf_predict_warped_, label='Predictions, time-warped')

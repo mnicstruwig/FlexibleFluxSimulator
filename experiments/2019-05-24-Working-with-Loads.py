@@ -125,7 +125,8 @@ emf_scores, e_eval = unified_model.score_electrical_model(metrics_dict=electrica
                                                           adc_processor=adc_processor,
                                                           prediction_expr='g(t, x5)',
                                                           return_evaluator=True,
-                                                          closed_circuit=True)
+                                                          closed_circuit=True,
+                                                          use_processed_signals=False)
 
 # result.plot(x='time', y='rel_pos') result.plot(x='time', y='flux')
 # result.plot(x='time', y='emf')
@@ -135,4 +136,7 @@ e_eval.poof(True)
 print(mech_scores)
 print(emf_scores)
 
-unified_model.save_to_disk('./my_saved_model/')
+try:
+    unified_model.save_to_disk('./my_saved_model/')
+except FileExistsError:
+    print('Model not saved, since path already exists.')

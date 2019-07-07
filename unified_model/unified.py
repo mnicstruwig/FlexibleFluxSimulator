@@ -334,13 +334,14 @@ class UnifiedModel(object):
             `y_target` will  take precedence over the labels processed from
             `labeled_video_processor` and `video_labels_df`.
         **kwargs
-            return_evaluator : bool
-                Whether to return the evaluator used to score the electrical
-                system.
             use_processed_signals : bool
                 If True, score on the processed (i.e. Dynamic Time Warped)
                 signals. If False, score on the resampled and time-aligned
-                signals without Dynamic Time Warping. Default value is True.
+                signals without Dynamic Time Warping.
+                Default value is True.
+            return_evaluator : bool
+                Whether to return the evaluator used to score the electrical
+                system.
 
         See Also
         --------
@@ -442,6 +443,11 @@ class UnifiedModel(object):
             functions can also be applied to the differential equations. These
             are referenced in the "See Also" section below.
         **kwargs
+            use_processed_signals : bool
+                If True, score on the processed (i.e. Dynamic Time Warped)
+                signals. If False, score on the resampled and time-aligned
+                signals without Dynamic Time Warping.
+                Default value is True.
             closed_circuit : bool
                 If True, consider the voltage across the *load*, and not the
                 open-circuit voltage across the whole system.
@@ -497,7 +503,9 @@ class UnifiedModel(object):
         # Scoring
         electrical_evaluator = ElectricalSystemEvaluator(emf_target, time_target)
         electrical_evaluator.fit(emf_predict, time_predict)
-        electrical_scores = electrical_evaluator.score(**metrics_dict)
+
+        use_processed_signals = kwargs.pop('use_processed_signals', True)
+        electrical_scores = electrical_evaluator.score(use_processed_signals, **metrics_dict)
 
         if kwargs.pop('return_evaluator', None):
             return electrical_scores, electrical_evaluator
