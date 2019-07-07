@@ -68,7 +68,7 @@ class UnifiedModel(object):
         """Return string representation of the UnifiedModel"""
         return "Unified Model:\n" + pretty_str(self.__dict__)
 
-    def persist_to_disk(self, path):
+    def save_to_disk(self, path):
         """Persists a unified model to disk"""
 
         if not os.path.exists(path):

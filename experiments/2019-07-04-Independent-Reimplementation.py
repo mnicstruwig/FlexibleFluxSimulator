@@ -130,7 +130,7 @@ mag_ass = MagnetAssembly(n_magnet=1,
 
 m = mag_ass.get_mass()
 
-t_span = [0., 8.]
+t_span = [0., 7.]
 y0 = [0.0, 0.0, 0.04, 0.0, 0.0]
 
 acc = acc_factory()

@@ -116,6 +116,7 @@ def grad(func, x, dx=1e-5):
         return 0.0
     return dfunc_dx
 
+
 # TODO: Write test
 # TODO: Write documentation
 def parse_output_expression(t, raw_output, **kwargs):

@@ -76,21 +76,20 @@ labeled_video_processor = LabeledVideoProcessor(L=125,
                                                 seconds_per_frame=2/118,
                                                 pixel_scale=pixel_scale)
 
-mechanical_metrics = {'dtw_euclid': dtw_euclid_distance,
-                      'corrcoef': corr_coeff,
-                      'mif': mutual_information_score}
+voltage_division_ratio = 1/0.342
+adc_processor = AdcProcessor(voltage_division_ratio=voltage_division_ratio,
+                             smooth=True)
+
+mechanical_metrics = {'dtw_euclid_m': dtw_euclid_distance}
+electrical_metrics = {'rms_perc_diff': root_mean_square_percentage_diff,
+                      'dtw_euclid_e': dtw_euclid_distance}
 
 
-def search_grid(sample_collection, base_unified_model, param_grid):
-    """Do a grid search"""
-#    for sample in sample_collection:
-
-
-
-scores = []
-mech_evals = []
 which_sample = 2
-
+mech_scores = []
+elec_scores = []
+mech_evals = []
+elec_evals = []
 y_target, time_target = labeled_video_processor.fit_transform(a_samples[which_sample].video_labels_df,
                                                               impute_missing_values=True)
 
@@ -99,20 +98,29 @@ for param_set in tqdm(param_grid):
                                                  update_dict=param_set)
 
     new_unified_model.solve(t_start=0,
-                            t_end=10,
+                            t_end=8,
                             t_max_step=1e-2,
                             y0=[0., 0., 0.04, 0., 0.])
 
 
-    mech_scores, m_eval = new_unified_model.score_mechanical_model(metrics_dict=mechanical_metrics,
+    m_score, m_eval = new_unified_model.score_mechanical_model(metrics_dict=mechanical_metrics,
                                                                    y_target=y_target,
                                                                    time_target=time_target,
                                                                    prediction_expr='x3-x1',
                                                                    return_evaluator=True,
                                                                    use_processed_signals=False)
 
-    scores.append(mech_scores)
+    e_score, e_eval = new_unified_model.score_electrical_model(metrics_dict=electrical_metrics,
+                                                               adc_df=a_samples[which_sample].adc_df,
+                                                               adc_processor=adc_processor,
+                                                               prediction_expr='g(t, x5)',
+                                                               return_evaluator=True,
+                                                               closed_circuit=True)
+
+    mech_scores.append(m_score)
     mech_evals.append(m_eval)
+    elec_scores.append(e_score)
+    elec_evals.append(e_eval)
 
 
 def scores_to_dataframe(scores, param_values_grid, param_names):
@@ -133,9 +141,11 @@ def scores_to_dataframe(scores, param_values_grid, param_names):
     return pd.DataFrame(accumulated_metrics)
 
 
-df = scores_to_dataframe(scores, val_grid, param_names=['friction_damping', 'spring_damping', 'em_coupling'])
-df.to_csv('result.csv')
+df = scores_to_dataframe(mech_scores, val_grid, param_names=['friction_damping', 'spring_damping', 'em_coupling'])
+df_elec = scores_to_dataframe(elec_scores, val_grid, param_names=['friction_damping', 'spring_damping', 'em_coupling'])
 
+df['abs_rms_perc_diff'] = np.abs(df_elec['rms_perc_diff'])
+df.to_csv('result.csv')
 # target_df = pd.read_csv('w1_result.csv')
 # target_df = df_1e2
 

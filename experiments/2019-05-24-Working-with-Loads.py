@@ -33,14 +33,14 @@ mechanical_spring = MechanicalSpring(push_direction='down',
                                      position=max_height,
                                      pure=False,
                                      strength=1000,
-                                     damper_constant=0.05)
+                                     damper_constant=0.06)
 
 mechanical_model = MechanicalModel(name='Mechanical Model')
 mechanical_model.set_max_height(110/1000)
 mechanical_model.set_magnetic_spring(abc.spring)
-# mechanical_model.set_mechanical_spring(mechanical_spring)  # <-- do more investigating with this guy
+mechanical_model.set_mechanical_spring(mechanical_spring)  # <-- do more investigating with this guy
 mechanical_model.set_magnet_assembly(abc.magnet_assembly)
-mechanical_model.set_damper(DamperConstant(damping_coefficient=0.045))  # Tweaking will need to happen
+mechanical_model.set_damper(DamperConstant(damping_coefficient=0.0350))  # Tweaking will need to happen
 
 
 accelerometer_inputs = [AccelerometerInput(raw_accelerometer_input=sample.acc_df,
@@ -53,7 +53,7 @@ accelerometer_inputs = [AccelerometerInput(raw_accelerometer_input=sample.acc_df
                         for sample
                         in a_samples]
 
-which_sample = 3
+which_sample = 2
 mechanical_model.set_input(accelerometer_inputs[which_sample])  # Choose which input to system
 
 electrical_model = ElectricalModel(name='Electrical Model')
@@ -94,18 +94,19 @@ pixel_scale = 0.18451  # Huawei P10 alternative
 
 labeled_video_processor = LabeledVideoProcessor(L=125,
                                                 mm=10,
-                                                seconds_per_frame=2/118,
+                                                seconds_per_frame=2/120,
                                                 pixel_scale=pixel_scale)
 
-mechanical_metrics = {'mde': median_absolute_error,
-                      'mape': mean_absolute_percentage_err,
-                      'max': max_err}
+mechanical_metrics = {'dtw_dist': dtw_euclid_distance}
+
+
 
 mech_scores, m_eval = unified_model.score_mechanical_model(metrics_dict=mechanical_metrics,
                                                            video_labels_df=a_samples[which_sample].video_labels_df,
                                                            labeled_video_processor=labeled_video_processor,
                                                            prediction_expr='x3-x1',
-                                                           return_evaluator=True)
+                                                           return_evaluator=True,
+                                                           use_processed_signals=False)
 
 m_eval.poof(True)
 
@@ -131,5 +132,7 @@ emf_scores, e_eval = unified_model.score_electrical_model(metrics_dict=electrica
 # plt.figure()
 e_eval.poof(True)
 
-
+print(mech_scores)
 print(emf_scores)
+
+unified_model.save_to_disk('./my_saved_model/')
