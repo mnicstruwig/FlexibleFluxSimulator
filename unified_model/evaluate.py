@@ -1,5 +1,4 @@
 from collections import namedtuple
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -76,11 +75,10 @@ class AdcProcessor:
         Returns
         -------
         numpy array
-            True measured output voltage.
-
-        numpy array
             Timestamps of each voltage measurement.
 
+        numpy array
+            True measured output voltage.
         """
         if isinstance(groundtruth_dataframe, str):
             groundtruth_dataframe = pd.read_csv(groundtruth_dataframe)
@@ -98,6 +96,7 @@ class AdcProcessor:
         return voltage_readings, groundtruth_dataframe[time_col].values / 1000
 
 
+# TODO: Update attributes
 # TODO: Write tests
 class ElectricalSystemEvaluator:
     """Evaluate the accuracy of an electrical system model's output.
@@ -146,15 +145,21 @@ class ElectricalSystemEvaluator:
         self.time_predict = None
 
         # Holds resampled values
+        # Trailing underscores indicate resampled values were used.
         self.emf_target_ = None
         self.emf_predict_ = None
         self.time_ = None
+
+        # Holds clipped resampled values (using spectrogram)
+        self.time_clipped_ = None
+        self.emf_target_clipped_ = None
+        self.emf_predict_clipped_ = None
 
         # Holds dynamic time-warped values
         self.emf_target_warped_ = None
         self.emf_predict_warped_ = None
 
-    def fit(self, emf_predict, time_predict):
+    def fit(self, emf_predict, time_predict, clip_threshold=1e-4):
         """Align `emf_predict` with `emf_target` in time.
 
         This allows the target and prediction to later be compared by plotting
@@ -175,12 +180,16 @@ class ElectricalSystemEvaluator:
             The predicted emf values produced by the electrical system.
         time_predict : ndarray
             The corresponding time values assosciated with `emf_predicted`.
+        clip_threshold : float
+            The threshold to use in the spectrogram when deciding when the signal
+            starts and when it ends.
+            Default value is 1e-4.
 
         """
 
-        self._fit(emf_predict, time_predict)
+        self._fit(emf_predict, time_predict, clip_threshold)
 
-    def _fit(self, emf_predict, time_predict):
+    def _fit(self, emf_predict, time_predict, clip_threshold):
         """Implement the functionality of the `fit` method."""
         self.emf_predict = emf_predict
         self.time_predict = time_predict
@@ -226,6 +235,8 @@ class ElectricalSystemEvaluator:
         self.emf_predict_ = resampled_emf_pred
         self.time_ = resampled_timesteps
 
+        self._clip_signals(clip_threshold)
+
     def fit_transform(self, emf_predict, time_predict):
         """Align `emf_predict` with `emf_target` in time and return the
         result.
@@ -258,8 +269,8 @@ class ElectricalSystemEvaluator:
         """Perform dynamic time warping on prediction and targets."""
 
         # Exclude trailing (i.e. steady state) portion of the predicted waveform.
-        self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(self.emf_predict_clipped_,
-                                                                         self.emf_target_clipped_)
+        self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(self.emf_predict_,
+                                                                         self.emf_target_)
 
     def score(self, use_processed_signals: bool = True, **metrics):
         """Evaluate the electrical model using a selection of metrics.
@@ -300,24 +311,32 @@ class ElectricalSystemEvaluator:
         results = self._score(use_processed_signals, **metrics)
         return results
 
-    def _clip_signals(self):
+    def _clip_signals(self, clip_threshold):
         """Clip the target and predicted signals to only the active parts."""
+
+        if clip_threshold is None:
+            self.clipped_indexes = (None, None)
+            self.time_clipped_ = self.time_
+            self.emf_predict_clipped_ = self.emf_predict_
+            self.emf_target_clipped_ = self.emf_target_
+            return
+
         start_index, end_index = find_signal_limits(target=self.emf_predict_,
-                                                    sampling_period=1)
+                                                    sampling_period=1,
+                                                    threshold=clip_threshold)
 
         # Convert to integer indices, since `find_signal_limits` actually
         # returns the "time" of the signal, but we have a sampling frequency of
         # 1, so we can directly convert to integer indexes.
         start_index = int(start_index)
         end_index = int(end_index)
+        self.clipped_indexes = (start_index, end_index)
         self.time_clipped_ = self.time_[start_index:end_index]
         self.emf_predict_clipped_ = self.emf_predict_[start_index:end_index]
         self.emf_target_clipped_ = self.emf_target_[start_index:end_index]
 
     def _score(self, use_processed_signals: bool, **metrics):
         """Implement the underlying functionality of the `score` method."""
-
-        self._clip_signals()
 
         if use_processed_signals:
             self._calc_dtw()
@@ -349,7 +368,7 @@ class ElectricalSystemEvaluator:
         plt.legend()
 
         if include_dtw:
-            if not self.emf_target_warped_:
+            if self.emf_target_warped_ is None:
                 self._calc_dtw()
             plt.figure()
             plt.plot(self.emf_target_warped_, label='Target, time-warped')
@@ -807,7 +826,6 @@ class MechanicalSystemEvaluator(object):
         plt.legend()
 
         if include_dtw:
-
             if self.y_predict_warped_ is None:
                 self._calc_dtw()
 

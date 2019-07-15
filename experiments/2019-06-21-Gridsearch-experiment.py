@@ -51,14 +51,14 @@ def make_mechanical_spring(damper_constant):
                             damper_constant=damper_constant)
 
 
-damping_coefficients = np.linspace(0.01, 0.05, 5)
+damping_coefficients = np.linspace(0.01, 0.05, 20)
 mech_spring_coefficients = np.linspace(0, 0.25, 5) #[0.0125]  # Found from investigation
-constant_coupling_values = np.linspace(0.5, 2, 5)
+constant_coupling_values = np.linspace(0.3, 2, 20)
 
 # Single-values
-# damping_coefficients = [0.035385]
-# mech_spring_coefficients = [0.0125]
-# constant_coupling_values = [0.153846]
+#damping_coefficients = [0.032]
+#mech_spring_coefficients = [None]
+#constant_coupling_values = [0.5]
 
 param_dict = {'mechanical_model.damper': damping_coefficients,
               'mechanical_model.mechanical_spring': mech_spring_coefficients,
@@ -73,7 +73,7 @@ param_grid, val_grid = build_paramater_grid(param_dict, func_dict)
 pixel_scale = 0.18451  # Huawei P10 alternative
 labeled_video_processor = LabeledVideoProcessor(L=125,
                                                 mm=10,
-                                                seconds_per_frame=2/118,
+                                                seconds_per_frame=1/80,
                                                 pixel_scale=pixel_scale)
 
 voltage_division_ratio = 1/0.342
@@ -99,7 +99,7 @@ for param_set in tqdm(param_grid):
 
     new_unified_model.solve(t_start=0,
                             t_end=8,
-                            t_max_step=1e-2,
+                            t_max_step=1e-3,
                             y0=[0., 0., 0.04, 0., 0.])
 
 
@@ -115,7 +115,8 @@ for param_set in tqdm(param_grid):
                                                                adc_processor=adc_processor,
                                                                prediction_expr='g(t, x5)',
                                                                return_evaluator=True,
-                                                               closed_circuit=True)
+                                                               use_processed_signals=False,
+                                                               closed_circuit=False)
 
     mech_scores.append(m_score)
     mech_evals.append(m_eval)
@@ -150,6 +151,6 @@ df.to_csv('result.csv')
 # target_df = pd.read_csv('w1_result.csv')
 # target_df = df_1e2
 
-p = ggplot(aes(x='friction_damping', y='em_coupling', size='dtw_euclid_e'), df)
-p = p + geom_point()
-p.__repr__()
+# p = ggplot(aes(x='friction_damping', y='em_coupling', size='dtw_euclid_e'), df)
+# p = p + geom_point()
+# p.__repr__()

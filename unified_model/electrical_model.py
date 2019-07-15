@@ -150,6 +150,5 @@ class ElectricalModel:
 
         r_load = self.load_model.R
         r_coil = self.coil_resistance
-
-        v_load = emf_oc * r_load / (r_load + r_coil)
-        return v_load / r_load
+        # V = I/R -> I = V/R
+        return emf_oc / (r_load + r_coil)

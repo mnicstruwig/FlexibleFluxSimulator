@@ -45,7 +45,7 @@ def flux_interpolate(z_arr, phi_arr, coil_center, mm):
     z_max = z_arr_fine[np.argmax(new_phi_arr)]
 
     # dphi/dz = 0 happens when center of magnet passes through center of coil
-    z_arr_fine = z_arr_fine - (z_max - coil_center) + mm/2
+    z_arr_fine = z_arr_fine - (z_max - coil_center) - mm/2
     # Reinterpolate with new z values
     phi_interpolator = interp1d(z_arr_fine,
                                 new_phi_arr,
@@ -84,7 +84,7 @@ def flux_univariate_spline(z_arr, phi_arr, coil_center, mm):
         TODO: Potentially change this to something more natural (eg. relative to the
         bottom of the actual device.)
     mm : float
-        The total height of the magnet assembly (in mm).
+        The total height of the magnet assembly (in m).
         TODO: Consider a better unit
 
     Returns
@@ -95,6 +95,6 @@ def flux_univariate_spline(z_arr, phi_arr, coil_center, mm):
     """
     warnings.warn('Univariate spline as flux model is deprecated for the time being!')
     magnet_assembly_center = mm/2
-    z_arr = z_arr - z_arr[np.abs(phi_arr).argmax()] + coil_center - magnet_assembly_center/1000
+    z_arr = z_arr - z_arr[np.abs(phi_arr).argmax()] + coil_center - magnet_assembly_center
     interpolator = UnivariateSpline(z_arr, np.abs(phi_arr), k=3, s=0, ext='zeros')
     return interpolator

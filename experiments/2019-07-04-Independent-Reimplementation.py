@@ -82,14 +82,13 @@ def adc_factory(data_path='./data/2019-05-23/A/log_03_adc.csv',
                 R_c=12.5):
     df = pd.read_csv(data_path)
 
-    V_l = df['V'].values  # scaled load voltage
+    V_l = np.abs(df['V'].values)  # scaled load voltage
     time = df['time(ms)'].values / 1000
-
-    b, a = butter(N=9, Wn=1/5)
-    V_l_f = lfilter(b, a, V_l)
-    V_l_f = detrend(V_l_f)
+    V_l_f = V_l
+    #V_l_f = savgol_filter(V_l, 13, 11, 0)
+    V_l_f = np.abs(detrend(V_l_f))
+#    V_l_f = savgol_filter(V_l_f, 35, 7, 0)
     V_l_f = V_l_f * voltage_division_ratio  # Scale up to real load voltage
-
     V_oc = V_l_f*(R_l+R_c)/(R_l)
 
     return V_oc, time
@@ -130,7 +129,7 @@ mag_ass = MagnetAssembly(n_magnet=1,
 
 m = mag_ass.get_mass()
 
-t_span = [0., 7.]
+t_span = [0., 8.]
 y0 = [0.0, 0.0, 0.04, 0.0, 0.0]
 
 acc = acc_factory()
@@ -152,7 +151,7 @@ mag_pos_rel = x3-x1
 mag_vel_rel = x4-x2
 flux = x5
 time = sol.t
-oc_emf = np.gradient(flux)/np.gradient(time)
+oc_emf = np.abs(np.gradient(flux)/np.gradient(time))
 
 oc_emf_, adc_time = adc_factory()
 
@@ -161,7 +160,7 @@ plt.plot(adc_time, oc_emf_)
 plt.show()
 
 pixel_scale = 0.18451
-lvp = LabeledVideoProcessor(L=125, mm=10, seconds_per_frame=2/118, pixel_scale=pixel_scale)
+lvp = LabeledVideoProcessor(L=125, mm=10, seconds_per_frame=2/120, pixel_scale=pixel_scale)
 groundtruth_df = pd.read_csv('./data/2019-05-23/A/a003_transcoded_subsampled_labels_2019-06-20-15:14:29.csv')
 
 mag_pos_rel_, time_= lvp.fit_transform(groundtruth_df, True)
@@ -215,10 +214,22 @@ plt.show()
 mech_dist, _ = fastdtw(mag_pos_rel_r_, mag_pos_rel_r, radius=2, dist=euclidean)
 print('Mech dist --- {}'.format(mech_dist))
 
+R_l = 30
+R_c = 12.5
+
+cc_emf = oc_emf * R_l / (R_c + R_l)
+cc_emf_ = oc_emf_ * R_l / (R_c + R_l)
+
 rms_oc_emf = rms(oc_emf)
 rms_oc_emf_ = rms(oc_emf_)
-print('RMS adc --- {}'.format(rms_oc_emf_))
-print('RMS est --- {}'.format(rms_oc_emf))
 
-print('RMS perc diff --- {}'.format((- rms_oc_emf_ + rms_oc_emf )/rms_oc_emf_*100))
+rms_cc_emf = rms(cc_emf)
+rms_cc_emf_ = rms(cc_emf_)
 
+print('OC RMS adc --- {}'.format(rms_oc_emf_))
+print('OC RMS est --- {}'.format(rms_oc_emf))
+print('OC RMS perc diff --- {}'.format((- rms_oc_emf_ + rms_oc_emf )/rms_oc_emf_*100))
+print('---')
+print('CC RMS adc --- {}'.format(rms_cc_emf_))
+print('CC RMS est --- {}'.format(rms_cc_emf))
+print('CC RMS perc diff --- {}'.format((- rms_cc_emf_ + rms_cc_emf )/rms_cc_emf_*100))

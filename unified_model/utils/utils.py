@@ -14,6 +14,10 @@ from scipy import signal
 from scipy.spatial.distance import euclidean
 
 
+def rms(x):
+    """Calculate the RMS of a signal."""
+    return np.sqrt(np.mean(x**2))
+
 def pretty_str(dict_):
     """Get a pretty string representation of a dictionary."""
     str_ = ""

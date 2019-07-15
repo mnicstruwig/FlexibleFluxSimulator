@@ -169,7 +169,7 @@ class FluxDatabase(object):
             The position (in metres) of the center of the coil of the
             microgenerator, relative to the *top* of the fixed magnet.
         mm : float
-            The total height of the magnet assembly (in mm).
+            The total height of the magnet assembly (in m).
         **kwargs
             Keyword argument passed to the `query` method.
 
