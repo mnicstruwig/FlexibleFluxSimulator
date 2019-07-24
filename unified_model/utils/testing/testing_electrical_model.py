@@ -47,7 +47,7 @@ def apply_rectification(emf_values, v=0.2):
         e = np.abs(e)
 
         if e > v:
-            e = e-v
+            e = e - v
         else:
             e = 0
 

@@ -80,15 +80,15 @@ emf = apply_rectification(emf, 0.12)
 
 
 plt.plot(adc_ts, adc_emf)
-plt.plot(t_emf, emf, 0.1)
+plt.plot(t_emf, emf)
 plt.show()
 
-e_eval = ElectricalSystemEvaluator(adc_emf, adc_ts)
-e_eval.fit(emf, t_emf, clip_threshold=1e-4)
-e_eval.poof(False)
+e_eval_m = ElectricalSystemEvaluator(adc_emf, adc_ts)
+e_eval_m.fit(emf, t_emf, clip_threshold=1e-4)
+e_eval_m.poof(False)
 
-rms_target = rms(e_eval.emf_target_clipped_)
-rms_predict = rms(e_eval.emf_predict_clipped_)
+rms_target = rms(e_eval_m.emf_target_clipped_)
+rms_predict = rms(e_eval_m.emf_predict_clipped_)
 
 print()
 print('Target RMS --- {}'.format(rms_target))

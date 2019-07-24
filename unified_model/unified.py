@@ -501,8 +501,11 @@ class UnifiedModel(object):
             emf_predict = emf_predict*(R_load/(R_load+R_coil))  # Load voltage
 
         # Scoring
-        electrical_evaluator = ElectricalSystemEvaluator(emf_target, time_target)
-        electrical_evaluator.fit(emf_predict, time_predict)
+        electrical_evaluator = ElectricalSystemEvaluator(emf_target,
+                                                         time_target)
+
+        electrical_evaluator.fit(emf_predict,
+                                 time_predict)
 
         use_processed_signals = kwargs.pop('use_processed_signals', True)
         electrical_scores = electrical_evaluator.score(use_processed_signals, **metrics_dict)

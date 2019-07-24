@@ -21,15 +21,18 @@ class ElectricalModel:
     flux_model : fun
         Function that returns the flux linkage of a coil when the position of a
         magnet assembly's bottom edge is passed to it.
-    coil_resistance: float
-        The resistance of the coil in Ohms.
-        Default value is `np.inf`, which is equivalent to an open-circuit
-        system.
-    load_model : obj
-        A load model.
     flux_gradient : fun
         The gradient of `flux_model` if the `precompute_gradient` argument is
         set to True when using the `set_flux_model` method. Otherwise, None.
+    coil_resistance : float
+        The resistance of the coil in Ohms.
+        Default value is `np.inf`, which is equivalent to an open-circuit
+        system.
+    rectification_drop : float
+        The voltage drop (from open-circuit voltage) due to rectification
+        by a full-wave bridge rectifier.
+    load_model : obj
+        A load model.
 
     """
 
@@ -44,9 +47,10 @@ class ElectricalModel:
         """
         self.name = name
         self.flux_model = None
-        self.coil_resistance = np.inf
-        self.load_model = None
         self.flux_gradient = None
+        self.coil_resistance = np.inf
+        self.rectification_drop = None
+        self.load_model = None
         self.precompute_gradient = False
 
     def __str__(self):
@@ -73,6 +77,10 @@ class ElectricalModel:
     def set_coil_resistance(self, R):
         """Set the resistance of the coil"""
         self.coil_resistance = R
+
+    def set_rectification_drop(self, v):
+        """Set the open-circuit voltage drop due to rectification."""
+        self.rectification_drop = v
 
     def set_load_model(self, load_model):
         """Assign a load model
@@ -127,6 +135,14 @@ class ElectricalModel:
         """
         dphi_dz = self.dflux_model(mag_pos)
         emf = dphi_dz * (mag_vel)
+
+        if self.rectification_drop:
+            emf = np.abs(emf)
+            if emf > self.rectification_drop:
+                emf = emf - self.rectification_drop
+            else:
+                emf = 0
+            return emf
         return emf
 
     def get_current(self, emf_oc):
