@@ -243,6 +243,69 @@ def interpolate_and_resample(x, y, num_samples=10000, new_x_range=None):
     return new_x, interp(new_x)
 
 
+def align_signals_in_time(t_1, y_1, t_2, y_2, num_samples=10000):
+    """Align two signals in time using interpolation and resampling.
+
+    The signal `y_2` is shifted to be in time with `y_1`, using
+    cross-correlation, to calculate the time delay. Calculating
+    the time delay using cross-correlation requires both signals
+    to have the same sampling frequency. This is achieved with
+    interpolation.
+
+    Parameters
+    ----------
+    t_1 : array_like
+        The time values of `y_1`.
+    y_1 : array_like
+        The "base" or "target" signal values. `y_2` will be aligned to this
+        signal in time.
+    t_2 : array_like
+        The time values of `y_2`.
+    y_2 : array_like
+        The signal values to be aligned to `y_1`
+    num_samples : int
+        The number of samples the aligned signals should contain.
+
+    Returns
+    -------
+    resampled_t : array
+        Common time-values shared by the resampled signals.
+    resampled_y_1 : array
+        Resampled values of `y_1`.
+    resampled_y_2 : array
+        Resampled values of `y_2` that are aligned with
+        `resampled_y_1`.
+
+    """
+    stop_time = np.max([t_1[-1], t_2[-1]])
+
+    resampled_t, resampled_y_1 = interpolate_and_resample(
+        x=t_1,
+        y=y_1,
+        num_samples=num_samples,
+        new_unified_modelx_range=(0, stop_time)
+    )
+    _, resampled_y_2 = interpolate_and_resample(
+        x=t_2,
+        y=y_2,
+        num_samples=num_samples,
+        new_x_range=(0, stop_time)
+    )
+
+    sample_delay = get_sample_delay(resampled_y_1, resampled_y_2)
+
+    # Remove delay
+    time_delay = resampled_t[sample_delay]
+    _, resampled_y_2 = interpolate_and_resample(
+        x=resampled_t - time_delay,
+        y=resampled_y_2,
+        num_samples=num_samples,
+        new_x_range=(0, stop_time)
+    )
+
+    return resampled_t, resampled_y_1, resampled_y_2
+
+
 def find_signal_limits(target, sampling_period, threshold=1e-4):
     """Find the beginning and end of a signal using its spectrogram."""
     freqs, times, spectrum_density = signal.spectrogram(target,
