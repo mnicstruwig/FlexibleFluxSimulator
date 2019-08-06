@@ -283,7 +283,7 @@ def align_signals_in_time(t_1, y_1, t_2, y_2, num_samples=10000):
         x=t_1,
         y=y_1,
         num_samples=num_samples,
-        new_unified_modelx_range=(0, stop_time)
+        new_x_range=(0, stop_time)
     )
     _, resampled_y_2 = interpolate_and_resample(
         x=t_2,

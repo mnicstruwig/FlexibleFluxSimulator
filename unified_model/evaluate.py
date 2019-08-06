@@ -8,7 +8,8 @@ from scipy.interpolate import UnivariateSpline
 from unified_model.utils.utils import (apply_scalar_functions,
                                        get_sample_delay, find_signal_limits,
                                        smooth_butterworth, warp_signals,
-                                       interpolate_and_resample)
+                                       interpolate_and_resample,
+                                       align_signals_in_time)
 
 
 class AdcProcessor:
@@ -227,37 +228,19 @@ class ElectricalSystemEvaluator:
         # Normalize
         emf_predict = np.abs(emf_predict)
 
-        # Resample (must calculate cross-correlation with same sampling rate!)
-        stop_time = np.max([self.time_target[-1], time_predict[-1]])
-
-        # Target
-        resampled_time, resampled_emf_target = interpolate_and_resample(
-            self.time_target,
-            self.emf_target,
-            new_x_range=(0, stop_time)
+        resampled_signals = align_signals_in_time(
+            t_1=self.time_target,
+            y_1=self.emf_target,
+            t_2=time_predict,
+            y_2=emf_predict
         )
 
-        # Predicted
-        _, resampled_emf_predicted = interpolate_and_resample(
-            self.time_predict,
-            self.emf_predict,
-            new_x_range=(0, stop_time)
-        )
-
-        # Calculate sample delay
-        sample_delay = get_sample_delay(resampled_emf_target,
-                                        resampled_emf_predicted)
-
-        # Remove delay between signals by interpolating again
-        time_delay = resampled_time[sample_delay]
-        _, resampled_emf_predicted = interpolate_and_resample(
-            resampled_time - time_delay,
-            resampled_emf_predicted,
-            new_x_range=(0, stop_time)
-        )
+        resampled_time = resampled_signals[0]
+        resampled_emf_target = resampled_signals[1]
+        resampled_emf_predict = resampled_signals[2]
 
         self.emf_target_ = resampled_emf_target
-        self.emf_predict_ = resampled_emf_predicted
+        self.emf_predict_ = resampled_emf_predict
         self.time_ = resampled_time
         self._clip_signals(clip_threshold)
 
