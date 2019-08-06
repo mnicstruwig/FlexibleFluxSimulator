@@ -164,8 +164,7 @@ for param_set in tqdm(param_grid):
                                                                emf_target=emf_target,
                                                                metrics_dict=electrical_metrics,
                                                                prediction_expr='g(t, x5)',
-                                                               warp=True,
-                                                               clip_threshold=0.,
+                                                               warp=False,
                                                                return_evaluator=True,
                                                                closed_circuit=True)
     mech_v_scores.append(mv_score)

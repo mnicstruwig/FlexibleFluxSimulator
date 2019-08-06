@@ -227,43 +227,38 @@ class ElectricalSystemEvaluator:
         # Normalize
         emf_predict = np.abs(emf_predict)
 
-        # Build interpolators in order to resample.
-        interp_target = UnivariateSpline(self.time_target,
-                                         self.emf_target,
-                                         s=0,
-                                         ext='zeros')
-        interp_pred = UnivariateSpline(time_predict,
-                                       emf_predict,
-                                       s=0,
-                                       ext='zeros')
-
         # Resample (must calculate cross-correlation with same sampling rate!)
         stop_time = np.max([self.time_target[-1], time_predict[-1]])
-        resampled_timesteps = np.linspace(0, stop_time, 10000)
 
-        resampled_emf_target = interp_target(resampled_timesteps)
-        resampled_emf_pred = interp_pred(resampled_timesteps)
+        # Target
+        resampled_time, resampled_emf_target = interpolate_and_resample(
+            self.time_target,
+            self.emf_target,
+            new_x_range=(0, stop_time)
+        )
 
-        # Calculate delay using cross-correlation
-        corr_1 = correlate(resampled_emf_pred, resampled_emf_target)
-        corr_2 = correlate(resampled_emf_target, resampled_emf_pred)
-        sample_offset = int((np.abs(np.argmax(corr_1) - np.argmax(corr_2))) / 2)
-        time_offset = resampled_timesteps[sample_offset]
+        # Predicted
+        _, resampled_emf_predicted = interpolate_and_resample(
+            self.time_predict,
+            self.emf_predict,
+            new_x_range=(0, stop_time)
+        )
 
-        # TODO: Design some mechanism to shift the correct signal
-        # TODO: For now, we're assuming the predicted signal is
-        # TODO: always leading.
+        # Calculate sample delay
+        sample_delay = get_sample_delay(resampled_emf_target,
+                                        resampled_emf_predicted)
 
-        # Compensate for delay between signals
-        interp_pred = UnivariateSpline(resampled_timesteps + time_offset,
-                                       resampled_emf_pred,
-                                       s=0,
-                                       ext='zeros')
-        resampled_emf_pred = interp_pred(resampled_timesteps)
+        # Remove delay between signals by interpolating again
+        time_delay = resampled_time[sample_delay]
+        _, resampled_emf_predicted = interpolate_and_resample(
+            resampled_time - time_delay,
+            resampled_emf_predicted,
+            new_x_range=(0, stop_time)
+        )
 
         self.emf_target_ = resampled_emf_target
-        self.emf_predict_ = resampled_emf_pred
-        self.time_ = resampled_timesteps
+        self.emf_predict_ = resampled_emf_predicted
+        self.time_ = resampled_time
         self._clip_signals(clip_threshold)
 
     def fit_transform(self, emf_predict, time_predict):
@@ -685,9 +680,11 @@ class MechanicalSystemEvaluator(object):
 
         # Remove the delay between the signals
         time_delay = resampled_time[sample_delay]
-        _, resampled_y_predicted = interpolate_and_resample(resampled_time - time_delay,
-                                                                  resampled_y_predicted,
-                                                                  new_x_range=(0, stop_time))
+        _, resampled_y_predicted = interpolate_and_resample(
+            resampled_time - time_delay,
+            resampled_y_predicted,
+            new_x_range=(0, stop_time)
+        )
 
         # Clip signals
         clip_index = np.argmin(np.abs(resampled_time - self._clip_time))
