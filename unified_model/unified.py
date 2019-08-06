@@ -100,7 +100,6 @@ class UnifiedModel(object):
 
         return unified_model
 
-
     def add_mechanical_model(self, mechanical_model):
         """Add a mechanical model to the unified model
 
@@ -288,12 +287,11 @@ class UnifiedModel(object):
         return parse_output_expression(self.time, self.raw_solution, **kwargs)
 
     def score_mechanical_model(self,
+                               time_target,
+                               y_target,
                                metrics_dict,
                                prediction_expr,
-                               video_labels_df=None,
-                               labeled_video_processor=None,
-                               y_target=None,
-                               time_target=None,
+                               warp=False,
                                **kwargs):
         """Evaluate the mechanical model using a selection of metrics.
 
@@ -319,26 +317,19 @@ class UnifiedModel(object):
             `x2` refers to the second differential equation. Some additional
             functions can also be applied to the differential equations. These
             are referenced in the "See Also" section below.
-        video_labels_df : dataframe, optional
-            Dataframe containing groundtruth mechanical data. This dataframe is
-            produced by the OpenCV-based CLI helper script.
-        labeled_video_processor : object, optional
-            Instantiated `LabeledVideoProcessor` object that will be used for
-            processing the groundtruth video-labels data.
-        y_target : array, optional
+        y_target : array
             Manually specify the target values. Specifying `y_target` will
             take precedence over the labels processed from
             `labeled_video_processor` and `video_labels_df`.
-        time_target : array, optional
+        time_target : array
             Manually specify the corresponding target time values. Specifying
             `y_target` will  take precedence over the labels processed from
             `labeled_video_processor` and `video_labels_df`.
+        warp : bool, optional
+            Score using after dynamically time-warping the prediction and
+            target signals.
+            Default value is False.
         **kwargs
-            use_processed_signals : bool
-                If True, score on the processed (i.e. Dynamic Time Warped)
-                signals. If False, score on the resampled and time-aligned
-                signals without Dynamic Time Warping.
-                Default value is True.
             return_evaluator : bool
                 Whether to return the evaluator used to score the electrical
                 system.
@@ -377,10 +368,6 @@ class UnifiedModel(object):
 
         """
 
-        # Prepare target and prediction data
-        if y_target is None or time_target is None:
-            y_target, time_target = labeled_video_processor.fit_transform(video_labels_df,
-                                                                      impute_missing_values=True)
         # Calculate prediction using expression
         df_result = self.get_result(time='t',
                                     prediction=prediction_expr)
@@ -388,27 +375,23 @@ class UnifiedModel(object):
         time_predict = df_result['time'].values
 
         # Scoring
-        mechanical_evaluator = MechanicalSystemEvaluator(y_target, time_target)
+        mechanical_evaluator = MechanicalSystemEvaluator(y_target,
+                                                         time_target,
+                                                         warp)
         mechanical_evaluator.fit(y_predict, time_predict)
         self.mechanical_evaluator = mechanical_evaluator
-
-        use_processed_signals = kwargs.pop('use_processed_signals', True)
-        if use_processed_signals:
-            mechanical_scores = mechanical_evaluator.score(use_processed_signals=True,
-                                                           **metrics_dict)
-        else:
-            mechanical_scores = mechanical_evaluator.score(use_processed_signals=False,
-                                                           **metrics_dict)
+        mechanical_scores = mechanical_evaluator.score(**metrics_dict)
 
         if kwargs.pop('return_evaluator', None):
             return mechanical_scores, mechanical_evaluator
         return mechanical_scores
 
     def score_electrical_model(self,
+                               time_target,
+                               emf_target,
                                metrics_dict,
-                               adc_df,
-                               adc_processor,
                                prediction_expr,
+                               warp=False,
                                **kwargs):
         """Evaluate the electrical model using a selection of metrics.
 
@@ -427,12 +410,6 @@ class UnifiedModel(object):
             `arr_predict` and `arr_target` are numpy arrays that contain the
             predicted values and target values, respectively. The return value
             of the functions can have any shape.
-        adc_df : dataframe
-            Dataframe containing groundtruth ADC data. This dataframe is
-            produced by the OpenCV-based CLI helper script.
-        adc_processor : object
-            Instantiated `AdcProcessor` object that will be used for
-            processing the groundtruth ADC data.
         prediction_expr : str
             Expression that is evaluated and used as the predictions for the
             electrical system. *Any* reasonable expression is possible. You
@@ -443,11 +420,6 @@ class UnifiedModel(object):
             functions can also be applied to the differential equations. These
             are referenced in the "See Also" section below.
         **kwargs
-            use_processed_signals : bool
-                If True, score on the processed (i.e. Dynamic Time Warped)
-                signals. If False, score on the resampled and time-aligned
-                signals without Dynamic Time Warping.
-                Default value is True.
             closed_circuit : bool
                 If True, consider the voltage across the *load*, and not the
                 open-circuit voltage across the whole system.
@@ -455,6 +427,10 @@ class UnifiedModel(object):
             return_evaluator : bool
                 Whether to return the evaluator used to score the electrical
                 system.
+            clip_threshold : float
+                If greater than 0., clip the leading and trailing emf target
+                samples that don't include signal information by taking a
+                spectrogram. Default value is 1e-4.
 
         Returns
         -------
@@ -487,8 +463,6 @@ class UnifiedModel(object):
         ...                                                          prediction_expr='g(t, x5)')
 
         """
-        # Prepare target and prediction data
-        emf_target, time_target = adc_processor.fit_transform(adc_df)
         # calculate prediction using expression
         df_result = self.get_result(time='t',
                                     prediction=prediction_expr)
@@ -501,14 +475,16 @@ class UnifiedModel(object):
             emf_predict = emf_predict*(R_load/(R_load+R_coil))  # Load voltage
 
         # Scoring
+        clip_threshold = kwargs.pop('clip_threshold', 1e-4)
         electrical_evaluator = ElectricalSystemEvaluator(emf_target,
-                                                         time_target)
+                                                         time_target,
+                                                         warp,
+                                                         clip_threshold)
 
         electrical_evaluator.fit(emf_predict,
                                  time_predict)
 
-        use_processed_signals = kwargs.pop('use_processed_signals', True)
-        electrical_scores = electrical_evaluator.score(use_processed_signals, **metrics_dict)
+        electrical_scores = electrical_evaluator.score(**metrics_dict)
 
         if kwargs.pop('return_evaluator', None):
             return electrical_scores, electrical_evaluator
