@@ -2,12 +2,13 @@ from collections import namedtuple
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.interpolate import UnivariateSpline
 from scipy.signal import correlate, detrend
+from scipy.interpolate import UnivariateSpline
 
 from unified_model.utils.utils import (apply_scalar_functions,
                                        get_sample_delay, find_signal_limits,
-                                       smooth_butterworth, warp_signals)
+                                       smooth_butterworth, warp_signals,
+                                       interpolate_and_resample)
 
 
 class AdcProcessor:
@@ -666,13 +667,13 @@ class MechanicalSystemEvaluator(object):
         stop_time = np.max([self.time_target[-1], time_predict[-1]])
         self._clip_time = np.min([self.time_target[-1], time_predict[-1]])
 
-        resampled_time, resampled_y_target = self._interpolate_and_resample(
+        resampled_time, resampled_y_target = interpolate_and_resample(
             self.time_target,
             self.y_target,
             new_x_range=(0, stop_time)
         )
 
-        _, resampled_y_predicted = self._interpolate_and_resample(
+        _, resampled_y_predicted = interpolate_and_resample(
             time_predict,
             y_predict,
             new_x_range=(0, stop_time)
@@ -684,7 +685,7 @@ class MechanicalSystemEvaluator(object):
 
         # Remove the delay between the signals
         time_delay = resampled_time[sample_delay]
-        _, resampled_y_predicted = self._interpolate_and_resample(resampled_time - time_delay,
+        _, resampled_y_predicted = interpolate_and_resample(resampled_time - time_delay,
                                                                   resampled_y_predicted,
                                                                   new_x_range=(0, stop_time))
 
@@ -703,49 +704,6 @@ class MechanicalSystemEvaluator(object):
         clip_index = np.argmin(np.abs(self.time_ - self._clip_time))
         self.y_predict_warped_, self.y_target_warped_ = warp_signals(self.y_predict_[:clip_index],
                                                                      self.y_target_[:clip_index])
-
-    # TODO: Place in `utils`
-    @staticmethod
-    def _interpolate_and_resample(x, y, num_samples=10000, new_x_range=None):
-        """Resample a signal using interpolation.
-
-        This is useful for resampling two different signals with different
-        sampling frequencies so that they have the same sampling frequency,
-        which can be achieved by resampling both signals to have the same
-        `num_samples` and `new_x_range`.
-
-        Parameters
-        ----------
-        x : array_like
-            The input values that correspond to output values `y`.
-        y : array_like
-            The output values to be interpolated.
-        num_samples : int
-            The number of sampling points that should be used in the resampled
-            signal.
-        new_x_range : tuple(int, int)
-            The range of x values for which the resampled values should be
-            returned.
-
-        Returns
-        -------
-        new_x : array
-            The new x values.
-        interp: array
-            The new resampled values of `y` corresponding to `new_x`.
-
-        """
-        interp = UnivariateSpline(x, y, s=0, ext='zeros')
-
-        if new_x_range is not None:
-            x_start = new_x_range[0]
-            x_stop = new_x_range[1]
-        else:
-            x_start = 0
-            x_stop = np.max(x)
-
-        new_x = np.linspace(x_start, x_stop, num_samples)
-        return new_x, interp(new_x)
 
     def fit_transform(self, y_predict, time_predict):
         """Align `y_predicted` and `y_target` in time.

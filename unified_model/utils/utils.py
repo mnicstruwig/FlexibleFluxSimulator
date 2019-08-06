@@ -12,11 +12,13 @@ from asteval import Interpreter
 from fastdtw import fastdtw
 from scipy import signal
 from scipy.spatial.distance import euclidean
+from scipy.interpolate import UnivariateSpline
 
 
 def rms(x):
     """Calculate the RMS of a signal."""
     return np.sqrt(np.mean(x**2))
+
 
 def pretty_str(dict_):
     """Get a pretty string representation of a dictionary."""
@@ -197,6 +199,48 @@ def warp_signals(x1, x2, return_distance=False):
     if return_distance:
         return x1_warped, x2_warped, distance
     return x1_warped, x2_warped
+
+
+def interpolate_and_resample(x, y, num_samples=10000, new_x_range=None):
+    """Resample a signal using interpolation.
+
+        This is useful for resampling two different signals with different
+        sampling frequencies so that they have the same sampling frequency,
+        which can be achieved by resampling both signals to have the same
+        `num_samples` and `new_x_range`.
+
+        Parameters
+        ----------
+        x : array_like
+            The input values that correspond to output values `y`.
+        y : array_like
+            The output values to be interpolated.
+        num_samples : int
+            The number of sampling points that should be used in the resampled
+            signal.
+        new_x_range : tuple(int, int)
+            The range of x values for which the resampled values should be
+            returned.
+
+        Returns
+        -------
+        new_x : array
+            The new x values.
+        interp: array
+            The new resampled values of `y` corresponding to `new_x`.
+
+        """
+    interp = UnivariateSpline(x, y, s=0, ext='zeros')
+
+    if new_x_range is not None:
+        x_start = new_x_range[0]
+        x_stop = new_x_range[1]
+    else:
+        x_start = 0
+        x_stop = np.max(x)
+
+    new_x = np.linspace(x_start, x_stop, num_samples)
+    return new_x, interp(new_x)
 
 
 def find_signal_limits(target, sampling_period, threshold=1e-4):
