@@ -215,12 +215,9 @@ class ElectricalSystemEvaluator:
 
         """
 
-        self._fit(emf_predict, time_predict, self.clip_threshold)
+        self._fit(emf_predict, time_predict)
 
-    def _fit(self,
-             emf_predict,
-             time_predict,
-             clip_threshold):
+    def _fit(self, emf_predict, time_predict):
         """Implement the functionality of the `fit` method."""
         self.emf_predict = emf_predict
         self.time_predict = time_predict
@@ -242,7 +239,7 @@ class ElectricalSystemEvaluator:
         self.emf_target_ = resampled_emf_target
         self.emf_predict_ = resampled_emf_predict
         self.time_ = resampled_time
-        self._clip_signals(clip_threshold)
+        self._clip_signals(self.clip_threshold)
 
     def fit_transform(self, emf_predict, time_predict):
         """Align `emf_predict` with `emf_target` in time and return the
@@ -582,7 +579,11 @@ class MechanicalSystemEvaluator(object):
 
     """
 
-    def __init__(self, y_target, time_target, warp=False):
+    def __init__(self,
+                 y_target,
+                 time_target,
+                 warp=False,
+                 clip_threshold=1e-4):
         """Constructor
 
         Parameters
@@ -596,6 +597,24 @@ class MechanicalSystemEvaluator(object):
         warp : bool
             Set to True to score after dynamically time-warping the target and
             prediction signals. Default value is False.
+        clip_threshold : float
+            If greater than 0., clip the leading and trailing emf target
+            samples that don't include signal information by taking a
+            spectrogram. Default value is 1e-4.
+
+        Additional Notes
+        ----------------
+        The `clip` argument is important, since comparing aggregate scores of
+        the prediction and target signals (say, for example, the RMS) will
+        yield inaccurate results if one of the signals contains a lot of noise
+        (usually this is the `target` signal).
+
+        Thus, if the target signal is significantly longer than the prediction
+        signal, and contains noise, the aggregate value will be substantially
+        elevated due to all the additional noise.
+
+        Just be careful not to set the value too high, which will result in
+        clipping of the *actual* signal.
 
         """
         self.warp = warp
@@ -639,42 +658,53 @@ class MechanicalSystemEvaluator(object):
 
         self.y_predict = y_predict
         self.time_predict = time_predict
+        self._clip_time = np.min([self.time_target[-1], time_predict[-1]])
 
         # Resample the signals to the same sampling frequency
         # This is required for calculating the sample delay between them.
-        stop_time = np.max([self.time_target[-1], time_predict[-1]])
-        self._clip_time = np.min([self.time_target[-1], time_predict[-1]])
+        # stop_time = np.max([self.time_target[-1], time_predict[-1]])
 
-        resampled_time, resampled_y_target = interpolate_and_resample(
-            self.time_target,
-            self.y_target,
-            new_x_range=(0, stop_time)
+        # resampled_time, resampled_y_target = interpolate_and_resample(
+        #     self.time_target,
+        #     self.y_target,
+        #     new_x_range=(0, stop_time)
+        # )
+
+        # _, resampled_y_predicted = interpolate_and_resample(
+        #     time_predict,
+        #     y_predict,
+        #     new_x_range=(0, stop_time)
+        # )
+
+        resampled_signals = align_signals_in_time(
+            t_1=self.time_target,
+            y_1=self.y_target,
+            t_2=time_predict,
+            y_2=self.y_predict
         )
 
-        _, resampled_y_predicted = interpolate_and_resample(
-            time_predict,
-            y_predict,
-            new_x_range=(0, stop_time)
-        )
+        resampled_time = resampled_signals[0]
+        resampled_y_target = resampled_signals[1]
+        resampled_y_predict = resampled_signals[2]
 
-        # Calculate the sample delay
-        sample_delay = get_sample_delay(resampled_y_target,
-                                        resampled_y_predicted)
+        # # Calculate the sample delay
+        # sample_delay = get_sample_delay(resampled_y_target,
+        #                                 resampled_y_predicted)
 
-        # Remove the delay between the signals
-        time_delay = resampled_time[sample_delay]
-        _, resampled_y_predicted = interpolate_and_resample(
-            resampled_time - time_delay,
-            resampled_y_predicted,
-            new_x_range=(0, stop_time)
-        )
+        # # Remove the delay between the signals
+        # time_delay = resampled_time[sample_delay]
+        # _, resampled_y_predicted = interpolate_and_resample(
+        #     resampled_time - time_delay,
+        #     resampled_y_predicted,
+        #     new_x_range=(0, stop_time)
+        # )
 
         # Clip signals
-        clip_index = np.argmin(np.abs(resampled_time - self._clip_time))
+        self.clip_index = np.argmin(np.abs(resampled_time - self._clip_time))
 
         # Store results
         self.y_target_ = resampled_y_target
-        self.y_predict_ = resampled_y_predicted
+        self.y_predict_ = resampled_y_predict
         self.time_ = resampled_time
 
     def _calc_dtw(self):
