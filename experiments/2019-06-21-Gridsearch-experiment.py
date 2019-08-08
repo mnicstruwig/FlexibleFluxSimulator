@@ -96,7 +96,7 @@ param_dict = {'mechanical_model.damper': damping_coefficients,
               'electrical_model.rectification_drop': rectification_drop,
               'electrical_model.flux_model': flux_models,
               'electrical_model.dflux_model': dflux_models,
-              'electrical_model.load': coil_resistance}
+              'electrical_model.coil_resistance': coil_resistance}
 
 func_dict = {'mechanical_model.damper': DamperConstant,
              'mechanical_model.mechanical_spring': make_mechanical_spring,
@@ -104,7 +104,7 @@ func_dict = {'mechanical_model.damper': DamperConstant,
              'electrical_model.rectification_drop': lambda x: rectification_drop[0],
              'electrical_model.flux_model': lambda x: abc.flux_models[x],
              'electrical_model.dflux_model': lambda x: abc.dflux_models[x],
-             'electrical_model.load': lambda x: SimpleLoad(R=abc.coil_resistance[x])}
+             'electrical_model.coil_resistance': lambda x: abc.coil_resistance[x]}
 
 param_grid, val_grid = build_paramater_grid(param_dict, func_dict)
 
@@ -129,7 +129,7 @@ mech_scores = []
 mech_v_scores = []
 elec_scores = []
 y_target, y_time_target = labeled_video_processor.fit_transform(samples[which_device][which_sample].video_labels_df,
-                                                              impute_missing_values=True)
+                                                                impute_missing_values=True)
 
 emf_target, emf_time_target = adc_processor.fit_transform(samples[which_device][which_sample].adc_df)
 
@@ -168,7 +168,8 @@ for param_set in tqdm(param_grid):
                                                                prediction_expr='g(t, x5)',
                                                                warp=False,
                                                                return_evaluator=True,
-                                                               closed_circuit=True)
+                                                               closed_circuit=True,
+                                                               clip_threshold=1e-1)
     mech_v_scores.append(mv_score)
     mech_scores.append(m_score)
     elec_scores.append(e_score)

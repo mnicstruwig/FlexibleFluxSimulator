@@ -379,7 +379,6 @@ class UnifiedModel(object):
                                                          time_target,
                                                          warp)
         mechanical_evaluator.fit(y_predict, time_predict)
-        self.mechanical_evaluator = mechanical_evaluator
         mechanical_scores = mechanical_evaluator.score(**metrics_dict)
 
         if kwargs.pop('return_evaluator', None):

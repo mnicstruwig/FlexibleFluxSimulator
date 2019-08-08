@@ -325,9 +325,16 @@ class ElectricalSystemEvaluator:
             self.emf_target_clipped_ = self.emf_target_
             return
 
-        start_index, end_index = find_signal_limits(target=self.emf_predict_,
-                                                    sampling_period=1,
-                                                    threshold=clip_threshold)
+        start_index_a, end_index_a = find_signal_limits(target=self.emf_target_,
+                                                        sampling_period=1,
+                                                        threshold=clip_threshold)
+
+        start_index_b, end_index_b = find_signal_limits(target=self.emf_predict_,
+                                                        sampling_period=1,
+                                                        threshold=clip_threshold)
+
+        start_index = np.min([start_index_a, start_index_b])
+        end_index = np.max([end_index_a, end_index_b])
 
         # Convert to integer indices, since `find_signal_limits` actually
         # returns the "time" of the signal, but we have a sampling frequency of
@@ -355,7 +362,7 @@ class ElectricalSystemEvaluator:
 
         return Results(*metric_results.values())
 
-    def poof(self, include_dtw=False, **kwargs):
+    def poof(self, include_dtw=False, clipped=True, **kwargs):
         """Plot the aligned target and predicted values.
 
         Parameters
@@ -363,12 +370,33 @@ class ElectricalSystemEvaluator:
         include_dtw : bool, optional
             Set to `True` to also plot the dynamic-time-warped signals.
             Default value is False.
+        clipped : bool, optional
+            Set to `False` to plot the entire length of the signals.
+            Set to `True` to plot the portion of the signals used for scoring.
+            Default value is True.
         kwargs:
             Kwargs passed to matplotlib.pyplot.plot function.
 
         """
-        plt.plot(self.time_clipped_, self.emf_target_clipped_, label='Target', **kwargs)
-        plt.plot(self.time_clipped_, self.emf_predict_clipped_, label='Predictions', **kwargs)
+        if clipped:
+            time = self.time_clipped_
+            target = self.emf_target_clipped_
+            predict = self.emf_predict_clipped_
+
+        else:
+            time = self.time_
+            target = self.emf_target_
+            predict = self.emf_predict_
+
+            clipped_x_begin = [self.clipped_indexes[0]]*2
+            clipped_x_end = [self.clipped_indexes[1]]*2
+            clipped_y = [0, np.max([target, predict])]
+
+            plt.plot(time[clipped_x_begin], clipped_y, 'k--')
+            plt.plot(time[clipped_x_end], clipped_y, 'k--')
+
+        plt.plot(time, target, label='Target', **kwargs)
+        plt.plot(time, predict, label='Predictions', **kwargs)
         plt.legend()
 
         if include_dtw:
