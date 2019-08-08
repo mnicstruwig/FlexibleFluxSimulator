@@ -71,6 +71,7 @@ def make_mechanical_spring(damper_constant):
 
 ####################
 which_device = 'B'
+which_sample = 0
 ####################
 
 pixel_scale = pixel_scales[which_device]
@@ -82,29 +83,37 @@ mech_spring_coefficients = np.linspace(0, 0.25, 5) #[0.0125]  # Found from inves
 constant_coupling_values = np.linspace(0.3, 2, 10)
 
 # Single-values (set parameters for test)
-flux_models = which_device
-dflux_models = which_device
-coil_resistance = which_device
+input_ = [which_sample]
+flux_models = [which_device]
+dflux_models = [which_device]
+coil_resistance = [which_device]
+rectification_drop = [0.10]
+
 damping_coefficients = [0.035]
 mech_spring_coefficients = [0.0000]
 constant_coupling_values = [0.5]
-rectification_drop = [0.10]
 
-param_dict = {'mechanical_model.damper': damping_coefficients,
-              'mechanical_model.mechanical_spring': mech_spring_coefficients,
-              'coupling_model': constant_coupling_values,
-              'electrical_model.rectification_drop': rectification_drop,
-              'electrical_model.flux_model': flux_models,
-              'electrical_model.dflux_model': dflux_models,
-              'electrical_model.coil_resistance': coil_resistance}
+param_dict = {
+    'mechanical_model.input_': input_,
+    'mechanical_model.damper': damping_coefficients,
+    'mechanical_model.mechanical_spring': mech_spring_coefficients,
+    'coupling_model': constant_coupling_values,
+    'electrical_model.rectification_drop': rectification_drop,
+    'electrical_model.flux_model': flux_models,
+    'electrical_model.dflux_model': dflux_models,
+    'electrical_model.coil_resistance': coil_resistance
+}
 
-func_dict = {'mechanical_model.damper': DamperConstant,
-             'mechanical_model.mechanical_spring': make_mechanical_spring,
-             'coupling_model': ConstantCoupling,
-             'electrical_model.rectification_drop': lambda x: rectification_drop[0],
-             'electrical_model.flux_model': lambda x: abc.flux_models[x],
-             'electrical_model.dflux_model': lambda x: abc.dflux_models[x],
-             'electrical_model.coil_resistance': lambda x: abc.coil_resistance[x]}
+func_dict = {
+    'mechanical_model.input_': lambda x: accelerometer_inputs[x],
+    'mechanical_model.damper': DamperConstant,
+    'mechanical_model.mechanical_spring': make_mechanical_spring,
+    'coupling_model': ConstantCoupling,
+    'electrical_model.rectification_drop': lambda x: x,
+    'electrical_model.flux_model': lambda x: abc.flux_models[x],
+    'electrical_model.dflux_model': lambda x: abc.dflux_models[x],
+    'electrical_model.coil_resistance': lambda x: abc.coil_resistance[x]
+}
 
 param_grid, val_grid = build_paramater_grid(param_dict, func_dict)
 
@@ -124,7 +133,6 @@ electrical_metrics = {'rms_perc_diff': root_mean_square_percentage_diff,
                       'dtw_euclid_e': dtw_euclid_distance}
 
 
-which_sample = 1
 mech_scores = []
 mech_v_scores = []
 elec_scores = []
