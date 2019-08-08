@@ -32,33 +32,33 @@ pixel_scales = {'A': 0.18451, 'B': 0.148148}
 seconds_per_frame = {'A': 1/80, 'B': 1/60}
 samples = {}
 samples['A'] = collect_samples(base_path=base_groundtruth_path,
-                            acc_pattern='A/*acc*.csv',
-                            adc_pattern='A/*adc*.csv',
-                            labeled_video_pattern='A/*labels*.csv')
+                               acc_pattern='A/*acc*.csv',
+                               adc_pattern='A/*adc*.csv',
+                               labeled_video_pattern='A/*labels*.csv')
 samples['B'] = collect_samples(base_path=base_groundtruth_path,
-                            acc_pattern='B/*acc*.csv',
-                            adc_pattern='B/*adc*.csv',
-                            labeled_video_pattern='B/*labels*.csv')
+                               acc_pattern='B/*acc*.csv',
+                               adc_pattern='B/*adc*.csv',
+                               labeled_video_pattern='B/*labels*.csv')
 accelerometer_inputs = {}
 accelerometer_inputs['A'] = [AccelerometerInput(raw_accelerometer_input=sample.acc_df,
-                                           accel_column='z_G',
-                                           time_column='time(ms)',
-                                           accel_unit='g',
-                                           time_unit='ms',
-                                           smooth=True,
-                                           interpolate=True)
-                        for sample
-                        in samples['A']]
+                                                accel_column='z_G',
+                                                time_column='time(ms)',
+                                                accel_unit='g',
+                                                time_unit='ms',
+                                                smooth=True,
+                                                interpolate=True)
+                             for sample
+                             in samples['A']]
 
 accelerometer_inputs['B'] = [AccelerometerInput(raw_accelerometer_input=sample.acc_df,
-                                           accel_column='z_G',
-                                           time_column='time(ms)',
-                                           accel_unit='g',
-                                           time_unit='ms',
-                                           smooth=True,
-                                           interpolate=True)
-                        for sample
-                        in  samples['B']]
+                                                accel_column='z_G',
+                                                time_column='time(ms)',
+                                                accel_unit='g',
+                                                time_unit='ms',
+                                                smooth=True,
+                                                interpolate=True)
+                             for sample
+                             in samples['B']]
 
 
 def make_mechanical_spring(damper_constant):
@@ -67,6 +67,8 @@ def make_mechanical_spring(damper_constant):
                             strength=1000,
                             pure=False,
                             damper_constant=damper_constant)
+
+
 ####################
 which_device = 'B'
 ####################
