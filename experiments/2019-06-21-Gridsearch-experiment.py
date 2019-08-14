@@ -65,7 +65,7 @@ def make_mechanical_spring(damper_constant):
 
 ####################
 which_device = 'A'
-which_sample = 1
+which_sample = 2
 
 pixel_scale = pixel_scales[which_device]
 seconds_per_frame = seconds_per_frame[which_device]
@@ -109,6 +109,12 @@ func_dict = {
     'electrical_model.flux_model': lambda x: abc.flux_models[x],
     'electrical_model.dflux_model': lambda x: abc.dflux_models[x],
     'electrical_model.coil_resistance': lambda x: abc.coil_resistance[x]
+}
+
+translation_dict = {
+    'mechanical_model.damper': 'friction_damping',
+    'mechanical_model.mechanical_spring': 'spring_damping',
+    'coupling_model': 'coupling_factor'
 }
 
 # Build the grid to search
@@ -191,42 +197,50 @@ for param_set in tqdm(param_grid):
     elec_scores.append(e_score)
 
 
-def scores_to_dataframe(scores, param_values_grid, param_names):
+def scores_to_dataframe(scores,
+                        param_dict,
+                        param_values_grid,
+                        translation_dict):
     """
-    Transform scores with model parameters that produced those score, into
+    Transform scores, with model parameters that produced those scores, into
     a dataframe.
     """
-    metrics = list(scores[0]._asdict().keys())
-    accumulated_metrics = {m: [] for m in metrics}
+    metrics = list(scores[0]._asdict().keys())  # List of metrics
+    parameter_keys = list(param_dict.keys())  # List of all possible parameters
 
-    # Get score metrics
-    for s in scores:
+    accumulated_metrics = {m: [] for m in metrics}
+    accumulated_parameters = {p: [] for p in translation_dict.values()}
+
+    for i, s in enumerate(scores):  # For each experiment
+        # Accumulate scores / metrics
         for m in metrics:
             accumulated_metrics[m].append(s._asdict()[m])
+        # Accumulate parameters
+        for k, v in translation_dict.items():
+            parameter_index = parameter_keys.index(k)
+            accumulated_parameters[v].append(param_values_grid[i][parameter_index])
 
-    # Get parameter values that led to scores
-    for i, name in enumerate(param_names):
-        accumulated_metrics[name] = [param_values_tuple[i]
-                                     for param_values_tuple
-                                     in param_values_grid]
-
-    return pd.DataFrame(accumulated_metrics)
+    accumulated_parameters.update(accumulated_metrics)
+    return pd.DataFrame(accumulated_parameters)
 
 
 df = scores_to_dataframe(
     mech_scores,
+    param_dict,
     val_grid,
-    param_names=['friction_damping', 'spring_damping', 'em_coupling']
+    translation_dict
 )
 df_elec = scores_to_dataframe(
     elec_scores,
+    param_dict,
     val_grid,
-    param_names=['friction_damping', 'spring_damping', 'em_coupling']
+    translation_dict
 )
 df_mv = scores_to_dataframe(
     mech_v_scores,
+    param_dict,
     val_grid,
-    param_names=['friction_damping', 'spring_damping', 'em_coupling']
+    translation_dict
 )
 
 df['dtw_euclid_mv'] = df_mv['dtw_euclid_mv']
@@ -239,4 +253,4 @@ df['dtw_euclid_m_'] = df['dtw_euclid_m']/np.max(df['dtw_euclid_m'])
 df['dtw_euclid_mv_'] = df['dtw_euclid_mv']/np.max(df['dtw_euclid_mv'])
 df['mms'] = (df['dtw_euclid_m_'] + df['dtw_euclid_mv_'])/2  # Mean Mech Score --> MMS
 
-df.to_csv('result_{}.csv'.format(which_sample))
+df.to_csv(f'{which_device}_{which_sample}_result.csv')

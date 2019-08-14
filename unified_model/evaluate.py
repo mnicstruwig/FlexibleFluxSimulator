@@ -362,18 +362,18 @@ class ElectricalSystemEvaluator:
 
         return Results(*metric_results.values())
 
-    def poof(self, include_dtw=False, clipped=True, **kwargs):
+    def poof(self, clipped=True, include_dtw=False, **kwargs):
         """Plot the aligned target and predicted values.
 
         Parameters
         ----------
-        include_dtw : bool, optional
-            Set to `True` to also plot the dynamic-time-warped signals.
-            Default value is False.
         clipped : bool, optional
             Set to `False` to plot the entire length of the signals.
             Set to `True` to plot the portion of the signals used for scoring.
             Default value is True.
+        include_dtw : bool, optional
+            Set to `True` to also plot the dynamic-time-warped signals.
+            Default value is False.
         kwargs:
             Kwargs passed to matplotlib.pyplot.plot function.
 
