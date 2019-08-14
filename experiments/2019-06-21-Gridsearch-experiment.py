@@ -1,28 +1,22 @@
-from config import abc
-from itertools import product
-import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from plotnine import *
 from scipy import signal
-import matplotlib.pyplot as plt
-from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score, r2_score, median_absolute_error
 from tqdm import tqdm
 
-from unified_model.metrics import *
-from unified_model.evaluate import AdcProcessor, LabeledVideoProcessor, MechanicalSystemEvaluator
-from unified_model.unified import UnifiedModel
+from config import abc
 from unified_model.coupling import ConstantCoupling
-from unified_model.electrical_model import ElectricalModel
-from unified_model.electrical_system.load import SimpleLoad
-from unified_model.mechanical_model import MechanicalModel
+from unified_model.evaluate import AdcProcessor, LabeledVideoProcessor
 from unified_model.mechanical_system.damper import DamperConstant
-from unified_model.mechanical_system.spring.mechanical_spring import MechanicalSpring
-from unified_model.mechanical_system.input_excitation.accelerometer import AccelerometerInput
-from unified_model.utils.utils import collect_samples, build_paramater_grid, update_nested_attributes
-from unified_model.governing_equations import unified_ode
-from unified_model.pipeline import clip_x2
-
+from unified_model.mechanical_system.input_excitation.accelerometer import \
+    AccelerometerInput
+from unified_model.mechanical_system.spring.mechanical_spring import \
+    MechanicalSpring
+from unified_model.metrics import (dtw_euclid_distance,
+                                   root_mean_square_percentage_diff)
+from unified_model.unified import UnifiedModel
+from unified_model.utils.utils import (build_paramater_grid, collect_samples,
+                                       update_nested_attributes)
 
 base_unified_model = UnifiedModel.load_from_disk('../my_saved_model/')
 
@@ -40,25 +34,25 @@ samples['B'] = collect_samples(base_path=base_groundtruth_path,
                                adc_pattern='B/*adc*.csv',
                                labeled_video_pattern='B/*labels*.csv')
 accelerometer_inputs = {}
-accelerometer_inputs['A'] = [AccelerometerInput(raw_accelerometer_input=sample.acc_df,
-                                                accel_column='z_G',
-                                                time_column='time(ms)',
-                                                accel_unit='g',
-                                                time_unit='ms',
-                                                smooth=True,
-                                                interpolate=True)
-                             for sample
-                             in samples['A']]
+accelerometer_inputs['A'] = [
+    AccelerometerInput(raw_accelerometer_input=sample.acc_df,
+                       accel_column='z_G',
+                       time_column='time(ms)',
+                       accel_unit='g',
+                       time_unit='ms',
+                       smooth=True,
+                       interpolate=True) for sample in samples['A']
+]
 
-accelerometer_inputs['B'] = [AccelerometerInput(raw_accelerometer_input=sample.acc_df,
-                                                accel_column='z_G',
-                                                time_column='time(ms)',
-                                                accel_unit='g',
-                                                time_unit='ms',
-                                                smooth=True,
-                                                interpolate=True)
-                             for sample
-                             in samples['B']]
+accelerometer_inputs['B'] = [
+    AccelerometerInput(raw_accelerometer_input=sample.acc_df,
+                       accel_column='z_G',
+                       time_column='time(ms)',
+                       accel_unit='g',
+                       time_unit='ms',
+                       smooth=True,
+                       interpolate=True) for sample in samples['B']
+]
 
 
 def make_mechanical_spring(damper_constant):
@@ -70,25 +64,27 @@ def make_mechanical_spring(damper_constant):
 
 
 ####################
-which_device = 'B'
-which_sample = 0
-####################
+which_device = 'A'
+which_sample = 1
 
 pixel_scale = pixel_scales[which_device]
-accelerometer_inputs = accelerometer_inputs[which_device]
 seconds_per_frame = seconds_per_frame[which_device]
 
+accelerometer_inputs = accelerometer_inputs[which_device]
+input_ = [which_sample]
+####################
+
+
+# Gridsearch parameters
 damping_coefficients = np.linspace(0.03, 0.04, 10)
 mech_spring_coefficients = np.linspace(0, 0.25, 5) #[0.0125]  # Found from investigation
 constant_coupling_values = np.linspace(0.3, 2, 10)
-
-# Single-values (set parameters for test)
-input_ = [which_sample]
+rectification_drop = [0.10]
 flux_models = [which_device]
 dflux_models = [which_device]
 coil_resistance = [which_device]
-rectification_drop = [0.10]
 
+# Overrides (set parameters for test)
 damping_coefficients = [0.035]
 mech_spring_coefficients = [0.0000]
 constant_coupling_values = [0.5]
@@ -115,31 +111,37 @@ func_dict = {
     'electrical_model.coil_resistance': lambda x: abc.coil_resistance[x]
 }
 
+# Build the grid to search
 param_grid, val_grid = build_paramater_grid(param_dict, func_dict)
 
-labeled_video_processor = LabeledVideoProcessor(L=125,
-                                                mm=10,
-                                                seconds_per_frame=seconds_per_frame,
-                                                pixel_scale=pixel_scale)
+labeled_video_processor = LabeledVideoProcessor(
+    L=125,
+    mm=10,
+    seconds_per_frame=seconds_per_frame,
+    pixel_scale=pixel_scale)
 
 voltage_division_ratio = 1/0.342
-adc_processor = AdcProcessor(voltage_division_ratio=voltage_division_ratio,
-                             smooth=True)
-
+adc_processor = AdcProcessor(
+    voltage_division_ratio=voltage_division_ratio,
+    smooth=True)
 
 mechanical_metrics = {'dtw_euclid_m': dtw_euclid_distance}
 mechanical_v_metrics = {'dtw_euclid_mv': dtw_euclid_distance}
 electrical_metrics = {'rms_perc_diff': root_mean_square_percentage_diff,
                       'dtw_euclid_e': dtw_euclid_distance}
 
-
 mech_scores = []
 mech_v_scores = []
 elec_scores = []
-y_target, y_time_target = labeled_video_processor.fit_transform(samples[which_device][which_sample].video_labels_df,
-                                                                impute_missing_values=True)
 
-emf_target, emf_time_target = adc_processor.fit_transform(samples[which_device][which_sample].adc_df)
+y_target, y_time_target = labeled_video_processor.fit_transform(
+    samples[which_device][which_sample].video_labels_df,
+    impute_missing_values=True
+)
+
+emf_target, emf_time_target = adc_processor.fit_transform(
+    samples[which_device][which_sample].adc_df
+)
 
 
 yv_target = signal.savgol_filter(y_target, 9, 4)
@@ -155,37 +157,47 @@ for param_set in tqdm(param_grid):
                             t_max_step=1e-3,
                             y0=[0., 0., 0.04, 0., 0.])
 
+    m_score, m_eval = new_unified_model.score_mechanical_model(
+        metrics_dict=mechanical_metrics,
+        y_target=y_target,
+        time_target=y_time_target,
+        prediction_expr='x3-x1',
+        warp=False,
+        return_evaluator=True
+    )
 
-    m_score, m_eval = new_unified_model.score_mechanical_model(metrics_dict=mechanical_metrics,
-                                                               y_target=y_target,
-                                                               time_target=y_time_target,
-                                                               prediction_expr='x3-x1',
-                                                               warp=False,
-                                                               return_evaluator=True)
+    mv_score, mv_eval = new_unified_model.score_mechanical_model(
+        metrics_dict=mechanical_v_metrics,
+        y_target=yv_target,
+        time_target=y_time_target,
+        prediction_expr='x4-x2',
+        warp=False,
+        return_evaluator=True
+    )
 
-    mv_score, mv_eval = new_unified_model.score_mechanical_model(metrics_dict=mechanical_v_metrics,
-                                                                 y_target=yv_target,
-                                                                 time_target=y_time_target,
-                                                                 prediction_expr='x4-x2',
-                                                                 warp=False,
-                                                                 return_evaluator=True)
+    e_score, e_eval = new_unified_model.score_electrical_model(
+        time_target=emf_time_target,
+        emf_target=emf_target,
+        metrics_dict=electrical_metrics,
+        prediction_expr='g(t, x5)',
+        warp=False,
+        return_evaluator=True,
+        closed_circuit=True,
+        clip_threshold=1e-1
+    )
 
-    e_score, e_eval = new_unified_model.score_electrical_model(time_target=emf_time_target,
-                                                               emf_target=emf_target,
-                                                               metrics_dict=electrical_metrics,
-                                                               prediction_expr='g(t, x5)',
-                                                               warp=False,
-                                                               return_evaluator=True,
-                                                               closed_circuit=True,
-                                                               clip_threshold=1e-1)
     mech_v_scores.append(mv_score)
     mech_scores.append(m_score)
     elec_scores.append(e_score)
 
 
 def scores_to_dataframe(scores, param_values_grid, param_names):
+    """
+    Transform scores with model parameters that produced those score, into
+    a dataframe.
+    """
     metrics = list(scores[0]._asdict().keys())
-    accumulated_metrics = {m:[] for m in metrics}
+    accumulated_metrics = {m: [] for m in metrics}
 
     # Get score metrics
     for s in scores:
@@ -201,9 +213,21 @@ def scores_to_dataframe(scores, param_values_grid, param_names):
     return pd.DataFrame(accumulated_metrics)
 
 
-df = scores_to_dataframe(mech_scores, val_grid, param_names=['friction_damping', 'spring_damping', 'em_coupling'])
-df_elec = scores_to_dataframe(elec_scores, val_grid, param_names=['friction_damping', 'spring_damping', 'em_coupling'])
-df_mv = scores_to_dataframe(mech_v_scores, val_grid, param_names=['friction_damping', 'spring_damping', 'em_coupling'])
+df = scores_to_dataframe(
+    mech_scores,
+    val_grid,
+    param_names=['friction_damping', 'spring_damping', 'em_coupling']
+)
+df_elec = scores_to_dataframe(
+    elec_scores,
+    val_grid,
+    param_names=['friction_damping', 'spring_damping', 'em_coupling']
+)
+df_mv = scores_to_dataframe(
+    mech_v_scores,
+    val_grid,
+    param_names=['friction_damping', 'spring_damping', 'em_coupling']
+)
 
 df['dtw_euclid_mv'] = df_mv['dtw_euclid_mv']
 df['abs_rms_perc_diff'] = np.abs(df_elec['rms_perc_diff'])
