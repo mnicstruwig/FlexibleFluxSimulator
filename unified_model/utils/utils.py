@@ -458,13 +458,33 @@ def build_paramater_grid(param_dict: dict, func_dict: dict = None) -> Tuple:
         processed_param_dict = {}
         for key, values in param_dict.items():
             # Apply functions to parameter grid
-            processed_param_dict[key] = [func_dict[key](value) for value in values]
+            processed_param_dict[key] = [func_dict[key](value)
+                                         for value
+                                         in values]
 
         parameter_product = list(product(*processed_param_dict.values()))
-        value_grid = list(product(*param_dict.values()))
+        value_product = list(product(*param_dict.values()))
+
+        def product_to_dict_list(keys, product):
+            """Convert a list of products into a dictionary."""
+            grid = []
+            for set_of_values in product:
+                try:
+                    assert(len(keys) == len(set_of_values))
+                except AssertionError:
+                    raise AssertionError('Nr. of keys != Nr. values in the set')
+
+                dict_ = {key: value
+                         for key, value
+                         in zip(keys, set_of_values)}
+                grid.append(dict_)
+            return grid
+
+        value_grid = product_to_dict_list(param_dict.keys(),
+                                          value_product)
 
         parameter_grid = []
-        for param_set in parameter_product:
+        for param_set in parameter_product:  # Convert to dictionary
             dict_ = {key: param
                      for key, param
                      in zip(param_dict.keys(), param_set)}
@@ -472,7 +492,6 @@ def build_paramater_grid(param_dict: dict, func_dict: dict = None) -> Tuple:
             parameter_grid.append(dict_)
 
         return parameter_grid, value_grid
-        return list(product(*parameter_grid.values())), list(product(*param_dict.values()))
 
     return list(product(*param_dict.values()))
 

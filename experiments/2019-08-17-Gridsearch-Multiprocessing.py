@@ -67,7 +67,7 @@ def make_mechanical_spring(damper_constant):
 
 ####################
 which_device = 'A'
-which_sample = 1
+which_sample = 0
 
 pixel_scale = pixel_scales[which_device]
 seconds_per_frame = seconds_per_frame[which_device]
@@ -110,7 +110,6 @@ func_dict = {
     'electrical_model.rectification_drop': lambda x: x,
     'electrical_model.flux_model': lambda x: abc.flux_models[x],
     'electrical_model.dflux_model': lambda x: abc.dflux_models[x],
-
     'electrical_model.coil_resistance': lambda x: abc.coil_resistance[x]
 }
 
@@ -136,10 +135,10 @@ adc_processor = AdcProcessor(
     smooth=True)
 
 # Metrics
-mechanical_metrics = {'dtw_euclid_m': dtw_euclid_distance}
-mechanical_v_metrics = {'dtw_euclid_mv': dtw_euclid_distance}
+mechanical_metrics = {'dtw': dtw_euclid_distance}
+mechanical_v_metrics = {'dtw': dtw_euclid_distance}
 electrical_metrics = {'rms_perc_diff': root_mean_square_percentage_diff,
-                      'dtw_euclid_e': dtw_euclid_distance}
+                      'dtw': dtw_euclid_distance}
 
 metrics = {
     'mechanical': mechanical_metrics,
@@ -220,7 +219,10 @@ def run_cell(base_unified_model,
 
 
 jobs = []
-for param_set in param_grid[:8]:
+param_log = {}
+
+# RUN
+for param_set in param_grid:
     # Send to Ray
     cell_id = run_cell.remote(
         base_unified_model,
@@ -274,84 +276,48 @@ def curves_to_dataframe(curves, sampling_rate=3):
     return pd.concat(df_list)
 
 
-def scores_to_dataframe(scores,
-                        param_dict,
+def scores_to_dataframe(scores_dict,
                         param_values_grid,
                         translation_dict):
     """
     Transform scores, with model parameters that produced those scores, into
     a dataframe.
     """
-    metrics = list(scores[0]._asdict().keys())  # List of metrics
-    parameter_keys = list(param_dict.keys())  # List of all possible parameters
 
-    accumulated_metrics = {m: [] for m in metrics}
-    accumulated_parameters = {p: [] for p in translation_dict.values()}
+    accumulated_scores = {}
+    accumulated_parameters = {}
+    for i, score_dict in enumerate(scores):  # Each score collection
+        # Accumulate metrics
+        for category, score_obj in score_dict.items():  # Each category of score
+            for metric, value in score_obj._asdict().items():  # For each attribute
+                metric_name = category[:4] + '_' + metric
+                # Accumulate the scores
+                try:
+                    accumulated_scores[metric_name].append(value)
+                except KeyError:  # When encountering metric for the first time
+                    accumulated_scores[metric_name] = [value]
+        # Accumulate parameters in outer loop (one set produces score set)
+        for param, param_alt_name in translation_dict.items():
+            try:
+                accumulated_parameters[param_alt_name].append(param_values_grid[i][param])
+            except KeyError:
+                accumulated_parameters[param_alt_name] = [param_values_grid[i][param]]
 
-    for i, s in enumerate(scores):  # For each experiment
-        # Accumulate scores / metrics
-        for m in metrics:
-            accumulated_metrics[m].append(s._asdict()[m])
-        # Accumulate parameters
-        for k, v in translation_dict.items():
-            parameter_index = parameter_keys.index(k)
-            accumulated_parameters[v].append(param_values_grid[i][parameter_index])
-
-    accumulated_parameters.update(accumulated_metrics)
-    return pd.DataFrame(accumulated_parameters)
+    accumulated_scores.update(accumulated_parameters)  # Join
+    return pd.DataFrame(accumulated_scores)
 
 
 # Collect results
-m_scores = [result[0]['mechanical'] for result in get_ray_results(jobs)]
-e_scores = [result[0]['electrical'] for result in get_ray_results(jobs)]
+scores = [result[0] for result in get_ray_results(jobs)]
 curves = [result[1] for result in get_ray_results(jobs)]
 
+df_scores = scores_to_dataframe(scores, val_grid, translation_dict)
 df_curves = curves_to_dataframe(curves)
-df_m_scores = scores_to_dataframe(
-    m_scores,
-    param_dict,
-    val_grid,
-    translation_dict
-)
-df_e_scores = scores_to_dataframe(
-    e_scores,
-    param_dict,
-    val_grid,
-    translation_dict
-)
 
+df_scores.to_csv(f'{which_device}_{which_sample}_score.csv')
+df_curves.to_csv(f'{which_device}_{which_sample}_curves.xz')
 
-
-# df_curves = curves_to_dataframe(curves, sampling_rate=3)
-
-# df = scores_to_dataframe(
-#     mech_scores,
-#     param_dict,
-#     val_grid,
-#     translation_dict
-# )
-# df_elec = scores_to_dataframe(
-#     elec_scores,
-#     param_dict,
-#     val_grid,
-#     translation_dict
-# )
-# df_mv = scores_to_dataframe(
-#     mech_v_scores,
-#     param_dict,
-#     val_grid,
-#     translation_dict
-# )
-
-# df['dtw_euclid_mv'] = df_mv['dtw_euclid_mv']
-# df['abs_rms_perc_diff'] = np.abs(df_elec['rms_perc_diff'])
-# df['dtw_euclid_e'] = df_elec['dtw_euclid_e']
-
-# df.to_csv('result.csv')
-
-# df['dtw_euclid_m_'] = df['dtw_euclid_m']/np.max(df['dtw_euclid_m'])
-# df['dtw_euclid_mv_'] = df['dtw_euclid_mv']/np.max(df['dtw_euclid_mv'])
-# df['mms'] = (df['dtw_euclid_m_'] + df['dtw_euclid_mv_'])/2  # Mean Mech Score --> MMS
-
-# df.to_csv(f'{which_device}_{which_sample}_result.csv')
-# df_curves.to_csv(f'{which_device}_{which_sample}_curves.xz')
+metric='mech_dtw_euclid_m'
+lowest_mech_error = df_scores.sort_values(by=metric).index[0]
+best_curve = df_curves.query(f'idx == {lowest_mech_error}')
+time_groundtruth = 
