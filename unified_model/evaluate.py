@@ -228,8 +228,8 @@ class ElectricalSystemEvaluator:
         resampled_signals = align_signals_in_time(
             t_1=self.time_target,
             y_1=self.emf_target,
-            t_2=time_predict,
-            y_2=emf_predict
+            t_2=self.time_predict,
+            y_2=self.emf_predict
         )
 
         resampled_time = resampled_signals[0]
@@ -686,7 +686,7 @@ class MechanicalSystemEvaluator(object):
 
         self.y_predict = y_predict
         self.time_predict = time_predict
-        self._clip_time = np.min([self.time_target[-1], time_predict[-1]])
+        self._clip_time = np.min([self.time_target[-1], self.time_predict[-1]])
 
         # Resample the signals to the same sampling frequency
         # This is required for calculating the sample delay between them.
@@ -707,7 +707,7 @@ class MechanicalSystemEvaluator(object):
         resampled_signals = align_signals_in_time(
             t_1=self.time_target,
             y_1=self.y_target,
-            t_2=time_predict,
+            t_2=self.time_predict,
             y_2=self.y_predict
         )
 
