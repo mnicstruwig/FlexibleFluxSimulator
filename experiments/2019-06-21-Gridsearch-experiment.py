@@ -65,7 +65,7 @@ def make_mechanical_spring(damper_constant):
 
 ####################
 which_device = 'A'
-which_sample = 2
+which_sample = 1
 
 pixel_scale = pixel_scales[which_device]
 seconds_per_frame = seconds_per_frame[which_device]
@@ -85,9 +85,9 @@ dflux_models = [which_device]
 coil_resistance = [which_device]
 
 # Overrides (set parameters for test)
-damping_coefficients = [0.035]
-mech_spring_coefficients = [0.0000]
-constant_coupling_values = [0.5]
+# damping_coefficients = [0.035]
+# mech_spring_coefficients = [0.0000]
+# constant_coupling_values = [0.5]
 
 param_dict = {
     'mechanical_model.input_': input_,
@@ -108,6 +108,7 @@ func_dict = {
     'electrical_model.rectification_drop': lambda x: x,
     'electrical_model.flux_model': lambda x: abc.flux_models[x],
     'electrical_model.dflux_model': lambda x: abc.dflux_models[x],
+
     'electrical_model.coil_resistance': lambda x: abc.coil_resistance[x]
 }
 
@@ -120,6 +121,7 @@ translation_dict = {
 # Build the grid to search
 param_grid, val_grid = build_paramater_grid(param_dict, func_dict)
 
+# Prepare scoring objects + groundtruth
 labeled_video_processor = LabeledVideoProcessor(
     L=125,
     mm=10,
@@ -131,6 +133,7 @@ adc_processor = AdcProcessor(
     voltage_division_ratio=voltage_division_ratio,
     smooth=True)
 
+# Metrics
 mechanical_metrics = {'dtw_euclid_m': dtw_euclid_distance}
 mechanical_v_metrics = {'dtw_euclid_mv': dtw_euclid_distance}
 electrical_metrics = {'rms_perc_diff': root_mean_square_percentage_diff,
@@ -140,20 +143,19 @@ mech_scores = []
 mech_v_scores = []
 elec_scores = []
 
+# Target values
 y_target, y_time_target = labeled_video_processor.fit_transform(
     samples[which_device][which_sample].video_labels_df,
     impute_missing_values=True
 )
-
 emf_target, emf_time_target = adc_processor.fit_transform(
     samples[which_device][which_sample].adc_df
 )
-
-
 yv_target = signal.savgol_filter(y_target, 9, 4)
 yv_target = np.gradient(yv_target)/np.gradient(y_time_target)
 
-
+# Execution loop
+curves = []
 for param_set in tqdm(param_grid):
     new_unified_model = update_nested_attributes(base_unified_model,
                                                  update_dict=param_set)
@@ -192,9 +194,36 @@ for param_set in tqdm(param_grid):
         clip_threshold=1e-1
     )
 
+    curves.append(
+        {
+            'time': m_eval.time_,
+            'y': m_eval.y_predict_,
+            'y_dot': mv_eval.y_predict_,
+            'emf': e_eval.emf_predict_
+        }
+    )
     mech_v_scores.append(mv_score)
     mech_scores.append(m_score)
     elec_scores.append(e_score)
+
+
+def curves_to_dataframe(curves, sampling_rate=3):
+    """Convert a list of dictionaries, `curves`, into a pandas dataframe.
+
+    Each key of each element in `curves` will become a column.
+    """
+    df_list = []
+    for i, c in enumerate(curves):
+        # Subsample
+        subsampled_curve = {}
+        for k, v in c.items():
+            subsampled_curve[k] = v[::sampling_rate]
+
+        single_curve = pd.DataFrame(subsampled_curve)
+        single_curve['idx'] = i
+        df_list.append(single_curve)
+
+    return pd.concat(df_list)
 
 
 def scores_to_dataframe(scores,
@@ -223,6 +252,8 @@ def scores_to_dataframe(scores,
     accumulated_parameters.update(accumulated_metrics)
     return pd.DataFrame(accumulated_parameters)
 
+
+df_curves = curves_to_dataframe(curves, sampling_rate=3)
 
 df = scores_to_dataframe(
     mech_scores,
@@ -254,3 +285,4 @@ df['dtw_euclid_mv_'] = df['dtw_euclid_mv']/np.max(df['dtw_euclid_mv'])
 df['mms'] = (df['dtw_euclid_m_'] + df['dtw_euclid_mv_'])/2  # Mean Mech Score --> MMS
 
 df.to_csv(f'{which_device}_{which_sample}_result.csv')
+df_curves.to_csv(f'{which_device}_{which_sample}_curves.xz')

@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import ray
+import time
 import numpy as np
 import pandas as pd
 from scipy import signal
@@ -139,6 +141,11 @@ mechanical_v_metrics = {'dtw_euclid_mv': dtw_euclid_distance}
 electrical_metrics = {'rms_perc_diff': root_mean_square_percentage_diff,
                       'dtw_euclid_e': dtw_euclid_distance}
 
+metrics = {
+    'mechanical': mechanical_metrics,
+    'electrical': electrical_metrics
+}
+
 mech_scores = []
 mech_v_scores = []
 elec_scores = []
@@ -154,16 +161,29 @@ emf_target, emf_time_target = adc_processor.fit_transform(
 yv_target = signal.savgol_filter(y_target, 9, 4)
 yv_target = np.gradient(yv_target)/np.gradient(y_time_target)
 
-# Execution loop
-curves = []
-for param_set in tqdm(param_grid):
-    new_unified_model = update_nested_attributes(base_unified_model,
-                                                 update_dict=param_set)
+# Multiprocessing stuff
+ray.init(ignore_reinit_error=True)
 
-    new_unified_model.solve(t_start=0,
-                            t_end=8,
-                            t_max_step=1e-3,
-                            y0=[0., 0., 0.04, 0., 0.])
+@ray.remote
+def run_cell(base_unified_model,
+             parameter_set,
+             y_target,
+             y_time_target,
+             emf_target,
+             metrics):
+    """Run a single cell of a gridsearch."""
+
+    mechanical_metrics = metrics['mechanical']
+    electrical_metrics = metrics['electrical']
+
+    new_unified_model = update_nested_attributes(base_unified_model,
+                                                 update_dict=parameter_set)
+    new_unified_model.solve(
+        t_start=0,
+        t_end=8,
+        t_max_step=1e-3,
+        y0=[0., 0., 0.04, 0., 0.]
+    )
 
     m_score, m_eval = new_unified_model.score_mechanical_model(
         metrics_dict=mechanical_metrics,
@@ -174,37 +194,65 @@ for param_set in tqdm(param_grid):
         return_evaluator=True
     )
 
-    mv_score, mv_eval = new_unified_model.score_mechanical_model(
-        metrics_dict=mechanical_v_metrics,
-        y_target=yv_target,
-        time_target=y_time_target,
-        prediction_expr='x4-x2',
+    e_score, e_eval = new_unified_model.score_electrical_model(
+        metrics_dict=electrical_metrics,
+        emf_target=emf_target,
+        time_target=emf_time_target,
+        prediction_expr='g(t, x5)',
         warp=False,
+        closed_circuit=True,
+        clip_threshold=1e-1,
         return_evaluator=True
     )
 
-    e_score, e_eval = new_unified_model.score_electrical_model(
-        time_target=emf_time_target,
-        emf_target=emf_target,
-        metrics_dict=electrical_metrics,
-        prediction_expr='g(t, x5)',
-        warp=False,
-        return_evaluator=True,
-        closed_circuit=True,
-        clip_threshold=1e-1
-    )
+    scores = {
+        'mechanical': m_score,
+        'electrical': e_score
+    }
 
-    curves.append(
-        {
-            'time': m_eval.time_,
-            'y': m_eval.y_predict_,
-            'y_dot': mv_eval.y_predict_,
-            'emf': e_eval.emf_predict_
-        }
+    curves = {
+        'time': m_eval.time_,
+        'y': m_eval.y_predict_,
+        'emf': e_eval.emf_predict_
+    }
+
+    return scores, curves
+
+
+jobs = []
+for param_set in param_grid[:8]:
+    # Send to Ray
+    cell_id = run_cell.remote(
+        base_unified_model,
+        param_set,
+        y_target,
+        y_time_target,
+        emf_target,
+        metrics
     )
-    mech_v_scores.append(mv_score)
-    mech_scores.append(m_score)
-    elec_scores.append(e_score)
+    # Contain list of values
+    jobs.append(cell_id)
+
+
+def get_ray_results(jobs):
+    """Get Ray results in a nice way."""
+    for job_id in jobs:
+        yield ray.get(job_id)
+
+# Track progress
+done = False
+start_time = time.time()
+while(not done):
+    ready, remaining = ray.wait(jobs, num_returns=len(jobs), timeout=5.)
+    num_ready = len(ready)
+
+    current_time = time.time()
+    minutes = int((current_time - start_time)/60)
+    seconds = int((current_time - start_time)%60)
+    print(f'Progress --- {num_ready} out of {len(jobs)} --- {minutes}m{seconds}s')
+
+    if num_ready == len(jobs):
+        done = True
 
 
 def curves_to_dataframe(curves, sampling_rate=3):
@@ -253,36 +301,57 @@ def scores_to_dataframe(scores,
     return pd.DataFrame(accumulated_parameters)
 
 
-df_curves = curves_to_dataframe(curves, sampling_rate=3)
+# Collect results
+m_scores = [result[0]['mechanical'] for result in get_ray_results(jobs)]
+e_scores = [result[0]['electrical'] for result in get_ray_results(jobs)]
+curves = [result[1] for result in get_ray_results(jobs)]
 
-df = scores_to_dataframe(
-    mech_scores,
+df_curves = curves_to_dataframe(curves)
+df_m_scores = scores_to_dataframe(
+    m_scores,
     param_dict,
     val_grid,
     translation_dict
 )
-df_elec = scores_to_dataframe(
-    elec_scores,
-    param_dict,
-    val_grid,
-    translation_dict
-)
-df_mv = scores_to_dataframe(
-    mech_v_scores,
+df_e_scores = scores_to_dataframe(
+    e_scores,
     param_dict,
     val_grid,
     translation_dict
 )
 
-df['dtw_euclid_mv'] = df_mv['dtw_euclid_mv']
-df['abs_rms_perc_diff'] = np.abs(df_elec['rms_perc_diff'])
-df['dtw_euclid_e'] = df_elec['dtw_euclid_e']
 
-df.to_csv('result.csv')
 
-df['dtw_euclid_m_'] = df['dtw_euclid_m']/np.max(df['dtw_euclid_m'])
-df['dtw_euclid_mv_'] = df['dtw_euclid_mv']/np.max(df['dtw_euclid_mv'])
-df['mms'] = (df['dtw_euclid_m_'] + df['dtw_euclid_mv_'])/2  # Mean Mech Score --> MMS
+# df_curves = curves_to_dataframe(curves, sampling_rate=3)
 
-df.to_csv(f'{which_device}_{which_sample}_result.csv')
-df_curves.to_csv(f'{which_device}_{which_sample}_curves.xz')
+# df = scores_to_dataframe(
+#     mech_scores,
+#     param_dict,
+#     val_grid,
+#     translation_dict
+# )
+# df_elec = scores_to_dataframe(
+#     elec_scores,
+#     param_dict,
+#     val_grid,
+#     translation_dict
+# )
+# df_mv = scores_to_dataframe(
+#     mech_v_scores,
+#     param_dict,
+#     val_grid,
+#     translation_dict
+# )
+
+# df['dtw_euclid_mv'] = df_mv['dtw_euclid_mv']
+# df['abs_rms_perc_diff'] = np.abs(df_elec['rms_perc_diff'])
+# df['dtw_euclid_e'] = df_elec['dtw_euclid_e']
+
+# df.to_csv('result.csv')
+
+# df['dtw_euclid_m_'] = df['dtw_euclid_m']/np.max(df['dtw_euclid_m'])
+# df['dtw_euclid_mv_'] = df['dtw_euclid_mv']/np.max(df['dtw_euclid_mv'])
+# df['mms'] = (df['dtw_euclid_m_'] + df['dtw_euclid_mv_'])/2  # Mean Mech Score --> MMS
+
+# df.to_csv(f'{which_device}_{which_sample}_result.csv')
+# df_curves.to_csv(f'{which_device}_{which_sample}_curves.xz')

@@ -23,7 +23,7 @@ for _ in range(4):
     regular_function()
 
 # But these happen in *parallel*
-for _ in range(4):
+for _ in range(20):
     remote_function.remote()
 
 # Note that we can also pass in Object IDs into remote functions (instead of
