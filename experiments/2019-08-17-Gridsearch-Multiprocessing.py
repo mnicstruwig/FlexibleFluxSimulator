@@ -1,10 +1,10 @@
-import matplotlib.pyplot as plt
 import ray
+from plotnine import *
 import time
 import numpy as np
 import pandas as pd
 from scipy import signal
-from tqdm import tqdm
+import warnings
 
 from config import abc
 from unified_model.coupling import ConstantCoupling
@@ -19,6 +19,8 @@ from unified_model.metrics import (dtw_euclid_distance,
 from unified_model.unified import UnifiedModel
 from unified_model.utils.utils import (build_paramater_grid, collect_samples,
                                        update_nested_attributes)
+
+warnings.filterwarnings('ignore', category=FutureWarning)
 
 base_unified_model = UnifiedModel.load_from_disk('../my_saved_model/')
 
@@ -67,7 +69,7 @@ def make_mechanical_spring(damper_constant):
 
 ####################
 which_device = 'A'
-which_sample = 0
+which_sample = 2
 
 pixel_scale = pixel_scales[which_device]
 seconds_per_frame = seconds_per_frame[which_device]
@@ -78,9 +80,9 @@ input_ = [which_sample]
 
 
 # Gridsearch parameters
-damping_coefficients = np.linspace(0.03, 0.04, 10)
-mech_spring_coefficients = np.linspace(0, 0.25, 5) #[0.0125]  # Found from investigation
-constant_coupling_values = np.linspace(0.3, 2, 10)
+damping_coefficients = np.linspace(0.02, 0.05, 20)
+mech_spring_coefficients = np.linspace(0, 0.5, 5) #[0.0125]  # Found from investigation
+constant_coupling_values = np.linspace(0.1, 3, 20)
 rectification_drop = [0.10]
 flux_models = [which_device]
 dflux_models = [which_device]
@@ -154,14 +156,15 @@ y_target, y_time_target = labeled_video_processor.fit_transform(
     samples[which_device][which_sample].video_labels_df,
     impute_missing_values=True
 )
+### SMOOTH TARGET VALUES  (OPTIONAL?)
+y_target = signal.savgol_filter(y_target, 9, 3)
+
 emf_target, emf_time_target = adc_processor.fit_transform(
     samples[which_device][which_sample].adc_df
 )
 yv_target = signal.savgol_filter(y_target, 9, 4)
 yv_target = np.gradient(yv_target)/np.gradient(y_time_target)
 
-# Multiprocessing stuff
-ray.init(ignore_reinit_error=True)
 
 @ray.remote
 def run_cell(base_unified_model,
@@ -221,19 +224,54 @@ def run_cell(base_unified_model,
 jobs = []
 param_log = {}
 
-# RUN
-for param_set in param_grid:
-    # Send to Ray
-    cell_id = run_cell.remote(
-        base_unified_model,
-        param_set,
-        y_target,
-        y_time_target,
-        emf_target,
-        metrics
-    )
-    # Contain list of values
-    jobs.append(cell_id)
+
+def indexify(array_like, step):
+    """Get the indexes to step through an array-like"""
+    total_size = len(array_like)
+    indexes = np.arange(0, total_size, step)
+
+    if indexes[-1] < total_size:
+        indexes = np.append(indexes, total_size -1)
+    return zip(indexes, indexes[1:])
+
+
+def execute_in_batches(param_grid, batch_size=48):
+    """Execute the gridsearch in batches using Ray."""
+
+    start_time = None
+    current_number = 0
+    scores = np.array([])
+    curves = np.array([])
+
+    # For each batch
+    for start, stop in indexify(param_grid, batch_size):
+        jobs = []  # Hold each batch of jobs
+        for param_set in param_grid[start:stop]:
+            # Send to Ray
+            id = run_cell.remote(
+                base_unified_model,
+                param_set,
+                y_target,
+                y_time_target,
+                emf_target,
+                metrics
+            )
+
+            jobs.append(id)
+
+        # Wait for completion of batch...
+        start_time, current_number = wait_for_completion(
+            jobs,
+            start_time,
+            current_number,
+            total=len(param_grid)
+        )
+        # Then retrieve results
+        results = list(get_ray_results(jobs))  # Stop from getting consumed 
+        scores = np.append(scores, np.array([x[0] for x in results]))
+        curves = np.append(curves, np.array([x[1] for x in results]))
+
+    return scores, curves
 
 
 def get_ray_results(jobs):
@@ -241,20 +279,25 @@ def get_ray_results(jobs):
     for job_id in jobs:
         yield ray.get(job_id)
 
-# Track progress
-done = False
-start_time = time.time()
-while(not done):
-    ready, remaining = ray.wait(jobs, num_returns=len(jobs), timeout=5.)
-    num_ready = len(ready)
 
-    current_time = time.time()
-    minutes = int((current_time - start_time)/60)
-    seconds = int((current_time - start_time)%60)
-    print(f'Progress --- {num_ready} out of {len(jobs)} --- {minutes}m{seconds}s')
+def wait_for_completion(jobs, start_time=None, current_number=0, total=None):
+    if start_time is None:
+        start_time = time.time()
 
-    if num_ready == len(jobs):
-        done = True
+    done = False
+    while(not done):
+        ready, remaining = ray.wait(jobs, num_returns=len(jobs), timeout=5.)
+        num_ready = len(ready)
+        num_completed = len(ready) + current_number
+
+        current_time = time.time()
+        minutes = int((current_time - start_time)/60)
+        seconds = int((current_time - start_time)%60)
+        print(f'Progress --- {num_completed} out of {total} --- {minutes}m{seconds}s')
+
+        if num_ready == len(jobs):
+            done = True
+    return start_time, num_completed
 
 
 def curves_to_dataframe(curves, sampling_rate=3):
@@ -307,17 +350,63 @@ def scores_to_dataframe(scores_dict,
     return pd.DataFrame(accumulated_scores)
 
 
-# Collect results
-scores = [result[0] for result in get_ray_results(jobs)]
-curves = [result[1] for result in get_ray_results(jobs)]
+# Execute
+ray.init()
+scores, curves = execute_in_batches(param_grid)
+ray.shutdown()
 
 df_scores = scores_to_dataframe(scores, val_grid, translation_dict)
-df_curves = curves_to_dataframe(curves)
+df_curves = curves_to_dataframe(curves, sampling_rate=4)
 
 df_scores.to_csv(f'{which_device}_{which_sample}_score.csv')
 df_curves.to_csv(f'{which_device}_{which_sample}_curves.xz')
 
-metric='mech_dtw_euclid_m'
-lowest_mech_error = df_scores.sort_values(by=metric).index[0]
-best_curve = df_curves.query(f'idx == {lowest_mech_error}')
-time_groundtruth = 
+
+def plot_comparison(df_scores,
+                    df_curves,
+                    time_target,
+                    signal_target,
+                    signal_column,
+                    metric_column,
+                    n=1):
+
+    df_groundtruth = pd.DataFrame()
+    df_groundtruth['time'] = time_target
+    df_groundtruth[signal_column] = signal_target
+    df_groundtruth['label'] = 'Groundtruth'
+    df_groundtruth['idx'] = 'None'
+
+
+    best_idx = df_scores.sort_values(metric_column).index[:n]
+    best_curves = df_curves[df_curves['idx'].isin(best_idx)]
+    best_curves['label'] = 'best candidates'  # Improve in future
+
+    df_curves['label'] = 'experiments'
+
+    p = ggplot(aes(x='time', y=signal_column, group='idx', color='label'), df_curves)
+    p = (
+        p
+        + geom_line(alpha=0.1)  # Experiments
+        + geom_line(data=best_curves, size=1)  # Best `n` curves
+        + geom_line(data=df_groundtruth, size=1)  # Groundtruth
+        + scale_color_manual(['black', '#fb3640', '#007fce'])
+    )
+
+    p.__repr__()
+
+
+plot_comparison(
+    df_scores,
+    df_curves,
+    y_time_target,
+    y_target,
+    'y',
+    'mech_dtw',
+    n=1
+)
+
+
+# df_scores = df_scores.reset_index()
+# df_scores = df_scores.rename({'index':'idx'}, axis=1)
+# df_join = df_curves.join(df_scores, on='idx', lsuffix='_c', rsuffix='_s', how='inner')
+
