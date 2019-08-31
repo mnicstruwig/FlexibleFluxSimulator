@@ -3,3 +3,5 @@
 *.ipynb_checkpoints
 *.directory
 .idea/
+*.parq
+*.csv
