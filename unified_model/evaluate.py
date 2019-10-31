@@ -483,7 +483,7 @@ class LabeledVideoProcessor:
         df = groundtruth_dataframe
 
         # TODO: Add test for this case.
-        if self.pixel_scale is None:  # If we don't manually set pixel scale...
+        if self.pixel_scale is None:  # If we don't manually set pixel scale
             if np.any(df['y_pixel_scale'] == -1):  # ... and it isn't in the parsed file.
                 raise ValueError('Dataframe contains missing pixel scale values and the pixel scale is not been '
                                  'manually specified.')

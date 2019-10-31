@@ -23,6 +23,14 @@ from unified_model.utils.utils import (build_paramater_grid, collect_samples,
 warnings.filterwarnings('ignore', category=FutureWarning)
 
 
+def make_mechanical_spring(damper_constant):
+    return MechanicalSpring(push_direction='down',
+                            position=110/1000,
+                            strength=1000,
+                            pure=False,
+                            damper_constant=damper_constant)
+
+
 def make_groundtruth_dict(target_time, target_values, label):
     return {
         'time': target_time,
@@ -47,14 +55,6 @@ def export_groundtruth(which_device, which_sample, *args):
     df.to_parquet(f'{which_device}_{which_sample}_groundtruth.parq',
                   engine='pyarrow',
                   compression='brotli')
-
-
-def make_mechanical_spring(damper_constant):
-    return MechanicalSpring(push_direction='down',
-                            position=110/1000,
-                            strength=1000,
-                            pure=False,
-                            damper_constant=damper_constant)
 
 
 def get_mechanical_groundtruth(which_device, which_sample):
@@ -113,12 +113,49 @@ def build_groundtruth_data(which_device, which_sample, save_to_disk=True):
 @ray.remote
 def run_cell(base_unified_model,
              parameter_set,
-             y_target,
              y_time_target,
+             y_target,
              emf_time_target,
              emf_target,
              metrics):
-    """Run a single cell of a gridsearch."""
+    """Run a single cell of a gridsearch.
+
+    Parameters
+    ----------
+    base_unified_model : UnifiedModel
+        The base unified model that will be updated with the parameters in
+        `parameter_set`.
+    parameter_set : dict
+        A dictionary where keys are the attributes of `base_unified_model`
+        and the values are the new values that these attributes that must
+        hold. See the `build_parameter_grid` function.
+    y_time_target : array
+        The time values of the mechanical target.
+    y_target: array
+        The actual values of the mechanical target.
+    emf_time_target : array
+        The time values of the emf target.
+    emf_target : array
+        The actual values of the emf target
+    metrics : dict
+        A dictionary with two elements at keys 'mechanical' and 'electrical'.
+        The value of `metrics['mechanical']` must be a dict whose keys are a
+        user-selected name for the metric, and the value must be a metric
+        function (see the `metrics` module for examples) that is used to score
+        the mechanical system's performance. Likewise, the value of
+        `metrics['electrical']` must be a dict whose keys are a user-selected
+        name for the metric, and the value must be a metric function is used to
+        score the electrical system's performance.
+
+    Returns
+    -------
+    scores : dict
+        Dictionary with keys 'mechanical' and 'electrical' that contain the
+        calculated metrics specified by the `metrics` argument.
+    curves : dict
+        Dictionary containing the predicted mechanical and electrical signals,
+        as well as the corresponding timestamps, as calculated by the model.
+    """
 
     mechanical_metrics = metrics['mechanical']
     electrical_metrics = metrics['electrical']
@@ -199,8 +236,9 @@ def execute_in_batches(base_unified_model,
             id = run_cell.remote(
                 base_unified_model,
                 param_set,
-                y_target,
                 y_time_target,
+                y_target,
+                emf_time_target,
                 emf_target,
                 metrics
             )
@@ -215,9 +253,16 @@ def execute_in_batches(base_unified_model,
             total=len(param_grid)
         )
         # Then retrieve results
-        results = list(get_ray_results(jobs))  # Stop from getting consumed
-        scores = np.append(scores, np.array([x[0] for x in results]))
-        curves = np.append(curves, np.array([x[1] for x in results]))
+        # To list to stop from getting consumed
+        results = list(get_ray_results(jobs))
+        # By copying values, we may allow for Ray to evict these results from
+        # the Object Store.
+        scores = np.append(scores, np.array([x[0] for x in results], copy=True))
+        curves = np.append(curves, np.array([x[1] for x in results], copy=True))
+
+        # Additional attempt to force clearing of object store
+        for result in results:
+            del result
 
     return scores, curves
 
@@ -298,6 +343,39 @@ def scores_to_dataframe(scores_dict,
     return pd.DataFrame(accumulated_scores)
 
 
+def plot_comparison(df_scores,
+                    df_curves,
+                    time_target,
+                    signal_target,
+                    signal_column,
+                    metric_column,
+                    n=1):
+
+    df_groundtruth = pd.DataFrame()
+    df_groundtruth['time'] = time_target
+    df_groundtruth[signal_column] = signal_target
+    df_groundtruth['label'] = 'Groundtruth'
+    df_groundtruth['idx'] = 'None'
+
+
+    best_idx = df_scores.sort_values(metric_column).index[:n]
+    best_curves = df_curves[df_curves['idx'].isin(best_idx)]
+    best_curves['label'] = 'best candidates'  # Improve in future
+
+    df_curves['label'] = 'experiments'
+
+    p = ggplot(aes(x='time', y=signal_column, group='idx', color='label'), df_curves)
+    p = (
+        p
+        + geom_line(alpha=0.1)  # Experiments
+        + geom_line(data=best_curves, size=1)  # Best `n` curves
+        + geom_line(data=df_groundtruth, size=1)  # Groundtruth
+        + scale_color_manual(['black', '#fb3640', '#007fce'])
+    )
+
+    p.__repr__()
+
+
 # ═════════════════════════════════
 # Data preparation
 # ═════════════════════════════════
@@ -364,72 +442,16 @@ accelerometer_inputs['C'] = [
 # Experiment Details
 # ═════════════════════════════════
 which_device = 'A'
-which_sample = 2
+which_samples = [6]
 
 pixel_scale = pixel_scales[which_device]
 seconds_per_frame = seconds_per_frames[which_device]
 
 accelerometer_input = accelerometer_inputs[which_device]
-input_ = [which_sample]
 
 # ═════════════════════════════════
-# Prepare Ground truth
-# ═════════════════════════════════
-y_groundtruth, emf_groundtruth = build_groundtruth_data(
-    which_device,
-    which_sample
-)
-y_time_target = y_groundtruth['time']
-y_target = y_groundtruth['values']
-emf_time_target = emf_groundtruth['time']
-emf_target = emf_groundtruth['values']
-
-# ═════════════════════════════════
-# Gridsearch parameters
-# ═════════════════════════════════
-damping_coefficients = np.linspace(0.02, 0.05, 20)
-mech_spring_coefficients = np.linspace(0, 0.5, 5) #[0.0125]  # Found from investigation
-constant_coupling_values = np.linspace(0.1, 3, 10)
-rectification_drop = [0.10]
-
-# Overrides (set parameters for test)
-# damping_coefficients = [0.035]
-# mech_spring_coefficients = [0.0000]
-# constant_coupling_values = [0.5]
-
-param_dict = {
-    'mechanical_model.input_': [which_sample],
-    'mechanical_model.damper': damping_coefficients,
-    'mechanical_model.mechanical_spring': mech_spring_coefficients,
-    'coupling_model': constant_coupling_values,
-    'electrical_model.rectification_drop': rectification_drop,
-    'electrical_model.flux_model': [which_device],
-    'electrical_model.dflux_model': [which_device],
-    'electrical_model.coil_resistance': [which_device]
-}
-
-func_dict = {
-    'mechanical_model.input_': lambda x: accelerometer_input[x],
-    'mechanical_model.damper': DamperConstant,
-    'mechanical_model.mechanical_spring': make_mechanical_spring,
-    'coupling_model': ConstantCoupling,
-    'electrical_model.rectification_drop': lambda x: x,
-    'electrical_model.flux_model': lambda x: abc.flux_models[x],
-    'electrical_model.dflux_model': lambda x: abc.dflux_models[x],
-    'electrical_model.coil_resistance': lambda x: abc.coil_resistance[x]
-}
-
-translation_dict = {
-    'mechanical_model.damper': 'friction_damping',
-    'mechanical_model.mechanical_spring': 'spring_damping',
-    'coupling_model': 'coupling_factor'
-}
-
-# Build the grid to search
-param_grid, val_grid = build_paramater_grid(param_dict, func_dict)
-
-
 # Metrics
+# ═════════════════════════════════
 mechanical_metrics = {'dtw': dtw_euclid_distance}
 mechanical_v_metrics = {'dtw': dtw_euclid_distance}
 electrical_metrics = {'rms_perc_diff': root_mean_square_percentage_diff,
@@ -441,75 +463,88 @@ metrics = {
 }
 
 
-# Execute
-ray.init()
-scores, curves = execute_in_batches(
-    base_unified_model=base_unified_model,
-    param_grid=param_grid,
-    y_time_target=y_time_target,
-    y_target=y_target,
-    emf_time_target=emf_time_target,
-    emf_target=emf_target,
-    metrics=metrics
-)
-ray.shutdown()
+ray.init(ignore_reinit_error=True)
+for which_sample in which_samples:
+    # ═════════════════════════════════
+    # Prepare Groundtruth
+    # ═════════════════════════════════
+    y_groundtruth, emf_groundtruth = build_groundtruth_data(
+        which_device,
+        which_sample
+    )
+    y_time_target = y_groundtruth['time']
+    y_target = y_groundtruth['values']
+    emf_time_target = emf_groundtruth['time']
+    emf_target = emf_groundtruth['values']
 
-df_scores = scores_to_dataframe(scores, val_grid, translation_dict)
-df_curves = curves_to_dataframe(curves, sampling_rate=3)
+    # ═════════════════════════════════
+    # Gridsearch parameters
+    # ═════════════════════════════════
+    damping_coefficients = np.linspace(0.02, 0.05, 20)
+    mech_spring_coefficients = np.linspace(0, 0.5, 5) #[0.0125]  # Found from investigation
+    constant_coupling_values = np.linspace(0.1, 3, 10)
+    rectification_drop = [0.10]
 
-df_scores.to_parquet(f'{which_device}_{which_sample}_score.parq',
-                     engine='pyarrow',
-                     compression='brotli')
-df_curves.to_parquet(f'{which_device}_{which_sample}_curves.parq',
-                     engine='pyarrow',
-                     compression='brotli')
+    # Overrides (set parameters for test)
+    # damping_coefficients = [0.035]
+    # mech_spring_coefficients = [0.0000]
+    # constant_coupling_values = [0.5]
 
+    param_dict = {  # Holds the values we want to map
+        'mechanical_model.input_': [which_sample],
+        'mechanical_model.damper': damping_coefficients,
+        'mechanical_model.mechanical_spring': mech_spring_coefficients,
+        'coupling_model': constant_coupling_values,
+        'electrical_model.rectification_drop': rectification_drop,
+        'electrical_model.flux_model': [which_device],
+        'electrical_model.dflux_model': [which_device],
+        'electrical_model.coil_resistance': [which_device]
+    }
 
-def plot_comparison(df_scores,
-                    df_curves,
-                    time_target,
-                    signal_target,
-                    signal_column,
-                    metric_column,
-                    n=1):
+    func_dict = {  # Maps the parameter values to objects used in simulation
+        'mechanical_model.input_': lambda x: accelerometer_input[x],
+        'mechanical_model.damper': DamperConstant,
+        'mechanical_model.mechanical_spring': make_mechanical_spring,
+        'coupling_model': ConstantCoupling,
+        'electrical_model.rectification_drop': lambda x: x,
+        'electrical_model.flux_model': lambda x: abc.flux_models[x],
+        'electrical_model.dflux_model': lambda x: abc.dflux_models[x],
+        'electrical_model.coil_resistance': lambda x: abc.coil_resistance[x]
+    }
 
-    df_groundtruth = pd.DataFrame()
-    df_groundtruth['time'] = time_target
-    df_groundtruth[signal_column] = signal_target
-    df_groundtruth['label'] = 'Groundtruth'
-    df_groundtruth['idx'] = 'None'
+    # Allows us to save parameters with nicer names in the dataframe
+    translation_dict = {
+        'mechanical_model.damper': 'friction_damping',
+        'mechanical_model.mechanical_spring': 'spring_damping',
+        'coupling_model': 'coupling_factor'
+    }
 
+    # Build the grid to search
+    param_grid, val_grid = build_paramater_grid(param_dict, func_dict)
 
-    best_idx = df_scores.sort_values(metric_column).index[:n]
-    best_curves = df_curves[df_curves['idx'].isin(best_idx)]
-    best_curves['label'] = 'best candidates'  # Improve in future
-
-    df_curves['label'] = 'experiments'
-
-    p = ggplot(aes(x='time', y=signal_column, group='idx', color='label'), df_curves)
-    p = (
-        p
-        + geom_line(alpha=0.1)  # Experiments
-        + geom_line(data=best_curves, size=1)  # Best `n` curves
-        + geom_line(data=df_groundtruth, size=1)  # Groundtruth
-        + scale_color_manual(['black', '#fb3640', '#007fce'])
+    # ═════════════════════════════════
+    # Execute
+    # ═════════════════════════════════
+    scores, curves = execute_in_batches(
+        base_unified_model=base_unified_model,
+        param_grid=param_grid,
+        y_time_target=y_time_target,
+        y_target=y_target,
+        emf_time_target=emf_time_target,
+        emf_target=emf_target,
+        metrics=metrics
     )
 
-    p.__repr__()
+    df_scores = scores_to_dataframe(scores, val_grid, translation_dict)
+    df_curves = curves_to_dataframe(curves, sampling_rate=3)
 
+    df_scores.to_parquet(f'{which_device}_{which_sample}_score.parq',
+                         engine='pyarrow',
+                         compression='brotli')
+    df_curves.to_parquet(f'{which_device}_{which_sample}_curves.parq',
+                         engine='pyarrow',
+                         compression='brotli')
 
-# plot_comparison(
-#     df_scores,
-#     df_curves,
-#     emf_time_target,
-#     emf_target,
-#     'emf',
-#     'elec_dtw',
-#     n=1
-# )
-
-
-# df_scores = df_scores.reset_index()
-# df_scores = df_scores.rename({'index':'idx'}, axis=1)
-# df_join = df_curves.join(df_scores, on='idx', lsuffix='_c', rsuffix='_s', how='inner')
-
+    # Try ease memory a bit
+    del scores
+    del curves

@@ -252,28 +252,10 @@ class TestElectricalSystemEvaluator(unittest.TestCase):
 
             mock_pyplot.plot.assert_has_calls(expected_calls, any_order=True)
 
+
 class TestImputeMissing(unittest.TestCase):
-    """Test various helper functions in evaluate module."""
-
-    def test_impute_missing(self):
-        """Test the `impute_missing` method."""
-        test_df_missing = pd.DataFrame({
-            'start_y': [1, 2, 3, 4, 5, 6, 7],  # Used to indicate where values are missing
-            'y_prime_mm': [11, 12, 13, 14, 15, 16, 17]  # Target column
-        })
-
-        expected_result = test_df_missing['y_prime_mm'].values
-
-        # Create a missing value
-        missing_index = 3
-        test_df_missing.loc[missing_index, 'start_y'] = -1  # Create a missing index
-        test_df_missing.loc[missing_index, 'y_prime_mm'] = 99  # Insert bad calculation
-
-        imputed_df = impute_missing(df_missing=test_df_missing,
-                                    indexes=[missing_index])
-        actual_result = imputed_df['y_prime_mm'].values
-
-        assert_array_equal(expected_result, actual_result)
+    """Test various helper functions related to imputing missing values
+    in evaluate module."""
 
     def test_impute_missing(self):
         """Test the `impute_missing` method."""
@@ -302,16 +284,14 @@ class TestImputeMissing(unittest.TestCase):
             'y_prime_mm': [11, 12, 13, 14, 15, 16, 17]  # Target column
         })
 
-        expected_result = test_df_missing['y_prime_mm'].values
-
         # Create a missing value
-        missing_indexes = [2, 3]
+        missing_indexes = [2, 3]  # Cannot impute if two values missing in a row
         test_df_missing.loc[missing_indexes, 'start_y'] = -1  # Create a missing index
         test_df_missing.loc[missing_indexes, 'y_prime_mm'] = 99  # Insert bad calculation
 
         with self.assertRaises(ValueError):
-            imputed_df = impute_missing(df_missing=test_df_missing,
-                                        indexes=missing_indexes)
+            impute_missing(df_missing=test_df_missing,
+                           indexes=missing_indexes)
 
     def test_impute_missing_raises_index_error(self):
         """Ensure a index error is raised when required values are out of range"""
@@ -320,13 +300,11 @@ class TestImputeMissing(unittest.TestCase):
             'y_prime_mm': [11, 12, 13, 14, 15, 16, 17]  # Target column
         })
 
-        expected_result = test_df_missing['y_prime_mm'].values
-
         # Create a missing value
-        missing_indexes = [0, 1]
+        missing_indexes = [0, 1]  # Cannot impute if missing values are at the first indices
         test_df_missing.loc[missing_indexes, 'start_y'] = -1  # Create a missing index
         test_df_missing.loc[missing_indexes, 'y_prime_mm'] = 99  # Insert bad calculation
 
         with self.assertRaises(IndexError):
-            imputed_df = impute_missing(df_missing=test_df_missing,
-                                        indexes=missing_indexes)
+            impute_missing(df_missing=test_df_missing,
+                           indexes=missing_indexes)
