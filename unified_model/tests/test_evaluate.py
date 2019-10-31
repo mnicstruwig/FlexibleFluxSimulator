@@ -1,12 +1,12 @@
 import unittest
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 import numpy as np
-from numpy.testing import assert_array_equal
 import pandas as pd
+from numpy.testing import assert_array_equal
 
-from unified_model.evaluate import AdcProcessor, ElectricalSystemEvaluator, impute_missing
-from scipy.interpolate import UnivariateSpline
+from unified_model.evaluate import (AdcProcessor, ElectricalSystemEvaluator,
+                                    LabeledVideoProcessor, impute_missing)
 
 
 class TestAdcProcessor(unittest.TestCase):
@@ -308,3 +308,61 @@ class TestImputeMissing(unittest.TestCase):
         with self.assertRaises(IndexError):
             impute_missing(df_missing=test_df_missing,
                            indexes=missing_indexes)
+
+
+class TestLabeledVideoProcessor(unittest.TestCase):
+    """Test the `LabeledVideoProcessor` class"""
+
+    def test_fit_transform_pixel_scale_not_specified(self):
+        """Test the `fit_transform` method when the pixel scale is not
+        specified in both the groundtruth dataframe or as a parameter."""
+        test_L = 125
+        test_mm = 10
+        test_seconds_per_frame = 1/60
+        test_pixel_scale = None
+
+        test_lvp = LabeledVideoProcessor(
+            L=test_L,
+            mm=test_mm,
+            seconds_per_frame=test_seconds_per_frame,
+            pixel_scale=test_pixel_scale
+        )
+
+        test_groundtruth_df = pd.DataFrame()
+        test_groundtruth_df['start_y'] = [1, 2, 3, 4, 5]
+        test_groundtruth_df['end_y'] = [5, 6, 7, 8, 9]
+        test_groundtruth_df['y_pixel_scale'] = -1  # scale unspecified
+
+        with self.assertRaises(ValueError):
+            test_lvp.fit_transform(
+                groundtruth_dataframe=test_groundtruth_df,
+                impute_missing_values=True
+            )
+
+    def test_fit_transform_groundtruth_df_is_none(self):
+        """Test the `fit_transform` method when the groundtruth dataframe is
+        `None`.
+
+        This case occurs when the groundtruth file doesn't exist, or is parsed
+        incorrectly.
+        """
+
+        test_L = 125
+        test_mm = 10
+        test_seconds_per_frame = 1/60
+        test_pixel_scale = None
+
+        test_lvp = LabeledVideoProcessor(
+            L=test_L,
+            mm=test_mm,
+            seconds_per_frame=test_seconds_per_frame,
+            pixel_scale=test_pixel_scale
+        )
+
+        test_groundtruth_df = None
+
+        with self.assertRaises(AssertionError):
+            test_lvp.fit_transform(
+                groundtruth_dataframe=test_groundtruth_df,
+                impute_missing_values=True
+            )

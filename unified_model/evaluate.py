@@ -482,10 +482,16 @@ class LabeledVideoProcessor:
         """
         df = groundtruth_dataframe
 
-        # TODO: Add test for this case.
+        # Prevent a cryptic error from getting thrown later
+        try:
+            assert df is not None
+        except AssertionError:
+            raise AssertionError('Groundtruth dataframe is `None`.'
+                                 + 'Was the groundtruth file parsed correctly? Does it exist?')
+
         if self.pixel_scale is None:  # If we don't manually set pixel scale
             if np.any(df['y_pixel_scale'] == -1):  # ... and it isn't in the parsed file.
-                raise ValueError('Dataframe contains missing pixel scale values and the pixel scale is not been '
+                raise ValueError('Dataframe contains missing pixel scale values and the pixel scale has not been '
                                  'manually specified.')
         else:
             df['y_pixel_scale'] = self.pixel_scale
