@@ -32,8 +32,12 @@ class MechanicalSpring(object):
             Possible values are "up" and "down".')
 
     def get_force(self, x, x_dot):
-        force = self.strength * \
-            np.exp(self.direction_modifier*(self.position-x)/self.sharpness)
+        with np.errstate(overflow='raise'):
+            try:
+                force = self.strength \
+                    * np.exp(self.direction_modifier*(self.position-x)/self.sharpness)
+            except RuntimeWarning:
+                force = self.strength*1e6
 
         if self.pure:
             return force

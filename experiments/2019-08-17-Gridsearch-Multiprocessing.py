@@ -20,7 +20,7 @@ from unified_model.unified import UnifiedModel
 from unified_model.utils.utils import (build_paramater_grid, collect_samples,
                                        update_nested_attributes, interpolate_and_resample)
 
-warnings.filterwarnings('ignore', category=FutureWarning)
+#warnings.filterwarnings('ignore', category=FutureWarning)
 
 
 def make_mechanical_spring(damper_constant):
@@ -155,6 +155,7 @@ def run_cell(base_unified_model,
     curves : dict
         Dictionary containing the predicted mechanical and electrical signals,
         as well as the corresponding timestamps, as calculated by the model.
+
     """
 
     mechanical_metrics = metrics['mechanical']
@@ -260,7 +261,7 @@ def execute_in_batches(base_unified_model,
         scores = np.append(scores, np.array([x[0] for x in results], copy=True))
         curves = np.append(curves, np.array([x[1] for x in results], copy=True))
 
-        # Additional attempt to force clearing of object store
+        # Delete reference to allow cleaning of object store (stops memory from filling up)
         for result in results:
             del result
 
@@ -381,10 +382,10 @@ def plot_comparison(df_scores,
 # ═════════════════════════════════
 base_unified_model = UnifiedModel.load_from_disk('../my_saved_model/')
 
-base_groundtruth_path = './data/2019-05-23/'
+base_groundtruth_path = './data/2019-05-23_B/'
 
-pixel_scales = {'A': 0.18451, 'B': 0.154508, 'C': 0.154508} # 'B': 0.148148}
-seconds_per_frames = {'A': 1/80, 'B': 1/60, 'C': 1/60}
+pixel_scales = {'A': 0.154508, 'B': 0.154508, 'C': 0.154508} # 'B': 0.148148} A: 0.18451
+seconds_per_frames = {'A': 1/60, 'B': 1/60, 'C': 1/60}
 samples = {}
 samples['A'] = collect_samples(base_path=base_groundtruth_path,
                                acc_pattern='A/*acc*.csv',
@@ -441,8 +442,8 @@ accelerometer_inputs['C'] = [
 # ═════════════════════════════════
 # Experiment Details
 # ═════════════════════════════════
-which_device = 'A'
-which_samples = [6]
+which_device = 'C'
+which_samples = [3, 4]
 
 pixel_scale = pixel_scales[which_device]
 seconds_per_frame = seconds_per_frames[which_device]
@@ -463,7 +464,11 @@ metrics = {
 }
 
 
-ray.init(ignore_reinit_error=True)
+ray.init(
+    memory= 8 * 1024 * 1024 * 2014,
+    object_store_memory=4 * 1024 * 1024 * 1024,
+    ignore_reinit_error=True
+)
 for which_sample in which_samples:
     # ═════════════════════════════════
     # Prepare Groundtruth
@@ -532,7 +537,8 @@ for which_sample in which_samples:
         y_target=y_target,
         emf_time_target=emf_time_target,
         emf_target=emf_target,
-        metrics=metrics
+        metrics=metrics,
+        batch_size=16
     )
 
     df_scores = scores_to_dataframe(scores, val_grid, translation_dict)
