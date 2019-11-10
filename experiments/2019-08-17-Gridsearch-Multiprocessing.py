@@ -442,8 +442,8 @@ accelerometer_inputs['C'] = [
 # ═════════════════════════════════
 # Experiment Details
 # ═════════════════════════════════
-which_device = 'C'
-which_samples = [3, 4]
+which_device = 'B'
+which_samples = [0]
 
 pixel_scale = pixel_scales[which_device]
 seconds_per_frame = seconds_per_frames[which_device]
@@ -538,7 +538,7 @@ for which_sample in which_samples:
         emf_time_target=emf_time_target,
         emf_target=emf_target,
         metrics=metrics,
-        batch_size=16
+        batch_size=48
     )
 
     df_scores = scores_to_dataframe(scores, val_grid, translation_dict)
