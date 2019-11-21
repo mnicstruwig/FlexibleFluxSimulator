@@ -21,7 +21,7 @@ from unified_model.pipeline import clip_x2
 import warnings
 warnings.simplefilter('ignore')
 
-base_groundtruth_path = './data/2019-05-23/'
+base_groundtruth_path = './data/2019-05-23_C/'
 a_samples = collect_samples(base_path=base_groundtruth_path,
                             acc_pattern='A/*acc*.csv',
                             adc_pattern='A/*adc*.csv',
@@ -36,7 +36,7 @@ mechanical_spring = MechanicalSpring(push_direction='down',
                                      damper_constant=0.06)
 
 mechanical_model = MechanicalModel(name='Mechanical Model')
-mechanical_model.set_max_height(110/1000)
+mechanical_model.set_max_height(max_height)
 mechanical_model.set_magnetic_spring(abc.spring)
 mechanical_model.set_mechanical_spring(mechanical_spring)  # <-- do more investigating with this guy
 mechanical_model.set_magnet_assembly(abc.magnet_assembly)
@@ -136,7 +136,7 @@ e_eval.poof(True)
 print(mech_scores)
 print(emf_scores)
 
-try:
-    unified_model.save_to_disk('./my_saved_model/')
-except FileExistsError:
-    print('Model not saved, since path already exists.')
+# try:
+#     unified_model.save_to_disk('./my_saved_model/')
+# except FileExistsError:
+#     print('Model not saved, since path already exists.')

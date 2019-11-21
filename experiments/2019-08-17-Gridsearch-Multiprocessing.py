@@ -382,7 +382,7 @@ def plot_comparison(df_scores,
 # ═════════════════════════════════
 base_unified_model = UnifiedModel.load_from_disk('../my_saved_model/')
 
-base_groundtruth_path = './data/2019-05-23_B/'
+base_groundtruth_path = './data/2019-05-23_C/'
 
 pixel_scales = {'A': 0.154508, 'B': 0.154508, 'C': 0.154508} # 'B': 0.148148} A: 0.18451
 seconds_per_frames = {'A': 1/60, 'B': 1/60, 'C': 1/60}
@@ -442,8 +442,8 @@ accelerometer_inputs['C'] = [
 # ═════════════════════════════════
 # Experiment Details
 # ═════════════════════════════════
-which_device = 'B'
-which_samples = [0]
+which_device = 'A'
+which_samples = [4]
 
 pixel_scale = pixel_scales[which_device]
 seconds_per_frame = seconds_per_frames[which_device]
@@ -491,9 +491,9 @@ for which_sample in which_samples:
     rectification_drop = [0.10]
 
     # Overrides (set parameters for test)
-    # damping_coefficients = [0.035]
-    # mech_spring_coefficients = [0.0000]
-    # constant_coupling_values = [0.5]
+    damping_coefficients = [0.035]
+    mech_spring_coefficients = [0.10]
+    constant_coupling_values = [0.5]
 
     param_dict = {  # Holds the values we want to map
         'mechanical_model.input_': [which_sample],

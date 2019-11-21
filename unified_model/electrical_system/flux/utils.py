@@ -220,10 +220,10 @@ class FluxDatabase(object):
         Example
         -------
         >>> key_dict = {'param_1' : param_1_value, 'param_2': param_2_value)
-        >>> value = np.ones(3)
+        >>> value = np.ones(3)  # The value we want to lookup
         >>> my_flux_database.add(key_dict, value)
         >>> my_flux_database.query(param_1=param_1_value, param_2=param_2_value)
-        array([1, 1, 1])
+        array([1, 1, 1])  # returns `value`
 
         """
         db_key = self._make_db_key(**kwargs)
