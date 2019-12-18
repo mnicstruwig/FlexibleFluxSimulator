@@ -49,7 +49,7 @@ class ConstantDamper(object):
 
     def __str__(self):
         """Return string representation of the Damper."""
-        return "ConstantDamper:\n" + pretty_str(self.__dict__)
+        return f"""ConstantDamper: {pretty_str(self.__dict__,1)}"""
 
 
 DAMPER_DICT = {

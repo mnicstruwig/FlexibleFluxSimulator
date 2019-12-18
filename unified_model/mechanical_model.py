@@ -44,7 +44,7 @@ class MechanicalModel:
 
     def __str__(self):
         """Return string representation of the MechanicalModel"""
-        return "Mechanical Model:\n" + pretty_str(self.__dict__)
+        return f"""Mechanical Model: {pretty_str(self.__dict__)}"""
 
     def set_magnetic_spring(self, spring):
         """Add a magnetic spring to the mechanical system.

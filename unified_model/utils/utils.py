@@ -20,11 +20,12 @@ def rms(x):
     return np.sqrt(np.mean(x**2))
 
 
-def pretty_str(dict_):
+def pretty_str(dict_, level=0):
     """Get a pretty string representation of a dictionary."""
     str_ = ""
+    spaces = '    '*level
     for key, val in dict_.items():
-        str_ = str_ + f"{key} : {val}" + "\n"
+        str_ = str_ + f'\n  {spaces}{key}: {val}'
     return str_
 
 
