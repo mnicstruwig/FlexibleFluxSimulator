@@ -1,6 +1,6 @@
 import unittest
 
-from unified_model.mechanical_system.damper import DamperConstant, \
+from unified_model.mechanical_system.damper import ConstantDamper, \
     DamperSurfaceArea
 from unified_model.mechanical_system import damper
 
@@ -19,13 +19,13 @@ class TestDamperModels(unittest.TestCase):
         """
         Run once before running tests.
         """
-        cls.damper_constant = DamperConstant(damping_coefficient=CONSTANT_DAMPING_COEFFICIENT)
+        cls.damper_constant = ConstantDamper(damping_coefficient=CONSTANT_DAMPING_COEFFICIENT)
         cls.damper_surface_area = DamperSurfaceArea(magnet_assembly_surface_area=MAGNET_ASSEMBLY_SURFACE_AREA,
                                                     tuning_parameter=TUNING_PARAMETER)
 
     def test_damper_constant(self):
         """
-        Tests the DamperConstant model
+        Tests the ConstantDamper model
         """
         velocity = 3
         expected_force = CONSTANT_DAMPING_COEFFICIENT * velocity

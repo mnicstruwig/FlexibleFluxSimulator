@@ -11,7 +11,7 @@ from unified_model.coupling import ConstantCoupling
 from unified_model.electrical_model import ElectricalModel
 from unified_model.electrical_system.load import SimpleLoad
 from unified_model.mechanical_model import MechanicalModel
-from unified_model.mechanical_system.damper import DamperConstant
+from unified_model.mechanical_system.damper import ConstantDamper
 from unified_model.mechanical_system.spring.mechanical_spring import MechanicalSpring
 from unified_model.mechanical_system.input_excitation.accelerometer import AccelerometerInput
 from unified_model.utils.utils import collect_samples
@@ -40,7 +40,7 @@ mechanical_model.set_max_height(max_height)
 mechanical_model.set_magnetic_spring(abc.spring)
 mechanical_model.set_mechanical_spring(mechanical_spring)  # <-- do more investigating with this guy
 mechanical_model.set_magnet_assembly(abc.magnet_assembly)
-mechanical_model.set_damper(DamperConstant(damping_coefficient=0.0350))  # Tweaking will need to happen
+mechanical_model.set_damper(ConstantDamper(damping_coefficient=0.0350))  # Tweaking will need to happen
 
 
 accelerometer_inputs = [AccelerometerInput(raw_accelerometer_input=sample.acc_df,

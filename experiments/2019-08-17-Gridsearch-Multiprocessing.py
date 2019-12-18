@@ -9,7 +9,7 @@ import warnings
 from config import abc
 from unified_model.coupling import ConstantCoupling
 from unified_model.evaluate import AdcProcessor, LabeledVideoProcessor
-from unified_model.mechanical_system.damper import DamperConstant
+from unified_model.mechanical_system.damper import ConstantDamper
 from unified_model.mechanical_system.input_excitation.accelerometer import \
     AccelerometerInput
 from unified_model.mechanical_system.spring.mechanical_spring import \
@@ -506,7 +506,7 @@ for which_sample in which_samples:
 
     func_dict = {  # Maps the parameter values to objects used in simulation
         'mechanical_model.input_': lambda x: accelerometer_input[x],
-        'mechanical_model.damper': DamperConstant,
+        'mechanical_model.damper': ConstantDamper,
         'mechanical_model.mechanical_spring': make_mechanical_spring,
         'coupling_model': ConstantCoupling,
         'electrical_model.rectification_drop': lambda x: x,

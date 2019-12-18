@@ -353,7 +353,7 @@ def apply_scalar_functions(x1, x2, **func):
 
 
 # TODO: Add test (might need to be a bit creative)
-def collect_samples(base_path, acc_pattern, adc_pattern, labeled_video_pattern):
+def collect_samples(base_path, acc_pattern, adc_pattern, video_label_pattern):
     """Collect groundtruth samples from a directory with filename matching.
 
     Parameters
@@ -366,7 +366,7 @@ def collect_samples(base_path, acc_pattern, adc_pattern, labeled_video_pattern):
     adc_pattern : str
         Glob-compatible pattern to use to search for the recorded adc
         measurements .csv files.
-    labeled_video_pattern : str
+    video_label_pattern : str
         Glob-compatible pattern to use to search for the labeled video
         .csv files.
 
@@ -382,7 +382,7 @@ def collect_samples(base_path, acc_pattern, adc_pattern, labeled_video_pattern):
 
     acc_paths = glob(os.path.join(base_path, acc_pattern))
     adc_paths = glob(os.path.join(base_path, adc_pattern))
-    labeled_video_paths = glob(os.path.join(base_path, labeled_video_pattern))
+    labeled_video_paths = glob(os.path.join(base_path, video_label_pattern))
 
     acc_paths.sort()
     adc_paths.sort()
