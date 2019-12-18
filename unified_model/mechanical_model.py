@@ -23,8 +23,6 @@ class MechanicalModel:
     raw_output : array_like
         Raw solution output returned by the numerical solver,
         `scipy.integrate.solve_ivp`.
-    t : array_like
-        Time values of solution output.
 
     """
 
@@ -43,7 +41,6 @@ class MechanicalModel:
         self.magnet_assembly = None
         self.damper = None
         self.input_ = None
-        self.t = None
 
     def __str__(self):
         """Return string representation of the MechanicalModel"""

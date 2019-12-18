@@ -114,5 +114,5 @@ class MagnetAssembly:
         return (
             self.n_magnet
             * self.h_magnet
-            + (self.n_magnet - 1) * self.h_spacer) / 1000
+            + (self.n_magnet - 1) * self.h_spacer / 1000
     )
