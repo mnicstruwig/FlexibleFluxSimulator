@@ -24,10 +24,8 @@ from unified_model.utils.utils import (build_paramater_grid, collect_samples,
 
 
 def make_mechanical_spring(damper_constant):
-    return MechanicalSpring(push_direction='down',
-                            position=110/1000,
-                            strength=1000,
-                            pure=False,
+    return MechanicalSpring(position=110/1000,  # This must be relative to the top of the _fixed_ magnet!
+                            strength=1e6,
                             damper_constant=damper_constant)
 
 
@@ -442,7 +440,7 @@ accelerometer_inputs['C'] = [
 # ═════════════════════════════════
 # Experiment Details
 # ═════════════════════════════════
-which_device = 'A'
+which_device = 'C'
 which_samples = [4]
 
 pixel_scale = pixel_scales[which_device]
@@ -486,14 +484,14 @@ for which_sample in which_samples:
     # Gridsearch parameters
     # ═════════════════════════════════
     damping_coefficients = np.linspace(0.02, 0.05, 20)
-    mech_spring_coefficients = np.linspace(0, 0.5, 5) #[0.0125]  # Found from investigation
+    mech_spring_coefficients = np.linspace(0, 200, 5) 
     constant_coupling_values = np.linspace(0.1, 3, 10)
     rectification_drop = [0.10]
 
     # Overrides (set parameters for test)
-    damping_coefficients = [0.035]
-    mech_spring_coefficients = [0.10]
-    constant_coupling_values = [0.5]
+    # damping_coefficients = [0.015]
+    # mech_spring_coefficients = [200.0]
+    # constant_coupling_values = [0.5]
 
     param_dict = {  # Holds the values we want to map
         'mechanical_model.input_': [which_sample],

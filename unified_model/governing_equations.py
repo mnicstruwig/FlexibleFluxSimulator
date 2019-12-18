@@ -39,9 +39,9 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     # tube displ., tube velocity, magnet displ. , magnet velocity, flux
     x1, x2, x3, x4, x5 = y
 
-    # Make the sudden stop of the tube slightly less harsh
-    if x1 <= 0.015 and x2 <= 0:
-        x2 = x2/3
+    # # Make the sudden stop of the tube slightly less harsh
+    # if x1 <= 0.015 and x2 <= 0:
+    #     x2 = x2/3
 
     # prevent tube from going through bottom.
     if x1 <= 0 and x2 <= 0:
