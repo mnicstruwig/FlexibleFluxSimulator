@@ -73,13 +73,13 @@ for device in ['A', 'B', 'C']:
     abc_flux_models[device] = flux_model
     abc_dflux_models[device] = dflux_model
 
-abc = Config(coil_center=abc_coil_center,
-             coil_resistance=abc_coil_resistance,
-             winding_num_z=abc_winding_num_z,
-             winding_num_r=abc_winding_num_r,
-             coil_height=abc_coil_height,
-             spring=abc_spring,
-             flux_database=abc_flux_database,
-             flux_models=abc_flux_models,
-             dflux_models=abc_dflux_models,
-             magnet_assembly=abc_magnet_assembly)
+abc_config = Config(coil_center=abc_coil_center,
+                    coil_resistance=abc_coil_resistance,
+                    winding_num_z=abc_winding_num_z,
+                    winding_num_r=abc_winding_num_r,
+                    coil_height=abc_coil_height,
+                    spring=abc_spring,
+                    flux_database=abc_flux_database,
+                    flux_models=abc_flux_models,
+                    dflux_models=abc_dflux_models,
+                    magnet_assembly=abc_magnet_assembly)

@@ -20,13 +20,18 @@ from unified_model.utils.utils import collect_samples
 
 mechanical_model = MechanicalModel(name='Mechanical Model')
 mechanical_model.set_mechanical_spring(
-    MechanicalSpring()
+    MechanicalSpring(
+        position=110/1000,
+        damper_constant=0)
+)
+mechanical_model.set_magnetic_spring(
+    MagneticSpring(abc.spring)
 )
 
 samples = collect_samples(
     base_path='./data/2019-05-23_B/A/',
     acc_pattern='*acc*.csv',
     adc_pattern='*adc*.csv',
-    labeled_video_pattern='*labels*.csv'
+    video_label_pattern='*labels*.csv'
 )
 
