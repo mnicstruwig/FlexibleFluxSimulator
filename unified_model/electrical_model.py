@@ -122,15 +122,16 @@ class ElectricalModel:
 
         Parameters
         ----------
-        y : ndarray
-            The `y` input vector that is supplied to the set of governing
-            equations, with shape (n,), where `n` is the number of equations
-            in the set of governing equations.
+        mag_pos : float
+            The position of the center of the first (bottom) magnet in the
+            magnet assembly. In metres.
+        mag_vel : float
+            The velocity of the magnet assembly. In metres per second.
 
         Returns
         -------
-        ndarray
-            The instantaneous emf.
+        float
+            The instantaneous emf. In volts.
 
         """
         dphi_dz = self.dflux_model(mag_pos)
@@ -148,17 +149,19 @@ class ElectricalModel:
     def get_current(self, emf_oc):
         """Return the instantaneous current produced by the electrical system.
 
+        Takes into account the resistance of the coils, as well as the load
+        resistance.
+
         Parameters
         ----------
-        y : ndarray
-            The `y` input vector that is supplied to the set of governing
-            equations, with shape (n,), where `n` is the number of equations
-            in the set of governing equations.
+        emf_oc : float
+            The instantaneous open-circuit emf induced in the coil(S). Can be
+            calculated by using the `get_emf` method.
 
         Returns
         -------
-        ndarray
-            The instantaneous current.
+        float
+            The instantaneous current flowing through the electrical system.
 
         """
         if not self.load_model:

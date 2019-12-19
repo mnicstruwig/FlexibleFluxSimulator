@@ -103,7 +103,7 @@ def _preprocess_acceleration_dataframe(df,
     return df
 
 
-class AccelerometerInput(object):
+class AccelerometerInput:
     """Provide custom accelerometer input from a file or dataframe.
 
     Attributes

@@ -1,4 +1,5 @@
 from unified_model.utils.utils import pretty_str
+import warnings
 
 
 # TODO: Add example once interface is more stable
@@ -106,3 +107,14 @@ class MechanicalModel:
 
         """
         self.magnet_assembly = magnet_assembly
+
+    def verify(self):
+        """Verify the mechanical model, and raise any warnings.
+
+        Note: This only raises warnings, it does _not_ modify
+        the mechanical model.
+        """
+        # Make sure not attributes are None
+        for k, v in self.__dict__.items():
+            if v is None:
+                warnings.warn(f'{k} has not been defined!')

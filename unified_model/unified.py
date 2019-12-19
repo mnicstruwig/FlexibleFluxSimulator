@@ -66,7 +66,7 @@ class UnifiedModel(object):
 
     def __str__(self):
         """Return string representation of the UnifiedModel"""
-        return "Unified Model:\n" + pretty_str(self.__dict__)
+        return f'Unified Model: {pretty_str(self.__dict__)}'
 
     def save_to_disk(self, path):
         """Persists a unified model to disk"""

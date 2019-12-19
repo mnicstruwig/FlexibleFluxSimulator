@@ -3,8 +3,6 @@ This module contains useful and commonly-used post-processing pipelines
 for the `UnifiedModel` class.
 """
 
-from unified_model.utils.testing.testing_electrical_model import apply_rectification
-
 
 def clip_x2(y):
     """
