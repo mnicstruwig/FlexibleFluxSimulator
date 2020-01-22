@@ -93,27 +93,6 @@ class ElectricalModel:
         """
         self.load_model = load_model
 
-    def get_flux_gradient(self, y):
-        """Return the instantaneous gradient of the flux relative to z.
-
-        Parameters
-        ----------
-        y : ndarray
-            The `y` input vector that is supplied to the set of governing
-            equations, with shape (n,), where `n` is the number of equations
-            in the set of governing equations.
-
-        Returns
-        -------
-        ndarray
-            The instantaneous flux gradient.
-
-        """
-        x1, x2, x3, x4, x5 = y  # TODO: Remove reliance on hard-coding.
-        if self.precompute_gradient is True:
-            return self.flux_gradient(x3-x1)
-        return _gradient(self.flux_model, x3-x1)
-
     def get_emf(self, mag_pos, mag_vel):
         """Return the instantaneous emf produced by the electrical system.
 
