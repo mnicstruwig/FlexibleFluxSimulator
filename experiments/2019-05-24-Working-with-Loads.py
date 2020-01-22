@@ -86,7 +86,7 @@ result = unified_model.get_result(time='t',
                                   rel_vel='x4-x2',
                                   flux='x5',
                                   emf='g(t, x5)')
- 
+
 # Mechanical Scoring
 # pixel_scale = 0.1785  # Huawei P10
 pixel_scale = 0.18451  # Huawei P10 alternative
