@@ -1,4 +1,7 @@
-import matplotlib.pyplot as plt
+from config import abc
+import cloudpickle
+from itertools import product
+import os
 import numpy as np
 import pandas as pd
 from scipy import signal
@@ -62,6 +65,9 @@ def make_mechanical_spring(damper_constant):
                             pure=False,
                             damper_constant=damper_constant)
 
+damping_coefficients = np.linspace(0.01, 1, 30)
+mech_spring_coefficients = [0.0125]  # Found from investigation
+constant_coupling_values = np.linspace(0.0, 3, 30)
 
 ####################
 which_device = 'A'
@@ -277,9 +283,6 @@ df_mv = scores_to_dataframe(
 df['dtw_euclid_mv'] = df_mv['dtw_euclid_mv']
 df['abs_rms_perc_diff'] = np.abs(df_elec['rms_perc_diff'])
 df['dtw_euclid_e'] = df_elec['dtw_euclid_e']
-
-df.to_csv('result.csv')
-
 df['dtw_euclid_m_'] = df['dtw_euclid_m']/np.max(df['dtw_euclid_m'])
 df['dtw_euclid_mv_'] = df['dtw_euclid_mv']/np.max(df['dtw_euclid_mv'])
 df['mms'] = (df['dtw_euclid_m_'] + df['dtw_euclid_mv_'])/2  # Mean Mech Score --> MMS
