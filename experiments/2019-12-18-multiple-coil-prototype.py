@@ -6,14 +6,12 @@ from config import abc_config
 from unified_model.unified import UnifiedModel
 from unified_model.mechanical_model import MechanicalModel
 from unified_model.electrical_model import ElectricalModel
-
 from unified_model.coupling import ConstantCoupling
-
 from unified_model.mechanical_system.damper import ConstantDamper
 from unified_model.mechanical_system.spring.mechanical_spring import MechanicalSpring
 from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
 from unified_model.mechanical_system.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_system import input_excitation
+from unified_model.mechanical_system.input_excitation import accelerometer
 from unified_model.governing_equations import unified_ode
 from unified_model.pipeline import clip_x2
 
@@ -29,7 +27,7 @@ samples = collect_samples(
 )
 
 accelerometer_inputs = [
-    input_excitation.accelerometer.AccelerometerInput(
+    accelerometer.AccelerometerInput(
         raw_accelerometer_input=sample.acc_df,
         accel_column='z_G',
         time_column='time(ms)',
