@@ -4,10 +4,10 @@ import pandas as pd
 from pandas.testing import assert_frame_equal
 
 # Local imports
-from unified_model.mechanical_system.input_excitation import footstep
-from unified_model.mechanical_system.input_excitation.accelerometer import _find_nearest_acc_value, _parse_raw_accelerometer_input, _preprocess_acceleration_dataframe, AccelerometerInput  # noqa
+from unified_model.mechanical_components.input_excitation import footstep
+from unified_model.mechanical_components.input_excitation.accelerometer import _find_nearest_acc_value, _parse_raw_accelerometer_input, _preprocess_acceleration_dataframe, AccelerometerInput  # noqa
 
-from unified_model.tests.mechanical_system.test_data.test_data import TEST_ACCELEROMETER_FILE_PATH
+from unified_model.tests.mechanical_components.test_data.test_data import TEST_ACCELEROMETER_FILE_PATH
 
 SIMULATION_TIME_COL = 'simulation_time_seconds'
 

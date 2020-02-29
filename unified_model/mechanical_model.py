@@ -45,7 +45,7 @@ class MechanicalModel:
 
     def __str__(self):
         """Return string representation of the MechanicalModel"""
-        return f"""Mechanical Model: {pretty_str(self.__dict__)}"""
+        return f"""Mechanical Model: {pretty_str(self.__dict__, 1)}"""
 
     def set_magnetic_spring(self, spring):
         """Add a magnetic spring to the mechanical system.
@@ -58,6 +58,7 @@ class MechanicalModel:
 
         """
         self.magnetic_spring = spring
+        return self
 
     def set_mechanical_spring(self, spring):
         """Add a mechanical spring to the mechanical system.
@@ -70,6 +71,7 @@ class MechanicalModel:
 
         """
         self.mechanical_spring = spring
+        return self
 
     def set_damper(self, damper):
         """Add a damper to the mechanical system
@@ -81,6 +83,7 @@ class MechanicalModel:
 
         """
         self.damper = damper
+        return self
 
     def set_input(self, mechanical_input):
         """Add an input excitation to the mechanical system
@@ -96,6 +99,7 @@ class MechanicalModel:
 
         """
         self.input_ = mechanical_input
+        return self
 
     def set_magnet_assembly(self, magnet_assembly):
         """Add a magnet assembly to the mechanical system.
@@ -107,6 +111,7 @@ class MechanicalModel:
 
         """
         self.magnet_assembly = magnet_assembly
+        return self
 
     def verify(self):
         """Verify the mechanical model, and raise any warnings.

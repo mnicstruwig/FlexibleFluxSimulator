@@ -7,15 +7,14 @@ from unified_model.unified import UnifiedModel
 from unified_model.mechanical_model import MechanicalModel
 from unified_model.electrical_model import ElectricalModel
 from unified_model.coupling import ConstantCoupling
-from unified_model.mechanical_system.damper import ConstantDamper
-from unified_model.mechanical_system.spring.mechanical_spring import MechanicalSpring
-from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
-from unified_model.mechanical_system.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_system.input_excitation import accelerometer
+from unified_model.mechanical_components.damper import ConstantDamper
+from unified_model.mechanical_components.spring.mechanical_spring import MechanicalSpring
+from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
+from unified_model.mechanical_components.input_excitation import accelerometer
 from unified_model.governing_equations import unified_ode
 from unified_model.pipeline import clip_x2
 
-from unified_model.electrical_system.load import SimpleLoad
+from unified_model.electrical_components.load import SimpleLoad
 
 from unified_model.utils.utils import collect_samples
 
@@ -39,26 +38,19 @@ accelerometer_inputs = [
     for sample in samples
 ]
 
-mechanical_model = MechanicalModel(name='MechanicalModel')
-mechanical_model.set_mechanical_spring(
-    MechanicalSpring(
-        position=110/1000,
-        damper_constant=0)
+mechanical_model = (
+    MechanicalModel(name='MechanicalModel')
+    .set_mechanical_spring(MechanicalSpring(position=110/1000,
+                                            damper_constant=0))
+    .set_magnetic_spring(abc_config.spring)
+    .set_magnet_assembly(MagnetAssembly(n_magnet=1,
+                                        h_magnet=10,
+                                        h_spacer=0,
+                                        dia_magnet=10,
+                                        dia_spacer=10))
+    .set_damper(ConstantDamper(damping_coefficient=0.035))
+    .set_input(accelerometer_inputs[0])
 )
-mechanical_model.set_magnetic_spring(abc_config.spring)
-mechanical_model.set_magnet_assembly(
-    MagnetAssembly(
-        n_magnet=1,
-        h_magnet=10,
-        h_spacer=0,
-        dia_magnet=10,
-        dia_spacer=10
-    )
-)
-mechanical_model.set_damper(
-    ConstantDamper(damping_coefficient=0.035)
-)
-mechanical_model.set_input(accelerometer_inputs[0])
 
 # Electrical model
 electrical_model = ElectricalModel(name='electrical model')

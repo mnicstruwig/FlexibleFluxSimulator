@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from scipy import interpolate
 from scipy import signal
 
-from unified_model.electrical_system.load import SimpleLoad
+from unified_model.electrical_components.load import SimpleLoad
 from unified_model.evaluate import LabeledVideoProcessor, ElectricalSystemEvaluator, AdcProcessor
 from unified_model.electrical_model import ElectricalModel
 from unified_model.utils.utils import collect_samples, rms, find_signal_limits

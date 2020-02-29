@@ -1,10 +1,10 @@
 from unified_model.mechanical_model import MechanicalModel
-from unified_model.mechanical_system.damper import Damper
-from unified_model.mechanical_system.input_excitation.footstep import Footstep
-from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
-from unified_model.mechanical_system.magnet_assembly import MagnetAssembly
+from unified_model.mechanical_components.damper import Damper
+from unified_model.mechanical_components.input_excitation.footstep import Footstep
+from unified_model.mechanical_components.spring.magnetic_spring import MagneticSpring
+from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 
-from unified_model.tests.mechanical_system.test_data import TEST_MAGNET_SPRING_FEA_PATH
+from unified_model.tests.mechanical_components.test_data import TEST_MAGNET_SPRING_FEA_PATH
 
 
 def build_test_mechanical_system_model():

@@ -1,6 +1,6 @@
 import pandas as pd
 
-from unified_model.electrical_system.flux.model import flux_interpolate, flux_univariate_spline
+from unified_model.electrical_components.flux.model import flux_interpolate, flux_univariate_spline
 from unified_model.utils.utils import fetch_key_from_dictionary
 
 

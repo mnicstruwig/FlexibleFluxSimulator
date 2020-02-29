@@ -30,29 +30,6 @@ def unified_ode_mechanical_only(t,
     return [x1_dot, x2_dot, x3_dot, x4_dot]
 
 
-def _unified_ode_constant_velocity(t,
-                                   y,
-                                   electrical_model,
-                                   **kwargs):
-    """A debugging equation set that moves the magnet at a constant velocity.
-
-    There is no coupling force. This is considered an open-circuit model.
-    """
-    constant_velocity = -1
-
-    # tube displ., tube velocity, magnet displ. , magnet velocity, flux
-    x1, x2, x3, x4, x5 = y
-
-    x3_dot = constant_velocity
-    # If the magnet reaches the bottom of the tube, stop.
-    if x3 <= x1:
-        x3_dot = 0
-
-    x1_dot = 0  # The tube doesn't move
-    x2_dot = 0  # The tube doesn't move
-    x4_dot = 0  # Magnet doesn't have acceleration
-    x5_dot = electrical_model.get_emf(x3-x1, x4-x2)
-
 def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     magnetic_spring = mechanical_model.magnetic_spring
     mechanical_spring = mechanical_model.mechanical_spring

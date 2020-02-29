@@ -5,9 +5,9 @@ from scipy import signal
 from scipy.interpolate import UnivariateSpline
 
 from unified_model.evaluate import AdcProcessor, ElectricalSystemEvaluator, LabeledVideoProcessor
-from unified_model.electrical_system.flux.model import flux_univariate_spline
-from unified_model.electrical_system.flux.utils import FluxDatabase
-from unified_model.electrical_system.load import SimpleLoad
+from unified_model.electrical_components.flux.model import flux_univariate_spline
+from unified_model.electrical_components.flux.utils import FluxDatabase
+from unified_model.electrical_components.load import SimpleLoad
 from unified_model.utils.testing.testing_electrical_model import simulate_electrical_system
 
 # Prerequisites

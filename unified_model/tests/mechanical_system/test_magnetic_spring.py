@@ -1,9 +1,9 @@
 import unittest
 
 # Local imports
-from unified_model.mechanical_system.spring.magnetic_spring import MagneticSpring
-from unified_model.mechanical_system.spring.model import coulombs_law, coulombs_law_modified
-from unified_model.tests.mechanical_system.test_data.test_data import TEST_MAGNET_SPRING_FEA_PATH
+from unified_model.mechanical_components.spring.magnetic_spring import MagneticSpring
+from unified_model.mechanical_components.spring.model import coulombs_law, coulombs_law_modified
+from unified_model.tests.mechanical_components.test_data.test_data import TEST_MAGNET_SPRING_FEA_PATH
 
 class TestMagneticSpring(unittest.TestCase):
     """

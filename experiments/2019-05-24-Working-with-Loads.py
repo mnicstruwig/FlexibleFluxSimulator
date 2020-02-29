@@ -9,11 +9,11 @@ from unified_model.evaluate import AdcProcessor, LabeledVideoProcessor
 from unified_model.unified import UnifiedModel
 from unified_model.coupling import ConstantCoupling
 from unified_model.electrical_model import ElectricalModel
-from unified_model.electrical_system.load import SimpleLoad
+from unified_model.electrical_components.load import SimpleLoad
 from unified_model.mechanical_model import MechanicalModel
-from unified_model.mechanical_system.damper import ConstantDamper
-from unified_model.mechanical_system.spring.mechanical_spring import MechanicalSpring
-from unified_model.mechanical_system.input_excitation.accelerometer import AccelerometerInput
+from unified_model.mechanical_components.damper import ConstantDamper
+from unified_model.mechanical_components.spring.mechanical_spring import MechanicalSpring
+from unified_model.mechanical_components.input_excitation.accelerometer import AccelerometerInput
 from unified_model.utils.utils import collect_samples
 from unified_model.governing_equations import unified_ode
 from unified_model.pipeline import clip_x2

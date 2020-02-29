@@ -1,5 +1,5 @@
 import numpy as np
-from unified_model.electrical_system.load import SimpleLoad
+from unified_model.electrical_components.load import SimpleLoad
 
 
 def test_simple_load_get_current_closed_circuit():

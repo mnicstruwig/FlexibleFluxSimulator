@@ -7,14 +7,14 @@ import warnings
 
 from unified_model.coupling import ConstantCoupling
 from unified_model.electrical_model import ElectricalModel
-from unified_model.electrical_system.flux.utils import FluxDatabase
-from unified_model.electrical_system.load import SimpleLoad
+from unified_model.electrical_components.flux.utils import FluxDatabase
+from unified_model.electrical_components.load import SimpleLoad
 from unified_model.governing_equations import unified_ode
 from unified_model.mechanical_model import MechanicalModel
-from unified_model.mechanical_system.damper import Damper
-from unified_model.mechanical_system.input_excitation.accelerometer import AccelerometerInput
-from unified_model.mechanical_system.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_system.spring.magnetic_spring import \
+from unified_model.mechanical_components.damper import Damper
+from unified_model.mechanical_components.input_excitation.accelerometer import AccelerometerInput
+from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
+from unified_model.mechanical_components.spring.magnetic_spring import \
     MagneticSpring
 from unified_model.unified import UnifiedModel
 from unified_model.evaluate import ElectricalSystemEvaluator, MechanicalSystemEvaluator, LabeledVideoProcessor, AdcProcessor
@@ -42,7 +42,7 @@ coil_height = {'A': '0.008meter',
                'C': '0.014meter'}
 
 # Path handling
-fea_data_path = './unified_model/mechanical_system/spring/data/10x10alt.csv'
+fea_data_path = './unified_model/mechanical_components/spring/data/10x10alt.csv'
 
 # MECHANICAL MODEL
 # Note: The accelerometer input is deliberately left out (it is added in later)

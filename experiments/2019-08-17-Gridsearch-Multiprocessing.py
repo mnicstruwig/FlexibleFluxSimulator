@@ -9,10 +9,10 @@ import warnings
 from config import abc
 from unified_model.coupling import ConstantCoupling
 from unified_model.evaluate import AdcProcessor, LabeledVideoProcessor
-from unified_model.mechanical_system.damper import ConstantDamper
-from unified_model.mechanical_system.input_excitation.accelerometer import \
+from unified_model.mechanical_components.damper import ConstantDamper
+from unified_model.mechanical_components.input_excitation.accelerometer import \
     AccelerometerInput
-from unified_model.mechanical_system.spring.mechanical_spring import \
+from unified_model.mechanical_components.spring.mechanical_spring import \
     MechanicalSpring
 from unified_model.metrics import (dtw_euclid_distance,
                                    root_mean_square_percentage_diff)

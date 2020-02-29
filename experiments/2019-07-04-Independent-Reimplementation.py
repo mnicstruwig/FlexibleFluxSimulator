@@ -10,14 +10,14 @@ from scipy.misc import derivative
 import os
 base_dir = os.getcwd()
 
-from unified_model.mechanical_system.magnet_assembly import MagnetAssembly
+from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.evaluate import MechanicalSystemEvaluator, LabeledVideoProcessor
 
 def rms(x):
     return np.sqrt(np.mean(x**2))
 
 
-def magnetic_spring_factory(data_path='../unified_model/mechanical_system/spring/data/10x10alt.csv'):
+def magnetic_spring_factory(data_path='../unified_model/mechanical_components/spring/data/10x10alt.csv'):
     df = pd.read_csv(os.path.join(base_dir, data_path))
     df.columns = ['z', 'newtons']
     df['z'] = df['z'] / 1000  # Convert to metres

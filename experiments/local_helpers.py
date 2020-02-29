@@ -1,5 +1,5 @@
 import numpy as np
-from unified_model.electrical_system.flux.utils import FluxDatabase
+from unified_model.electrical_components.flux.utils import FluxDatabase
 
 
 def get_flux_models_from_db(flux_db,
@@ -40,10 +40,10 @@ def get_flux_models_from_db(flux_db,
 
     See Also
     --------
-    unified_model.electrical_system.flux.utils.FluxDatabase
+    unified_model.electrical_components.flux.utils.FluxDatabase
         The flux database class that `flux_db` should be. This is the object
         that is queried for the flux models.
-    unified_model.electrical_system.flux.utils.FluxDatabase.query_to_model
+    unified_model.electrical_components.flux.utils.FluxDatabase.query_to_model
         Method used to query `flux_db`.
 
     Examples
