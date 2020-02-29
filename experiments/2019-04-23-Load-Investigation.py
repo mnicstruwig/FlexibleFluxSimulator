@@ -109,11 +109,11 @@ def _build_quick_unified_model(accelerometer_input,
 
     # Build unified model from components
     unified_model = UnifiedModel(name='Unified')
-    unified_model.add_mechanical_model(mechanical_model)
-    unified_model.add_electrical_model(electrical_model)
-    unified_model.add_coupling_model(coupling_model)
-    unified_model.add_governing_equations(governing_equations)
-    unified_model.add_post_processing_pipeline(clip_x2, name='clip tube velocity')
+    unified_model.set_mechanical_model(mechanical_model)
+    unified_model.set_electrical_model(electrical_model)
+    unified_model.set_coupling_model(coupling_model)
+    unified_model.set_governing_equations(governing_equations)
+    unified_model.set_post_processing_pipeline(clip_x2, name='clip tube velocity')
 
     return unified_model
 

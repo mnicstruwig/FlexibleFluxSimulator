@@ -16,50 +16,50 @@ from unified_model.electrical_model import ElectricalModel
 class TestUnifiedModel(unittest.TestCase):
     """Test the UnifiedModel class."""
 
-    def test_add_mechanical_model(self):
-        """Test the add_mechanical_model class method"""
+    def test_set_mechanical_model(self):
+        """Test the set_mechanical_model class method"""
 
         test_unified_model = UnifiedModel(name='test_unified_model')
         test_mechanical_system = mock(MechanicalModel)
 
         self.assertTrue(test_unified_model.mechanical_model is None)  # before
-        test_unified_model.add_mechanical_model(test_mechanical_system)
+        test_unified_model.set_mechanical_model(test_mechanical_system)
         self.assertIsInstance(test_unified_model.mechanical_model,  # after
                               type(test_mechanical_system))
 
         unstub()
 
-    def test_add_electrical_model(self):
-        """Test the add_electrical_model class method"""
+    def test_set_electrical_model(self):
+        """Test the set_electrical_model class method"""
 
         test_unified_model = UnifiedModel(name='test_unified_model')
         test_electrical_system = mock(ElectricalModel)
 
         self.assertTrue(test_unified_model.electrical_model is None)
-        test_unified_model.add_electrical_model(test_electrical_system)
+        test_unified_model.set_electrical_model(test_electrical_system)
         self.assertIsInstance(test_unified_model.electrical_model,
                               type(test_electrical_system))
 
         unstub()
 
-    def test_add_coupling_model(self):
-        """Test the add_coupling_model class method."""
+    def test_set_coupling_model(self):
+        """Test the set_coupling_model class method."""
 
         test_unified_model = UnifiedModel(name='test_unified_model')
         test_coupling_model = mock()
 
         self.assertTrue(test_unified_model.coupling_model is None)
-        test_unified_model.add_coupling_model(test_coupling_model)
+        test_unified_model.set_coupling_model(test_coupling_model)
         self.assertIsInstance(test_unified_model.coupling_model,
                               type(test_coupling_model))
 
-    def test_add_governing_equations(self):
-        """Test the add_governing_equations class method"""
+    def test_set_governing_equations(self):
+        """Test the set_governing_equations class method"""
         test_unified_model = UnifiedModel(name='test_unified_model')
         test_governing_equations = mock()
 
         self.assertTrue(test_unified_model.governing_equations is None)
-        test_unified_model.add_governing_equations(test_governing_equations)
+        test_unified_model.set_governing_equations(test_governing_equations)
         self.assertIsInstance(test_unified_model.governing_equations,
                               type(test_governing_equations))
 
@@ -121,7 +121,7 @@ class TestUnifiedModel(unittest.TestCase):
         self.assertEqual(expected_raw_solution.tolist(),
                          actual_raw_solution.tolist())
 
-    def test_add_post_processing_pipeline(self):
+    def test_set_post_processing_pipeline(self):
         """
         Test adding a post-processing pipeline
         """
@@ -134,12 +134,12 @@ class TestUnifiedModel(unittest.TestCase):
         # Pipeline should be empty before adding to it
         self.assertTrue(len(test_unified_model.post_processing_pipeline) == 0)
 
-        test_unified_model.add_post_processing_pipeline(mock_pipeline,
+        test_unified_model.set_post_processing_pipeline(mock_pipeline,
                                                         name='test_pipeline_a')
 
         self.assertTrue(test_unified_model.post_processing_pipeline['test_pipeline_a'] is mock_pipeline)
 
-        test_unified_model.add_post_processing_pipeline(mock_pipeline,
+        test_unified_model.set_post_processing_pipeline(mock_pipeline,
                                                         name='test_pipeline_b')
 
         self.assertTrue(len(test_unified_model.post_processing_pipeline) == 2)
@@ -161,7 +161,7 @@ class TestUnifiedModel(unittest.TestCase):
                                                     [2, 2, 2],
                                                     [3, 3, 3]]).T
 
-        test_unified_model.add_post_processing_pipeline(square_pipeline,
+        test_unified_model.set_post_processing_pipeline(square_pipeline,
                                                         name='square_pipeline')
 
         expected_result = np.array([[0, 0, 0],
@@ -182,8 +182,8 @@ class TestUnifiedModel(unittest.TestCase):
             return [x1+1, x2+1, x3+1]
 
         test_unified_model = UnifiedModel(name=None)
-        test_unified_model.add_post_processing_pipeline(plus_one_pipeline, 'test_pipeline_1')
-        test_unified_model.add_post_processing_pipeline(plus_one_pipeline, 'test_pipeline_2')
+        test_unified_model.set_post_processing_pipeline(plus_one_pipeline, 'test_pipeline_1')
+        test_unified_model.set_post_processing_pipeline(plus_one_pipeline, 'test_pipeline_2')
 
         test_unified_model.raw_solution = np.array([[0, 0, 0],
                                                     [1, 1, 1],

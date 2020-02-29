@@ -53,24 +53,24 @@ mechanical_model = (
 )
 
 # Electrical model
-electrical_model = ElectricalModel(name='electrical model')
-electrical_model.set_coil_resistance(abc_config.coil_resistance['A'])
-electrical_model.set_load_model(SimpleLoad(R=30))
-electrical_model.set_rectification_drop(0.10)
-
-electrical_model.set_flux_model(
-    flux_model=abc_config.flux_models['A'],
-    dflux_model=abc_config.dflux_models['A']
+electrical_model = (
+    ElectricalModel()
+    .set_coil_resistance(abc_config.coil_resistance['A'])
+    .set_load_model(SimpleLoad(R=30))
+    .set_rectification_drop(v=0.10)
+    .set_flux_model(flux_model=abc_config.flux_models['A'],
+                    dflux_model=abc_config.dflux_models['A'])
 )
 
 # Build the unified model
-unified_model = UnifiedModel(name='unified model')
-unified_model.add_mechanical_model(mechanical_model)
-unified_model.add_electrical_model(electrical_model)
-unified_model.add_coupling_model(ConstantCoupling(c=1.0))
-unified_model.add_governing_equations(unified_ode)
-unified_model.add_post_processing_pipeline(clip_x2, name='clip tube velocity')
-
+unified_model = (
+    UnifiedModel()
+    .set_mechanical_model(mechanical_model)
+    .set_electrical_model(electrical_model)
+    .set_coupling_model(ConstantCoupling(c=1.0))
+    .set_governing_equations(unified_ode)
+    .set_post_processing_pipeline(clip_x2, name='clip tube velocity')
+)
 # Solve
 unified_model.solve(
     t_start=0,

@@ -64,11 +64,11 @@ electrical_model.set_flux_model(abc.flux_models['A'], abc.dflux_models['A'])
 coupling_model = ConstantCoupling(c=1.0)  # This will need to be found.
 
 unified_model = UnifiedModel(name='Unified Model')
-unified_model.add_mechanical_model(mechanical_model)
-unified_model.add_electrical_model(electrical_model)
-unified_model.add_coupling_model(coupling_model)
-unified_model.add_governing_equations(unified_ode)
-unified_model.add_post_processing_pipeline(clip_x2, name='clip tube velocity')
+unified_model.set_mechanical_model(mechanical_model)
+unified_model.set_electrical_model(electrical_model)
+unified_model.set_coupling_model(coupling_model)
+unified_model.set_governing_equations(unified_ode)
+unified_model.set_post_processing_pipeline(clip_x2, name='clip tube velocity')
 
 # Execute and collect results
 unified_model.solve(t_start=0,

@@ -16,8 +16,6 @@ class ElectricalModel:
 
     Attributes
     ----------
-    name : str
-        String identifier of the electrical model.
     flux_model : fun
         Function that returns the flux linkage of a coil when the position of a
         magnet assembly's bottom edge is passed to it.
@@ -36,17 +34,10 @@ class ElectricalModel:
 
     """
 
-    def __init__(self, name):
-        """Constructor
-
-        Parameters
-        ----------
-        name : str
-            String identifier of the electrical model.
-
-        """
-        self.name = name
+    def __init__(self):
+        """Constructor."""
         self.flux_model = None
+        self.dlux_model = None
         self.flux_gradient = None
         self.coil_resistance = np.inf
         self.rectification_drop = None
@@ -73,14 +64,17 @@ class ElectricalModel:
         """
         self.flux_model = flux_model
         self.dflux_model = dflux_model
+        return self
 
     def set_coil_resistance(self, R):
         """Set the resistance of the coil"""
         self.coil_resistance = R
+        return self
 
     def set_rectification_drop(self, v):
         """Set the open-circuit voltage drop due to rectification."""
         self.rectification_drop = v
+        return self
 
     def set_load_model(self, load_model):
         """Assign a load model
@@ -92,6 +86,7 @@ class ElectricalModel:
 
         """
         self.load_model = load_model
+        return self
 
     def get_emf(self, mag_pos, mag_vel):
         """Return the instantaneous emf produced by the electrical system.

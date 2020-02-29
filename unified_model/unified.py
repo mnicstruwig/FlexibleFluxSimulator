@@ -21,8 +21,6 @@ class UnifiedModel(object):
 
     Attributes
     ----------
-    name : str
-        Name of the unified model.
     mechanical_model : instance of `MechanicalModel`
         The mechanical model to use as part of the unified model.
     electrical_model : instance of `ElectricalModel`
@@ -45,17 +43,8 @@ class UnifiedModel(object):
         The time steps of the solution to the governing equations.
 
     """
-    def __init__(self, name):
-        """
-        Constructor
-
-        Parameters
-        ----------
-        name : str
-            Name of the unified model.
-
-        """
-        self.name = name
+    def __init__(self):
+        """Constructor."""
         self.mechanical_model = None
         self.electrical_model = None
         self.coupling_model = None
@@ -100,7 +89,7 @@ class UnifiedModel(object):
 
         return unified_model
 
-    def add_mechanical_model(self, mechanical_model):
+    def set_mechanical_model(self, mechanical_model):
         """Add a mechanical model to the unified model
 
         Parameters
@@ -112,8 +101,9 @@ class UnifiedModel(object):
 
         """
         self.mechanical_model = mechanical_model
+        return self
 
-    def add_electrical_model(self, electrical_model):
+    def set_electrical_model(self, electrical_model):
         """Add an electrical model to the unified model
 
         Parameters
@@ -125,8 +115,9 @@ class UnifiedModel(object):
 
         """
         self.electrical_model = electrical_model
+        return self
 
-    def add_coupling_model(self, coupling_model):
+    def set_coupling_model(self, coupling_model):
         """Add the electro-mechanical coupling to the unified model.
 
         Parameters
@@ -138,8 +129,9 @@ class UnifiedModel(object):
 
         """
         self.coupling_model = coupling_model
+        return self
 
-    def add_governing_equations(self, governing_equations):
+    def set_governing_equations(self, governing_equations):
         """Add a set of governing equations to the unified model.
 
         The governing equations describe the behaviour of the entire system,
@@ -165,8 +157,9 @@ class UnifiedModel(object):
 
         """
         self.governing_equations = governing_equations
+        return self
 
-    def add_post_processing_pipeline(self, pipeline, name):
+    def set_post_processing_pipeline(self, pipeline, name):
         """Add a post-processing pipeline to the unified model
 
         After solving the unified model, optional post-processing pipelines can
@@ -187,11 +180,12 @@ class UnifiedModel(object):
 
         See Also
         --------
-        self.add_governing_equations : function that adds the governing
+        self.set_governing_equations : function that adds the governing
             equations to the unified model.
 
         """
         self.post_processing_pipeline[name] = pipeline
+        return self
 
     def _apply_pipeline(self):
         """Execute the post-processing pipelines on the raw solution.."""
