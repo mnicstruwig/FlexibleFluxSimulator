@@ -81,16 +81,17 @@ class MagneticSpringInterp:
         self.fea_data_file = fea_data_file
         self.fea_dataframe = _preprocess(pd.read_csv(fea_data_file),
                                          filter_obj)
-        self._model = self._fit_model(**model_kwargs)
+        self._model = self._fit_model(self.fea_dataframe, **model_kwargs)
 
-    def _fit_model(self, **model_kwargs):
+    @staticmethod
+    def _fit_model(fea_dataframe, **model_kwargs):
         """Fit the 1d interpolation model."""
         # Set a few defaults
         model_kwargs.setdefault('fill_value', 0)
         model_kwargs.setdefault('bounds_error', False)
 
-        return interpolate.interp1d(self.fea_dataframe.z.values,
-                                    self.fea_dataframe.force.values,
+        return interpolate.interp1d(fea_dataframe.z.values,
+                                    fea_dataframe.force.values,
                                     **model_kwargs)
 
     def get_force(self, z):

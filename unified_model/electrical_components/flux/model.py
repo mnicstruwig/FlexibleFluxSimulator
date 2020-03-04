@@ -4,10 +4,13 @@ import warnings
 from unified_model.utils.utils import grad
 
 
+
+
 def _find_min_max_arg_gradient(arr):
     """Find the arguments that give the min/max gradient of `arr`."""
     grad_arr = np.gradient(arr)
     return np.argmin(grad_arr), np.argmax(grad_arr)
+
 
 
 def flux_interpolate(z_arr, phi_arr, coil_center, mm):
