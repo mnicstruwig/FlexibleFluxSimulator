@@ -44,8 +44,8 @@ mechanical_model = (
                                             damper_constant=0))
     .set_magnetic_spring(abc_config.spring)
     .set_magnet_assembly(MagnetAssembly(n_magnet=1,
-                                        h_magnet=10,
-                                        h_spacer=0,
+                                        l_m=10,
+                                        l_mcd=0,
                                         dia_magnet=10,
                                         dia_spacer=10))
     .set_damper(ConstantDamper(damping_coefficient=0.035))

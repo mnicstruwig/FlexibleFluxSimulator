@@ -15,8 +15,8 @@ def build_test_mechanical_system_model():
     test_spring = MagneticSpring(fea_data_file=TEST_MAGNET_SPRING_FEA_PATH,
                                  model='coulombs_modified')
     test_magnet_assembly = MagnetAssembly(n_magnet=2,
-                                          h_magnet=10,
-                                          h_spacer=5,
+                                          l_m=10,
+                                          l_mcd=5,
                                           dia_magnet=10,
                                           dia_spacer=10)
     test_damper = Damper(model='constant', model_kwargs={'damping_coefficient': 0.1})

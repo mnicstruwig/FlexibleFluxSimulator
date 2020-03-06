@@ -28,8 +28,8 @@ class MagnetAssembly:
     def __init__(
             self,
             n_magnet: int,
-            h_magnet: float,
-            h_spacer: float,
+            l_m: float,
+            l_mcd: float,
             dia_magnet: float,
             dia_spacer: float,
             mat_magnet='NdFeB',
@@ -41,10 +41,10 @@ class MagnetAssembly:
         ----------
         n_magnet : int
             Number of magnets.
-        h_magnet : float
+        l_m : float
             Height of the magnets in mm.
-        h_spacer : float
-            Height of spacer in mm.
+        l_mcd : float
+            Distance between the centers of each magnet, in mm.
         dia_magnet: float
             Diameter of magnets in mm.
         dia_spacer : float
@@ -56,8 +56,8 @@ class MagnetAssembly:
 
         """
         self.n_magnet = n_magnet
-        self.h_magnet = h_magnet
-        self.h_spacer = h_spacer
+        self.l_m = l_m
+        self.l_mcd = l_mcd
         self.dia_magnet = dia_magnet
         self.dia_spacer = dia_spacer
         self.weight = None
@@ -67,10 +67,21 @@ class MagnetAssembly:
         self.weight = self._calculate_weight()
         self.surface_area = self._calculate_contact_surface_area()
 
+    def __repr__(self):
+        to_print_dict = {
+            'n_magnet': self.n_magnet,
+            'l_m': self.l_m,
+            'l_mcd': self.l_mcd,
+            'dia_magnet': self.dia_magnet,
+            'dia_spacer': self.dia_spacer
+        }
+        to_print = ', '.join([f'{k}: {v}' for k, v in to_print_dict.items()])
+        return f'MagnetAssembly({to_print})'
+
     def _calculate_weight(self):
         """Calculate the weight of the magnet assembly."""
-        volume_magnet = calc_volume_cylinder(self.dia_magnet, self.h_magnet)
-        volume_spacer = calc_volume_cylinder(self.dia_spacer, self.h_spacer)
+        volume_magnet = calc_volume_cylinder(self.dia_magnet, self.l_m)
+        volume_spacer = calc_volume_cylinder(self.dia_spacer, self.l_mcd)
 
         weight_magnet = volume_magnet * self.density_magnet * 9.81
         weight_spacer = volume_spacer * self.density_spacer * 9.81
@@ -84,10 +95,10 @@ class MagnetAssembly:
     def _calculate_contact_surface_area(self):
         """Calculate the contact surface area of the magnet assembly."""
         surface_area_magnet = calc_contact_surface_area_cylinder(
-            self.dia_magnet, self.h_magnet
+            self.dia_magnet, self.l_m
         )
         surface_area_spacer = calc_contact_surface_area_cylinder(
-            self.dia_spacer, self.h_spacer
+            self.dia_spacer, self.l_mcd
         )
 
         return (
@@ -113,6 +124,6 @@ class MagnetAssembly:
         """Get the height of the magnet assembly in m."""
         return (
             self.n_magnet
-            * self.h_magnet
-            + (self.n_magnet - 1) * self.h_spacer / 1000
+            * self.l_m
+            + (self.n_magnet - 1) * self.l_mcd / 1000
     )

@@ -13,12 +13,12 @@ class TestMagnetAssembly(unittest.TestCase):
         Set-up of tests
         """
         n_magnet = 2
-        h_magnet = 10
-        h_spacer = 5
+        l_m = 10
+        l_mcd = 5
         dia_magnet = 5
         dia_spacer = 5
 
-        self.test_magnet_assembly = MagnetAssembly(n_magnet, h_magnet, h_spacer, dia_magnet, dia_spacer)
+        self.test_magnet_assembly = MagnetAssembly(n_magnet, l_m, l_mcd, dia_magnet, dia_spacer)
 
     def test_calculate_weight(self):
         """

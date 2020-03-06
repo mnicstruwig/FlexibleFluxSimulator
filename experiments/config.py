@@ -47,8 +47,8 @@ abc_coil_height = {'A': '0.008meter',
                    'C': '0.014meter'}
 
 abc_magnet_assembly = MagnetAssembly(n_magnet=1,
-                                     h_magnet=10,
-                                     h_spacer=0,
+                                     l_m=10,
+                                     l_mcd=0,
                                      dia_magnet=10,
                                      dia_spacer=10,
                                      mat_magnet='NdFeB',
