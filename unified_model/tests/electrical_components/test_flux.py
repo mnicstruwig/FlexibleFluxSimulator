@@ -8,6 +8,7 @@ def generate_fake_flux_curve(z_arr, p_c=0):
     """Generate a fake flux curve"""
     return np.array([1 - np.tanh(z - p_c)**2 for z in z_arr])
 
+
 def make_reference_flux_curve(z_arr, c, m, c_c, l_ccd, l_mcd):
     """Make a reference multi-coil, multi-magnet flux curve.
 
@@ -21,6 +22,7 @@ def make_reference_flux_curve(z_arr, c, m, c_c, l_ccd, l_mcd):
             phi_list.append(phi)
 
     return np.sum(phi_list, axis=0)
+
 
 class TestInterpFluxModel:
     """Test the InterpFluxModel class."""

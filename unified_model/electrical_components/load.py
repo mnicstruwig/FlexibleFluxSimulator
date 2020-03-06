@@ -15,8 +15,7 @@ class SimpleLoad:
 
     def __repr__(self):
         # Couldn't discover a nicer way to do this
-        class_path = str(self.__class__).split("'")[1]
-        return '{}(R={})'.format(class_path, self.R)
+        return f'SimpleLoad(R={self.R})'
 
     def get_current(self, emf, coil_resistance):
         """Get the current through the load."""
