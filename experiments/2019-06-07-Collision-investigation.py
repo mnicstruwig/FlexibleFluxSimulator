@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import warnings
 
 from scipy.integrate import solve_ivp
-from unified_model.mechanical_components.spring.mechanical_spring import MechanicalSpring
+from unified_model.mechanical_components.mechanical_spring import MechanicalSpring
 
 def elastic_spring(x, push_direction='up', pos=0, strength=1000, sharpness=0.01):
     if push_direction is 'down':

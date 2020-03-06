@@ -2,7 +2,7 @@ import unittest
 
 # Local imports
 from unified_model.mechanical_model import MechanicalModel
-from unified_model.mechanical_components.spring.magnetic_spring import MagneticSpring
+from unified_model.mechanical_components.magnetic_spring import MagneticSpring
 
 # Local test helpers
 from unified_model.tests.mechanical_components.test_data.test_data import TEST_MAGNET_SPRING_FEA_PATH, TEST_RAW_OUTPUT, TEST_TIME_STEPS

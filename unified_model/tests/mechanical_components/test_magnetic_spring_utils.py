@@ -3,7 +3,7 @@ import pandas as pd
 from pandas.testing import assert_frame_equal
 import os
 # Local imports
-from unified_model.mechanical_components.spring.utils import get_model_function, read_raw_file
+from unified_model.mechanical_components.utils import get_model_function, read_raw_file
 from unified_model.tests.mechanical_components.test_data.test_data import TEST_RAW_CSV_FILE_PATH
 
 

@@ -8,7 +8,7 @@ from scipy.signal import savgol_filter
 from collections import namedtuple
 from unified_model.electrical_components.flux.utils import FluxDatabase
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_components.spring.magnetic_spring import MagneticSpringInterp
+from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
 
 base_dir = os.getcwd()
 
@@ -54,7 +54,7 @@ abc_magnet_assembly = MagnetAssembly(n_magnet=1,
                                      mat_magnet='NdFeB',
                                      mat_spacer='iron')
 
-abc_spring_fea_data_path = os.path.join(base_dir, '../unified_model/mechanical_components/spring/data/10x10alt.csv')
+abc_spring_fea_data_path = os.path.join(base_dir, './data/magnetic-spring/10x10alt.csv')
 abc_spring = MagneticSpringInterp(fea_data_file=abc_spring_fea_data_path,
                                   filter_obj=lambda x: savgol_filter(x, 27, 5))
 

@@ -5,7 +5,7 @@ import pandas as pd
 from pandas.testing import assert_frame_equal
 from scipy.interpolate import interp1d
 
-from unified_model.mechanical_components.spring import magnetic_spring
+from unified_model.mechanical_components import magnetic_spring
 
 class TestMagnetSpringPrivateMethods:
     '''Test the private methods of the magnetic_spring module'''

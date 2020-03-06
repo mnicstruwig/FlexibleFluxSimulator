@@ -15,7 +15,7 @@ from unified_model.mechanical_model import MechanicalModel
 from unified_model.mechanical_components.damper import Damper
 from unified_model.mechanical_components.input_excitation.accelerometer import AccelerometerInput
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_components.spring.magnetic_spring import \
+from unified_model.mechanical_components.magnetic_spring import \
     MagneticSpring
 from unified_model.unified import UnifiedModel
 from unified_model.evaluate import ElectricalSystemEvaluator, MechanicalSystemEvaluator, LabeledVideoProcessor, AdcProcessor
