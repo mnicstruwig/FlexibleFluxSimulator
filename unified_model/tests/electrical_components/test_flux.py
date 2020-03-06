@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.testing import assert_almost_equal
 
-from unified_model.electrical_components.flux.model import InterpFluxModel
+from unified_model.electrical_components.flux.model import FluxModelInterp
 
 
 def generate_fake_flux_curve(z_arr, p_c=0):
@@ -25,7 +25,7 @@ def make_reference_flux_curve(z_arr, c, m, c_c, l_ccd, l_mcd):
 
 
 class TestInterpFluxModel:
-    """Test the InterpFluxModel class."""
+    """Test the FluxModelInterp class."""
 
     def test_1c_1m_flux(self):
         """Test the 1 coil, 1 magnet flux case for an interpolation model"""
@@ -35,7 +35,7 @@ class TestInterpFluxModel:
         test_z_arr = np.linspace(-10, 10, 100)
         test_phi_values = generate_fake_flux_curve(test_z_arr)
 
-        test_flux_model = InterpFluxModel(
+        test_flux_model = FluxModelInterp(
             c=test_c,
             m=test_m,
             c_c=test_c_c
@@ -55,7 +55,7 @@ class TestInterpFluxModel:
         test_z_arr = np.linspace(-10, 10, 200)
         test_phi_values = generate_fake_flux_curve(test_z_arr)
 
-        test_flux_model = InterpFluxModel(
+        test_flux_model = FluxModelInterp(
             c=test_c,
             m=test_m,
             c_c=test_c_c
@@ -76,7 +76,7 @@ class TestInterpFluxModel:
         test_z_arr = np.linspace(-10, 10, 100)
         test_phi_values = generate_fake_flux_curve(test_z_arr)
 
-        test_flux_model = InterpFluxModel(
+        test_flux_model = FluxModelInterp(
             c=test_c,
             m=test_m,
             c_c=test_c_c,
@@ -103,7 +103,7 @@ class TestInterpFluxModel:
         test_z_arr = np.linspace(-10, 10, 200)
         test_phi_values = generate_fake_flux_curve(test_z_arr)
 
-        test_flux_model = InterpFluxModel(
+        test_flux_model = FluxModelInterp(
             c=test_c,
             m=test_m,
             c_c=test_c_c,
@@ -131,7 +131,7 @@ class TestInterpFluxModel:
         test_z_arr = np.linspace(-10, 10, 100)
         test_phi_values = generate_fake_flux_curve(test_z_arr)
 
-        test_flux_model = InterpFluxModel(
+        test_flux_model = FluxModelInterp(
             c=test_c,
             m=test_m,
             c_c=test_c_c,
@@ -156,7 +156,7 @@ class TestInterpFluxModel:
         test_z_arr = np.linspace(-10, 10, 200)
         test_phi_values = generate_fake_flux_curve(test_z_arr)
 
-        test_flux_model = InterpFluxModel(
+        test_flux_model = FluxModelInterp(
             c=test_c,
             m=test_m,
             c_c=test_c_c,
@@ -185,7 +185,7 @@ class TestInterpFluxModel:
         test_z_arr = np.linspace(-10, 10, 100)
         test_phi_values = generate_fake_flux_curve(test_z_arr)
 
-        test_flux_model = InterpFluxModel(
+        test_flux_model = FluxModelInterp(
             c=test_c,
             m=test_m,
             c_c=test_c_c,
@@ -217,7 +217,7 @@ class TestInterpFluxModel:
         test_z_arr = np.linspace(-10, 10, 100)
         test_phi_values = generate_fake_flux_curve(test_z_arr)
 
-        test_flux_model = InterpFluxModel(
+        test_flux_model = FluxModelInterp(
             c=test_c,
             m=test_m,
             c_c=test_c_c,

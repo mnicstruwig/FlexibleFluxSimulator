@@ -11,7 +11,7 @@ class SimpleLoad:
         self.R = R
 
     def __str__(self):
-        return 'SimpleLoad: {} Ohms'.format(self.R)
+        return f'SimpleLoad: {self.R} Ohms'
 
     def __repr__(self):
         # Couldn't discover a nicer way to do this

@@ -8,8 +8,6 @@ class MechanicalModel:
 
     Attributes
     ----------
-    name : str
-        String identifier of the mechanical model.
     magnetic_spring : obj
         The magnetic spring model that is attached to the magnet assembly
         and the tube.
@@ -27,16 +25,8 @@ class MechanicalModel:
 
     """
 
-    def __init__(self, name):
-        """Constructor
-
-        Parameters
-        ----------
-        name : str
-            String identifier of the mechanical model.
-
-        """
-        self.name = name
+    def __init__(self):
+        """Constructor"""
         self.magnetic_spring = None
         self.mechanical_spring = None
         self.magnet_assembly = None

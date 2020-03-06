@@ -19,9 +19,8 @@ class ElectricalModel:
     flux_model : fun
         Function that returns the flux linkage of a coil when the position of a
         magnet assembly's bottom edge is passed to it.
-    flux_gradient : fun
-        The gradient of `flux_model` if the `precompute_gradient` argument is
-        set to True when using the `set_flux_model` method. Otherwise, None.
+    dflux_model : fun
+        The gradient of `flux_model`.
     coil_resistance : float
         The resistance of the coil in Ohms.
         Default value is `np.inf`, which is equivalent to an open-circuit
@@ -37,16 +36,14 @@ class ElectricalModel:
     def __init__(self):
         """Constructor."""
         self.flux_model = None
-        self.dlux_model = None
-        self.flux_gradient = None
+        self.dflux_model = None
         self.coil_resistance = np.inf
         self.rectification_drop = None
         self.load_model = None
-        self.precompute_gradient = False
 
     def __str__(self):
         """Return string representation of the ElectricalModel"""
-        return "Electrical Model:\n" + pretty_str(self.__dict__)
+        return f"""Electrical Model: {pretty_str(self.__dict__, 1)}"""
 
     def set_flux_model(self, flux_model, dflux_model):
         """Assign a flux model.
@@ -56,7 +53,7 @@ class ElectricalModel:
         flux_model : function
             Function that returns the flux linkage of a coil when the position
             of a magnet assembly's bottom edge is passed to it.
-        flux_model : function
+        dflux_model : function
             Function that returns the derivative of the flux linkage of a coil
             (relative to `z` i.e. the position of a magnet assembly's bottom
             edge) when the position of a magnet assembly's bottom edge is passed to it.

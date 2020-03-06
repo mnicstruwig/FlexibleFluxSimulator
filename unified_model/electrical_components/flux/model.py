@@ -5,16 +5,41 @@ from functools import reduce
 from unified_model.utils.utils import grad
 
 
-class InterpFluxModel:
+# TODO: Document this class
+class FluxModelInterp:
     def __init__(self, c, m, c_c, l_ccd=0, l_mcd=0):
         self.c = c
         self.m = m
         self.c_c = c_c
         self.l_ccd = l_ccd
         self.l_mcd = l_mcd
+        self.flux_model = None
+        self.dflux_model = None
+
+        self._validate()
+
+    def _validate(self):
+        """Do some internal validation of the parameters"""
+        if self.l_ccd < 0:
+            raise ValueError('l_ccd must be > 0')
+        if self.l_mcd < 0:
+            raise ValueError('l_mcd must be > 0')
+
+        if self.l_ccd != self.l_mcd and (self.l_ccd != 0 or self.l_mcd != 0):
+            warnings.warn('l_ccd != l_mcd, this is unusual.', RuntimeWarning)
+
+        if self.l_ccd == 0 and self.c > 1:
+            raise ValueError('l_ccd = 0, but c > 1')
+
+        if self.l_mcd == 0 and self.m > 1:
+            raise ValueError('l_mcd = 0, but m > 1')
+
+    def __repr__(self):
+        to_print = ', '.join([f'{k}={v}' for k, v in self.__dict__.items()])
+        return f'FluxModelInterp({to_print})'
 
     def fit(self, z_arr, phi_arr):
-        self._flux_model, self._dflux_model = self._make_superposition_curve(
+        self.flux_model, self.dflux_model = self._make_superposition_curve(
             z_arr,
             phi_arr
         )
@@ -74,10 +99,10 @@ class InterpFluxModel:
         return phi_super_interpolator, dphi_super_interpolator
 
     def flux(self, z):
-        return self._model(z)
+        return self.flux_model(z)
 
     def dflux(self, z):
-        raise NotImplementedError()
+        return self.dflux_model(z)
 
 
 def _find_min_max_arg_gradient(arr):

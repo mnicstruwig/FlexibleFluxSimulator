@@ -75,7 +75,7 @@ class MagnetAssembly:
             'dia_magnet': self.dia_magnet,
             'dia_spacer': self.dia_spacer
         }
-        to_print = ', '.join([f'{k}: {v}' for k, v in to_print_dict.items()])
+        to_print = ', '.join([f'{k}={v}' for k, v in to_print_dict.items()])
         return f'MagnetAssembly({to_print})'
 
     def _calculate_weight(self):
