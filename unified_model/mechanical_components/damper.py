@@ -28,22 +28,37 @@ class DamperSurfaceArea(object):
 
 
 class ConstantDamper(object):
-    """
-    A constant damping coefficient damper
+    """A constant-damping-coefficient damper.
+
+    The force will be equal to the damping coefficient multiplied by a
+    velocity, i.e. F = c * v.
+
     """
 
     def __init__(self, damping_coefficient):
-        """
-        Constructor
-        :param damping_coefficient: The constant damping-coefficient of the damper
+        """Constructor
+
+        Parameters
+        ----------
+        damping_coefficient : float
+            The constant-damping-coefficient of the damper.
+
         """
         self.damping_coefficient = damping_coefficient
 
     def get_force(self, velocity):
-        """
-        Return the force exerted by the damper
-        :param velocity: Velocity of the object attached to the damper in m/s
-        :return: The force exerted by the damper in Newtons.
+        """Get the force exerted by the damper.
+
+        Parameters
+        ----------
+        velocity : float
+            Velocity of the object attached to the damper. In m/s.
+
+        Returns
+        -------
+        float
+            The force exerted by the damper. In Newtons.
+
         """
         return self.damping_coefficient * velocity
 
