@@ -7,7 +7,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_v
 from unified_model.metrics import *
 from unified_model.evaluate import AdcProcessor, LabeledVideoProcessor
 from unified_model.unified import UnifiedModel
-from unified_model.coupling import ConstantCoupling
+from unified_model.coupling import CouplingModel
 from unified_model.electrical_model import ElectricalModel
 from unified_model.electrical_components.load import SimpleLoad
 from unified_model.mechanical_model import MechanicalModel
@@ -61,7 +61,7 @@ electrical_model.set_coil_resistance(abc.coil_resistance['A'])  # Guessing this 
 electrical_model.set_load_model(SimpleLoad(R=30))  # Make sure this is correct!
 electrical_model.set_flux_model(abc.flux_models['A'], abc.dflux_models['A'])
 
-coupling_model = ConstantCoupling(c=1.0)  # This will need to be found.
+coupling_model = CouplingModel().set_coupling_constant(1.0)  # This will need to be found.
 
 unified_model = UnifiedModel(name='Unified Model')
 unified_model.set_mechanical_model(mechanical_model)

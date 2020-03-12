@@ -8,7 +8,7 @@ from scipy import signal
 from tqdm import tqdm
 
 from config import abc
-from unified_model.coupling import ConstantCoupling
+from unified_model.coupling import CouplingModel
 from unified_model.evaluate import AdcProcessor, LabeledVideoProcessor
 from unified_model.mechanical_components.damper import ConstantDamper
 from unified_model.mechanical_components.input_excitation.accelerometer import \
@@ -110,7 +110,7 @@ func_dict = {
     'mechanical_model.input_': lambda x: accelerometer_inputs[x],
     'mechanical_model.damper': ConstantDamper,
     'mechanical_model.mechanical_spring': make_mechanical_spring,
-    'coupling_model': ConstantCoupling,
+    'coupling_model': lambda x: CouplingModel().set_coupling_constant(x),
     'electrical_model.rectification_drop': lambda x: x,
     'electrical_model.flux_model': lambda x: abc.flux_models[x],
     'electrical_model.dflux_model': lambda x: abc.dflux_models[x],

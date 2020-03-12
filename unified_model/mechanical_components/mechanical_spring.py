@@ -5,6 +5,7 @@ import numpy as np
 
 class MechanicalSpring(object):
     """Mechanical, non-attached, spring."""
+
     def __init__(self,
                  position: float,
                  strength: float = 1e6,
@@ -28,6 +29,8 @@ class MechanicalSpring(object):
         self.k = strength
         self.c = damper_constant
 
+    def __repr__(self):
+        return f'MechanicalSpring(position={self.position}, strength={self.k}, damper_constant={self.c})'
     def _heaviside_step_function(self, x, boundary):
         """Compute the output of a Heaviside step function"""
         return 0.5 * (np.sign(x - boundary) + 1)

@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 import warnings
 
-from unified_model.coupling import ConstantCoupling
+from unified_model.coupling import CouplingModel
 from unified_model.electrical_model import ElectricalModel
 from unified_model.electrical_components.flux.utils import FluxDatabase
 from unified_model.electrical_components.load import SimpleLoad
@@ -83,7 +83,7 @@ electrical_model = ElectricalModel(name='elec_system')
 electrical_model.set_load_model(load_model)
 
 # COUPLING MODEL
-coupling_model = ConstantCoupling(c=0)
+coupling_model = CouplingModel().set_coupling_constant(c=0)
 
 # SYSTEM MODEL
 governing_equations = unified_ode

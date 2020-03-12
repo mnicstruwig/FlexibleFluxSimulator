@@ -8,7 +8,7 @@ from collections import OrderedDict
 from pandas.testing import assert_frame_equal
 
 from unified_model.unified import UnifiedModel
-from unified_model.coupling import ConstantCoupling
+from unified_model.coupling import CouplingModel
 from unified_model.mechanical_model import MechanicalModel
 from unified_model.electrical_model import ElectricalModel
 
@@ -91,7 +91,7 @@ class TestUnifiedModel(unittest.TestCase):
 
         test_mechanical_model = mock(MechanicalModel)
         test_electrical_model = mock(ElectricalModel)
-        test_coupling_model = mock(ConstantCoupling)
+        test_coupling_model = mock(CouplingModel)
         test_governing_equations = TestGoverningEquations()
 
         test_unified_model = UnifiedModel(name='test_unified_model')

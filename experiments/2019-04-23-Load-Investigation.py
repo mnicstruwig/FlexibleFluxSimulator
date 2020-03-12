@@ -1,7 +1,7 @@
 
 import warnings
 
-from unified_model.coupling import ConstantCoupling
+from unified_model.coupling import CouplingModel
 from unified_model.electrical_model import ElectricalModel
 from unified_model.electrical_components.flux.utils import FluxDatabase
 from unified_model.electrical_components.load import SimpleLoad
@@ -89,7 +89,7 @@ flux_models = get_flux_models_from_db(flux_database,
                                       coil_height=['0.008meter', '0.012meter', '0.014meter'])
 
 # COUPLING MODEL
-coupling_model = ConstantCoupling(c=0.5)
+coupling_model = CouplingModel().set_coupling_model(c=0.5)
 
 
 def _build_quick_unified_model(accelerometer_input,
@@ -137,7 +137,7 @@ unified_model_l = _build_quick_unified_model(accelerometer,
 unified_model_nl = _build_quick_unified_model(accelerometer,
                                               flux_model,
                                               load_model,
-                                              ConstantCoupling(c=0),
+                                              CouplingModel().set_coupling_constant(c=0),
                                               governing_equations=unified_ode)
 # Solve
 initial_conditions = [0, 0, 0.04, 0, 0]

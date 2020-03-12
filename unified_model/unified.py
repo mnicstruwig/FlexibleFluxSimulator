@@ -238,12 +238,12 @@ class UnifiedModel(object):
         """Get a dataframe of the results using expressions.
 
         *Any* reasonable expression is possible. You can refer to each of the
-        differential equations that represented by the mechanical system model
+        differential equations that is represented by the governing equations
         using the letter 'x' with the number appended. For example `x1` refers
         to the first differential equation, `x2` to the second, etc.
 
         Each expression is available as a column in the returned pandas
-        dataframe, with the column name being the key of the kwarg used.
+        dataframe, with the column name being the key of the passed expression.
 
         Parameters
         ----------
@@ -263,7 +263,7 @@ class UnifiedModel(object):
 
         Example
         --------
-        Here we use previously-built and solved unified model
+        >>> # Here we use previously-built and solved unified model
         >>> unified_model
         <unified_model.unified.UnifiedModel at 0x7fa9e45a83c8>
         >>> print(unified_model.raw_solution)

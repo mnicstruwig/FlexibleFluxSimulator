@@ -6,7 +6,7 @@ from config import abc_config
 from unified_model.unified import UnifiedModel
 from unified_model.mechanical_model import MechanicalModel
 from unified_model.electrical_model import ElectricalModel
-from unified_model.coupling import ConstantCoupling
+from unified_model.coupling import CouplingModel
 from unified_model.mechanical_components.damper import ConstantDamper
 from unified_model.mechanical_components.mechanical_spring import MechanicalSpring
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
@@ -67,7 +67,7 @@ unified_model = (
     UnifiedModel()
     .set_mechanical_model(mechanical_model)
     .set_electrical_model(electrical_model)
-    .set_coupling_model(ConstantCoupling(c=1.0))
+    .set_coupling_model(CouplingModel().set_coupling_constant(c=1.0))
     .set_governing_equations(unified_ode)
     .set_post_processing_pipeline(clip_x2, name='clip tube velocity')
 )
