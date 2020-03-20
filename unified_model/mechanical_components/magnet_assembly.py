@@ -23,19 +23,6 @@ def _get_material_density(material_dict, material_key):
 class MagnetAssembly:
     """
     The magnet assembly class
-    """
-
-    def __init__(
-            self,
-            n_magnet: int,
-            l_m: float,
-            l_mcd: float,
-            dia_magnet: float,
-            dia_spacer: float,
-            mat_magnet='NdFeB',
-            mat_spacer='iron'):
-        """
-        Constructor.
 
         Parameters
         ----------
@@ -50,11 +37,23 @@ class MagnetAssembly:
         dia_spacer : float
             Diameter of spacer in mm
         mat_magnet : str
-            Magnet material key.
+            Magnet material key. Optional.
         mat_spacer: str
-            Spacer material key.
+            Spacer material key. Optional.
 
-        """
+    """
+
+    def __init__(
+            self,
+            n_magnet: int,
+            l_m: float,
+            l_mcd: float,
+            dia_magnet: float,
+            dia_spacer: float,
+            mat_magnet='NdFeB',
+            mat_spacer='iron'):
+        """Constructor"""
+
         self.n_magnet = n_magnet
         self.l_m = l_m
         self.l_mcd = l_mcd

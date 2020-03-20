@@ -5,7 +5,7 @@ from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 
 class TestMagnetAssembly(unittest.TestCase):
     """
-    Tests the `MagnetAssembly` class functions
+    Test the `MagnetAssembly` class
     """
 
     def setUp(self):
@@ -36,7 +36,8 @@ class TestMagnetAssembly(unittest.TestCase):
         """
         Tests if the mass is correctly calculated and returned
         """
-        self.assertAlmostEqual(self.test_magnet_assembly.get_mass(), self.test_magnet_assembly.weight / 9.81)
+        self.assertAlmostEqual(self.test_magnet_assembly.get_mass(),
+                               self.test_magnet_assembly.weight / 9.81)
 
     def test_get_weight(self):
         """

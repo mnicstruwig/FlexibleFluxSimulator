@@ -25,7 +25,7 @@ class FluxModelInterp:
         if self.l_mcd < 0:
             raise ValueError('l_mcd must be > 0')
 
-        if self.l_ccd != self.l_mcd and (self.l_ccd != 0 or self.l_mcd != 0):
+        if self.l_ccd != self.l_mcd and (self.l_ccd != 0 or self.l_mcd != 0) and m != 1:
             warnings.warn('l_ccd != l_mcd, this is unusual.', RuntimeWarning)
 
         if self.l_ccd == 0 and self.c > 1:
@@ -52,7 +52,7 @@ class FluxModelInterp:
 
         flux_interp_list = []
         dflux_interp_list = []
-        for i in range(self.c):
+        for i in range(self.c):  # For each coil
             for j in range(self.m):  # For each magnet
                 # Generate the interpolator for the individualized curve
                 flux_interp, dflux_interp = flux_interpolate(

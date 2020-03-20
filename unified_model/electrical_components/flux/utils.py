@@ -152,7 +152,10 @@ class FluxDatabase(object):
         db_key = self._make_db_key(**key_dict)
         self.database[db_key] = value
 
-    def query_to_model(self, flux_model_type, coil_center, mm, **kwargs):
+    def query_to_model(self,
+                       model_cls,
+                       model_kwargs,
+                       **kwargs):
         """Query the database and return a flux model.
 
         This is intended to be a convenience function. It works identically
@@ -161,46 +164,32 @@ class FluxDatabase(object):
 
         Parameters
         ----------
-        flux_model_type : str
-            Name of the flux model type to use.
-            'interp' : an interpolation model.
-            'unispline' : a univariate spline interpolation model.
-        coil_center : float
-            The position (in metres) of the center of the coil of the
-            microgenerator, relative to the *top* of the fixed magnet.
-        mm : float
-            The total height of the magnet assembly (in m).
+        model_cls : cls
+            The model class.
+        model_kwargs: dict
+            The kwargs to pass to the constructor of the model class.
         **kwargs
             Keyword argument passed to the `query` method.
 
         Returns
         -------
-        flux model object
-            The interpolator object that can be called with `z` values to
-            return the flux linkage.
+        flux_model: obj
+            A flux model object that can be called with `z` values to
+            return the flux linkage at that position z.
+        dflux_model: obj
+            A dflux model object that can be called with 'z' values to return
+            the derivative of the flux linkage at position z (with respect to
+            z, *not* time).
 
         See Also
         --------
         self.query : underlying method.
 
         """
-
-        def _get_flux_model(flux_model_str):
-            model_dict = {'interp': flux_interpolate,
-                          'unispline': flux_univariate_spline}
-            return fetch_key_from_dictionary(model_dict,
-                                             flux_model_str,
-                                             'flux model not found.')
-
-        model_cls = _get_flux_model(flux_model_type)
-
         phi = self.query(**kwargs)
-        flux_model, dflux_model = model_cls(self.z,
-                                            phi,
-                                            coil_center,
-                                            mm=mm)
-
-        return flux_model, dflux_model
+        model = model_cls(**model_kwargs)
+        model.fit(self.z, phi)
+        return model.flux_model, model.dflux_model
 
     def query(self, **kwargs):
         """Query the database

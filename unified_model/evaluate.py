@@ -88,7 +88,7 @@ class AdcProcessor:
         voltage_readings = groundtruth_dataframe[voltage_col].values
 
         if self.smooth:
-            critical_frequency = self.smooth_kwargs.pop('critical_frequency', 1/5)
+            critical_frequency = self.smooth_kwargs.get('critical_frequency', 1/5)
             self.critical_frequency = critical_frequency
             voltage_readings = smooth_butterworth(voltage_readings,
                                                   critical_frequency)
@@ -102,6 +102,21 @@ class AdcProcessor:
 # TODO: Write tests
 class ElectricalSystemEvaluator:
     """Evaluate the accuracy of an electrical system model's output.
+
+    Parameters
+    ----------
+    emf_target : ndarray
+        The target EMF values that will serve as the groundtruth.
+    time_target : ndarray
+        The corresponding timestamps of `emf_target` that will serve
+        as the groundtruth.
+    warp : bool
+        Set to True to score after dynamically time-warping the target and
+        prediction signals. Default value is False.
+    clip_threshold : float
+        If greater than 0., clip the leading and trailing emf target
+        samples that don't include signal information by taking a
+        spectrogram. Default value is 1e-4.
 
     Attributes
     ----------
@@ -125,6 +140,20 @@ class ElectricalSystemEvaluator:
         `emf_predict_`. This attribute is used for producing the final plot
         using the `poof` method.
 
+    Additional Notes
+    ----------------
+    The `clip` argument is important, since comparing aggregate scores of
+    the prediction and target signals (say, for example, the RMS) will
+    yield inaccurate results if one of the signals contains a lot of noise
+    (usually this is the `target` signal).
+
+    Thus, if the target signal is significantly longer than the prediction
+    signal, and contains noise, the aggregate value will be substantially
+    elevated due to all the additional noise.
+
+    Just be careful not to set the value too high, which will result in
+    clipping of the *actual* signal.
+
     """
 
     def __init__(self,
@@ -134,34 +163,6 @@ class ElectricalSystemEvaluator:
                  clip_threshold=1e-4):
         """Constructor.
 
-        Parameters
-        ----------
-        emf_target : ndarray
-            The target EMF values that will serve as the groundtruth.
-        time_target : ndarray
-            The corresponding timestamps of `emf_target` that will serve
-            as the groundtruth.
-        warp : bool
-            Set to True to score after dynamically time-warping the target and
-            prediction signals. Default value is False.
-        clip_threshold : float
-            If greater than 0., clip the leading and trailing emf target
-            samples that don't include signal information by taking a
-            spectrogram. Default value is 1e-4.
-
-        Additional Notes
-        ----------------
-        The `clip` argument is important, since comparing aggregate scores of
-        the prediction and target signals (say, for example, the RMS) will
-        yield inaccurate results if one of the signals contains a lot of noise
-        (usually this is the `target` signal).
-
-        Thus, if the target signal is significantly longer than the prediction
-        signal, and contains noise, the aggregate value will be substantially
-        elevated due to all the additional noise.
-
-        Just be careful not to set the value too high, which will result in
-        clipping of the *actual* signal.
 
         """
 
@@ -579,7 +580,7 @@ def impute_missing(df_missing, indexes):
     return df_missing
 
 
-class MechanicalSystemEvaluator(object):
+class MechanicalSystemEvaluator:
     """Evaluate the accuracy of a mechanical system model's output
 
     Attributes

@@ -9,6 +9,7 @@ from collections import namedtuple
 from unified_model.electrical_components.flux.utils import FluxDatabase
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
+from unified_model.electrical_components.flux.model import FluxModelInterp
 
 base_dir = os.getcwd()
 
@@ -63,12 +64,19 @@ abc_flux_database = FluxDatabase(csv_database_path='./data/fea-flux-curves/fea-f
 abc_flux_models = {}
 abc_dflux_models = {}
 for device in ['A', 'B', 'C']:
-    flux_model, dflux_model = abc_flux_database.query_to_model(flux_model_type='interp',
-                                                               coil_center=abc_coil_center[device],
-                                                               mm=10/1000,
-                                                               winding_num_z=abc_winding_num_z[device],
-                                                               winding_num_r=abc_winding_num_r[device],
-                                                               coil_height=abc_coil_height[device])
+    flux_model, dflux_model = abc_flux_database.query_to_model(
+        FluxModelInterp,
+        {
+            'c': 1,
+            'm': 1,
+            'c_c': abc_coil_center[device],
+            'l_ccd': 0,
+            'l_mcd': 0
+        },
+        coil_height=abc_coil_height[device],
+        winding_num_z=abc_winding_num_z[device],
+        winding_num_r=abc_winding_num_r[device]
+    )
 
     abc_flux_models[device] = flux_model
     abc_dflux_models[device] = dflux_model

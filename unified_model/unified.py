@@ -289,13 +289,21 @@ class UnifiedModel(object):
                                **kwargs):
         """Evaluate the mechanical model using a selection of metrics.
 
-        This is simply a useful helper function that makes use of the various
+        This is a useful helper function that makes use of the various
         evaluation tools that are present to allow for a neat and easier-to-use
         manner of evaluating the mechanical model component of the unified
         model.
 
         Parameters
         ----------
+        time_target : array
+            Manually specify the corresponding target time values. Specifying
+            `y_target` will  take precedence over the labels processed from
+            `labeled_video_processor` and `video_labels_df`.
+        y_target : array
+            Manually specify the target values. Specifying `y_target` will
+            take precedence over the labels processed from
+            `labeled_video_processor` and `video_labels_df`.
         metrics_dict: dict
             Metrics to compute on the predicted and target mechanical data.
             Keys must be the name of the metric returned in the Results object.
@@ -311,14 +319,6 @@ class UnifiedModel(object):
             `x2` refers to the second differential equation. Some additional
             functions can also be applied to the differential equations. These
             are referenced in the "See Also" section below.
-        y_target : array
-            Manually specify the target values. Specifying `y_target` will
-            take precedence over the labels processed from
-            `labeled_video_processor` and `video_labels_df`.
-        time_target : array
-            Manually specify the corresponding target time values. Specifying
-            `y_target` will  take precedence over the labels processed from
-            `labeled_video_processor` and `video_labels_df`.
         warp : bool, optional
             Score using after dynamically time-warping the prediction and
             target signals.
@@ -462,13 +462,13 @@ class UnifiedModel(object):
         emf_predict = df_result['prediction'].values
         time_predict = df_result['time'].values
 
-        if kwargs.pop('closed_circuit', False):
+        if kwargs.get('closed_circuit', False):
             R_coil = self.electrical_model.coil_resistance
             R_load = self.electrical_model.load_model.R
             emf_predict = emf_predict*(R_load/(R_load+R_coil))  # Load voltage
 
         # Scoring
-        clip_threshold = kwargs.pop('clip_threshold', 1e-4)
+        clip_threshold = kwargs.get('clip_threshold', 1e-4)
         electrical_evaluator = ElectricalSystemEvaluator(emf_target,
                                                          time_target,
                                                          warp,
