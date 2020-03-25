@@ -312,8 +312,8 @@ def find_signal_limits(target, sampling_period, threshold=1e-4):
     freqs, times, spectrum_density = signal.spectrogram(target,
                                                         1/sampling_period,
                                                         nperseg=128)
-    # rows --> time, columns --> frequencies
-    spectrum_density = spectrum_density.T
+
+    spectrum_density = spectrum_density.T # rows -> time, cols -> frequencies
     max_density = np.array([np.max(density) for density in spectrum_density])
 
     for i, val in enumerate(max_density):

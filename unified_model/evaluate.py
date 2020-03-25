@@ -223,7 +223,7 @@ class ElectricalSystemEvaluator:
         self.emf_predict = emf_predict
         self.time_predict = time_predict
 
-        # Normalize
+        # Rectify
         emf_predict = np.abs(emf_predict)
 
         resampled_signals = align_signals_in_time(

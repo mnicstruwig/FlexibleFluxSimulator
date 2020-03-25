@@ -479,6 +479,6 @@ class UnifiedModel(object):
 
         electrical_scores = electrical_evaluator.score(**metrics_dict)
 
-        if kwargs.pop('return_evaluator', None):
+        if kwargs.get('return_evaluator', None):
             return electrical_scores, electrical_evaluator
         return electrical_scores
