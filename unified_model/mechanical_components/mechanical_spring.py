@@ -3,7 +3,7 @@
 import numpy as np
 
 
-class MechanicalSpring(object):
+class MechanicalSpring:
     """Mechanical, non-attached, spring."""
 
     def __init__(self,
@@ -26,11 +26,12 @@ class MechanicalSpring(object):
 
         """
         self.position = position
-        self.k = strength
-        self.c = damper_constant
+        self.strength = strength
+        self.damper_constant = damper_constant
 
     def __repr__(self):
-        return f'MechanicalSpring(position={self.position}, strength={self.k}, damper_constant={self.c})'
+        return f'MechanicalSpring(position={self.position}, strength={self.strength}, damper_constant={self.damper_constant})'  # noqa
+
     def _heaviside_step_function(self, x, boundary):
         """Compute the output of a Heaviside step function"""
         return 0.5 * (np.sign(x - boundary) + 1)
@@ -52,6 +53,7 @@ class MechanicalSpring(object):
 
         """
         force = self._heaviside_step_function(x, self.position) \
-            * (self.k * (x - self.position) + self.c * x_dot)
+            * (self.strength * (x - self.position)
+               + self.damper_constant * x_dot)
 
         return force
