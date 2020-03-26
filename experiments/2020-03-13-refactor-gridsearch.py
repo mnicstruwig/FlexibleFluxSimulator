@@ -97,6 +97,11 @@ class UnifiedModelFactory:
         self.coupling_model=coupling_model
         self.governing_equations=governing_equations
 
+    def get_args(self, param_filter=None):
+        if param_filter is None:
+            return self.__dict__
+        return get_params_of_interest(self.__dict__, param_filter)
+
     def make(self):
         mechanical_model = (
             MechanicalModel()
@@ -287,6 +292,7 @@ def run_cell(unified_model_factory, groundtruth, metrics):
 def execute_gridsearch_for_sample(abstract_unified_model_factory,
                                   groundtruth,
                                   metrics,
+                                  parameters_to_track,
                                   batch_size=8):
 
     # This doesn't make me happy, but I'm out of clean ideas for now If I want
@@ -297,9 +303,11 @@ def execute_gridsearch_for_sample(abstract_unified_model_factory,
 
     grid_scores = []
     grid_curves = []
+    grid_params = []
     for model_factory_batch in chunk(model_factories, batch_size):
         task_queue = []
         for model_factory in model_factory_batch:
+            grid_params.append(model_factory.get_args(parameters_to_track))
             task_id = run_cell.remote(model_factory, groundtruth, metrics)
             task_queue.append(task_id)
 
@@ -318,7 +326,7 @@ def execute_gridsearch_for_sample(abstract_unified_model_factory,
             grid_curves.append(copy(result[1]))
 
         del results  # Remove reference so Ray can free memory as needed
-    return grid_scores, grid_curves
+    return grid_scores, grid_curves, grid_params
 
 
 def get_nested_param(obj, path):
@@ -342,19 +350,6 @@ def get_params_of_interest(param_dict, params_of_interest):
         result[param] = get_nested_param(param_dict, param)
     return result
 
-def param_dict_list_to_dataframe(param_dict_list, params_of_interest):
-    parsed_params = [get_params_of_interest(param_dict, params_of_interest)
-              for param_dict
-              in param_dict_list]
-
-    result = defaultdict(list)
-    for i, param_dict in enumerate(parsed_params):
-        for key, value in param_dict.items():
-            result[key].append(value)
-        result['param_set_id'].append(i)
-
-    return pd.DataFrame(result)
-
 def parse_score_dict(score_dict):
     parsed_score = {}
     for category, score_named_tuple in score_dict.items():
@@ -364,9 +359,6 @@ def parse_score_dict(score_dict):
     return parsed_score
 
 def scores_to_dataframe(grid_scores):
-
-    assert(len(grid_scores) == len(param_dict_list))
-
     parsed_scores = [parse_score_dict(score_dict)
                      for score_dict
                      in grid_scores]
@@ -379,19 +371,48 @@ def scores_to_dataframe(grid_scores):
         result['param_set_id'].append(i)
     return pd.DataFrame(result)
 
-def curves_to_dataframe(grid_curves):
+def curves_to_dataframe(grid_curves, sample_rate):
 
     result = defaultdict(lambda: np.empty(0))
 
     for i, curve_dict in enumerate(grid_curves):
         for key, values in curve_dict.items():
-            result[key] = np.concatenate([result[key], values])
-            values_length = len(values)
+            subsampled_values = values[::sample_rate]
+            result[key] = np.concatenate([result[key], subsampled_values])
+            values_length = len(subsampled_values)
 
         param_set_id = np.full(values_length, i)
         result['param_set_id'] = np.concatenate([result['param_set_id'], param_set_id])
 
     return pd.DataFrame(result)
+
+
+def param_dict_list_to_dataframe(param_dict_list):
+    result = defaultdict(list)
+    for i, param_dict in enumerate(param_dict_list):
+        for key, value in param_dict.items():
+            result[key].append(value)
+        result['param_set_id'].append(i)
+
+    return pd.DataFrame(result)
+
+
+def process_results(grid_results, curve_subsample_rate=3):
+    grid_scores, grid_curves, grid_params = grid_results
+
+    # Some basic validation
+    assert(len(grid_scores) == len(grid_curves))
+    assert(len(grid_scores) == len(grid_params))
+
+    df_params = param_dict_list_to_dataframe(grid_params)
+    df_scores = scores_to_dataframe(grid_scores)
+    df_curves = curves_to_dataframe(grid_curves, sample_rate=curve_subsample_rate)
+
+    # Merge dataframes
+    result = df_scores.merge(df_params, on='param_set_id')
+    result = result.merge(df_curves, on='param_set_id')
+
+    return result
 
 
 base_groundtruth_path = './data/2019-05-23_C/'
@@ -486,20 +507,18 @@ ray.init(
     ignore_reinit_error=True
 )
 
-grid_scores, grid_curves = execute_gridsearch_for_sample(
-    abstract_model_factory,
-    groundtruth,
-    metrics
-)
-
-params = abstract_model_factory.passed_kwargs[0]
-
 parameters_to_track = [
     'damper.damping_coefficient',
     'coupling_model.coupling_constant',
     'mechanical_spring.damping_coefficient'
 ]
 
-df_params = param_dict_list_to_dataframe(abstract_model_factory.passed_kwargs, parameters_to_track)
-df_scores = scores_to_dataframe(grid_scores)
-df_curves = curves_to_dataframe(grid_curves)
+grid_results = execute_gridsearch_for_sample(
+    abstract_model_factory,
+    groundtruth,
+    metrics,
+    parameters_to_track
+)
+
+result = process_results(grid_results, 3)
+
