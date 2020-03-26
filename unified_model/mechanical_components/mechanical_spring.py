@@ -9,7 +9,7 @@ class MechanicalSpring:
     def __init__(self,
                  position: float,
                  strength: float = 1e6,
-                 damper_constant: float = 0) -> None:
+                 damping_coefficient: float = 0) -> None:
         """Constructor.
 
         Parameters
@@ -20,17 +20,17 @@ class MechanicalSpring:
             The "strength" of the mechanical spring. It is recommended to use a
             large value, or to leave this at the default value. Default value
             is 1e6.
-        damper_constant : float
+        damping_coefficient : float
             Controls the amount of energy "lost" upon impact. A value of zero
             indicates an ideal spring.
 
         """
         self.position = position
         self.strength = strength
-        self.damper_constant = damper_constant
+        self.damping_coefficient = damping_coefficient
 
     def __repr__(self):
-        return f'MechanicalSpring(position={self.position}, strength={self.strength}, damper_constant={self.damper_constant})'  # noqa
+        return f'MechanicalSpring(position={self.position}, strength={self.strength}, damping_coefficient={self.damping_coefficient})'  # noqa
 
     def _heaviside_step_function(self, x, boundary):
         """Compute the output of a Heaviside step function"""
@@ -54,6 +54,6 @@ class MechanicalSpring:
         """
         force = self._heaviside_step_function(x, self.position) \
             * (self.strength * (x - self.position)
-               + self.damper_constant * x_dot)
+               + self.damping_coefficient * x_dot)
 
         return force

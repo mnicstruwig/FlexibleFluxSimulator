@@ -27,7 +27,7 @@ class DamperSurfaceArea(object):
         return self.magnet_assembly_surface_area * self.tuning_parameter * velocity
 
 
-class ConstantDamper(object):
+class ConstantDamper:
     """A constant-damping-coefficient damper.
 
     The force will be equal to the damping coefficient multiplied by a
@@ -63,8 +63,8 @@ class ConstantDamper(object):
         return self.damping_coefficient * velocity
 
     def __repr__(self):
-        return f'ConstantDamper({self.damping_coefficient})'
+        return f'ConstantDamper(damping_coefficient={self.damping_coefficient})'
 
     def __str__(self):
         """Return string representation of the Damper."""
-        return f"""ConstantDamper: {pretty_str(self.__dict__,1)}"""
+        return f"""ConstantDamper: {pretty_str(self.__dict__, 1)}"""

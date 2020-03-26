@@ -1,9 +1,10 @@
 import numpy as np
+import pandas as pd
 import ray
 from scipy.signal import savgol_filter
 
 from itertools import product
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 import logging
 from copy import copy
 
@@ -147,15 +148,15 @@ class ConstantDamperFactory:
 
 
 class MechanicalSpringFactory:
-    def __init__(self, position, damper_constant_list):
+    def __init__(self, position, damping_coefficient_list):
         self.position = position
-        self.damper_constant_list = damper_constant_list
+        self.damping_coefficient_list = damping_coefficient_list
 
     def make(self):
         return [mechanical_components.MechanicalSpring(self.position,
-                                                       damper_constant=dc)
+                                                       damping_coefficient=dc)
                 for dc
-                in self.damper_constant_list]
+                in self.damping_coefficient_list]
 
 
 class CouplingModelFactory:
@@ -319,6 +320,80 @@ def execute_gridsearch_for_sample(abstract_unified_model_factory,
         del results  # Remove reference so Ray can free memory as needed
     return grid_scores, grid_curves
 
+
+def get_nested_param(obj, path):
+    split_ = path.split('.')
+    temp = obj[split_[0]]
+    for s in split_[1:]:
+        if isinstance(temp, dict):  # If we have a dict...
+            temp = temp[s]
+        else:  # If we have an object
+            temp = temp.__dict__[s]
+    return temp
+
+def get_params_of_interest(param_dict, params_of_interest):
+    if not isinstance(param_dict, dict):
+        raise TypeError('param_dict is not a dict')
+    if not isinstance(params_of_interest, list):
+        raise TypeError('params_of_interest is not a list')
+
+    result = {}
+    for param in params_of_interest:
+        result[param] = get_nested_param(param_dict, param)
+    return result
+
+def param_dict_list_to_dataframe(param_dict_list, params_of_interest):
+    parsed_params = [get_params_of_interest(param_dict, params_of_interest)
+              for param_dict
+              in param_dict_list]
+
+    result = defaultdict(list)
+    for i, param_dict in enumerate(parsed_params):
+        for key, value in param_dict.items():
+            result[key].append(value)
+        result['param_set_id'].append(i)
+
+    return pd.DataFrame(result)
+
+def parse_score_dict(score_dict):
+    parsed_score = {}
+    for category, score_named_tuple in score_dict.items():
+        for metric, value in score_named_tuple._asdict().items():
+            metric_name = category[:4] + '_' + metric
+            parsed_score[metric_name] = value
+    return parsed_score
+
+def scores_to_dataframe(grid_scores):
+
+    assert(len(grid_scores) == len(param_dict_list))
+
+    parsed_scores = [parse_score_dict(score_dict)
+                     for score_dict
+                     in grid_scores]
+
+    result = defaultdict(list)
+    for i, score_dict in enumerate(parsed_scores):
+        for key, val in score_dict.items():
+            result[key].append(val)
+
+        result['param_set_id'].append(i)
+    return pd.DataFrame(result)
+
+def curves_to_dataframe(grid_curves):
+
+    result = defaultdict(lambda: np.empty(0))
+
+    for i, curve_dict in enumerate(grid_curves):
+        for key, values in curve_dict.items():
+            result[key] = np.concatenate([result[key], values])
+            values_length = len(values)
+
+        param_set_id = np.full(values_length, i)
+        result['param_set_id'] = np.concatenate([result['param_set_id'], param_set_id])
+
+    return pd.DataFrame(result)
+
+
 base_groundtruth_path = './data/2019-05-23_C/'
 samples = {}
 samples['A'] = collect_samples(base_path=base_groundtruth_path,
@@ -419,18 +494,12 @@ grid_scores, grid_curves = execute_gridsearch_for_sample(
 
 params = abstract_model_factory.passed_kwargs[0]
 
-poi = 'mechanical_spring.k'
+parameters_to_track = [
+    'damper.damping_coefficient',
+    'coupling_model.coupling_constant',
+    'mechanical_spring.damping_coefficient'
+]
 
-def get_nested_param(obj, path):
-    split_ = path.split('.')
-    temp = obj[split_[0]]
-    for s in split_[1:]:
-        if isinstance(temp, dict):  # If we have a dict...
-            temp = temp[s]
-        else:  # If we have an object
-            temp = temp.__dict__[s]
-    return temp
-
-
-def scores_to_dataframe(grid_scores, param_dict_list, params_of_interest):
-    pass
+df_params = param_dict_list_to_dataframe(abstract_model_factory.passed_kwargs, parameters_to_track)
+df_scores = scores_to_dataframe(grid_scores)
+df_curves = curves_to_dataframe(grid_curves)

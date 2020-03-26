@@ -2,14 +2,14 @@ class CouplingModel:
     """Coupling between mechanical and electrical class."""
 
     def __init__(self):
-        self.c = None
+        self.coupling_constant = None
 
     def __repr__(self):
-        return f'CouplingModel(coupling_constant={self.c})'
+        return f'CouplingModel(coupling_constant={self.coupling_constant})'
 
-    def set_coupling_constant(self, c):
-        self.c = c
+    def set_coupling_constant(self, coupling_constant):
+        self.coupling_constant = coupling_constant
         return self
 
     def get_mechanical_force(self, current):
-        return self.c * current
+        return self.coupling_constant * current
