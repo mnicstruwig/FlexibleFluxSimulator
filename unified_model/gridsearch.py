@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from copy import copy
 from itertools import product
-from typing import (Any, Dict, Generator, Iterable, List, NamedTuple, NewType,
+from typing import (Any, Dict, Generator, List, NamedTuple,
                     Union, Tuple)
 
 import numpy as np
@@ -65,7 +65,7 @@ class AbstractUnifiedModelFactory:
         self.combined['coupling_model'] = coupling_models
         self.combined['governing_equations'] = self.governing_equations
 
-    def generate(self):
+    def generate(self) -> Generator:
         """Generate a UnifiedModelFactory for a combination of all components
 
         Each yielded UnifiedModelFactory can produce a UnifiedModel that
@@ -93,18 +93,18 @@ class UnifiedModelFactory:
     """
 
     def __init__(self,
-                 damper=None,
-                 magnet_assembly=None,
-                 magnetic_spring=None,
-                 mechanical_spring=None,
-                 input_excitation=None,
-                 coil_resistance=None,
-                 rectification_drop=None,
-                 load_model=None,
-                 flux_model=None,
-                 dflux_model=None,
-                 coupling_model=None,
-                 governing_equations=None):
+                 damper: Any = None,
+                 magnet_assembly: Any = None,
+                 magnetic_spring: Any = None,
+                 mechanical_spring: Any = None,
+                 input_excitation: Any = None,
+                 coil_resistance: Any = None,
+                 rectification_drop: Any = None,
+                 load_model: Any = None,
+                 flux_model: Any = None,
+                 dflux_model: Any = None,
+                 coupling_model: Any = None,
+                 governing_equations: Any = None) -> None:
         """Constructor"""
         self.damper = damper
         self.magnet_assembly = magnet_assembly
@@ -146,7 +146,7 @@ class UnifiedModelFactory:
             return self.__dict__
         return _get_params_of_interest(self.__dict__, param_filter)
 
-    def make(self):
+    def make(self) -> UnifiedModel:
         """Make and return a `UnifiedModel`."""
         mechanical_model = (
             MechanicalModel()
@@ -216,7 +216,7 @@ def _get_nested_param(obj: Any, path: str) -> Any:
     return temp
 
 
-def _get_params_of_interest(param_dict: Dict,
+def _get_params_of_interest(param_dict: Dict[Any, Any],
                             params_of_interest: List[str]) -> Dict[str, Any]:
     """Get a list of parameters from `param_dict`
 
@@ -407,7 +407,8 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
     Ray : library
         The module the we use to execute.
     unified_model.metrics : module
-        A module containing a number of metrics that can be used to score the model.
+        A module containing a number of metrics that can be used to score the
+        model.
 
     """
     model = unified_model_factory.make()
@@ -444,14 +445,31 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
 
 
 class GridsearchBatchExecutor:
-    """Execute a batch grid search using Ray."""
+    """Execute a batch grid search using Ray.
 
+    Parameters
+    ----------
+    abstract_unified_model_factory : AbstractUnifiedModelFactory
+        An abstract factory that produces unified model factories. One
+        simulation will be run for each of the factories produces by
+        abstract_unified_model_factory.
+    groundtruth : Groundtruth
+        Groundtruth used to as a basis for scoring each unified model.
+    metrics : Dict[str, Dict]
+        The metrics used to score the unified model. Keys are 'mechanical' and
+        `electrical`. The values are Dicts, where the key is the name of the
+        metric and the value is the function to compute.
+    parameters_to_track : List[str]
+        A list of "parameter paths" to be tracked for each unified model. For
+        example, `['load_model.R', 'damper.damping_coefficient]`.
+
+    """
     def __init__(self,
-                 abstract_unified_model_factory,
-                 groundtruth,
-                 metrics,
-                 parameters_to_track,
-                 **ray_kwargs):
+                 abstract_unified_model_factory: AbstractUnifiedModelFactory,
+                 groundtruth: Groundtruth,
+                 metrics: Dict[str, Dict],
+                 parameters_to_track: List[str],
+                 **ray_kwargs) -> None:
         """Constructor"""
 
         self.metrics = metrics
@@ -463,17 +481,17 @@ class GridsearchBatchExecutor:
         self.raw_grid_results = None
         self.result = None
 
-    def _start_ray(self, ray_init_kwargs=None):
+    def _start_ray(self, ray_init_kwargs: Dict = None) -> None:
         """Initialize Ray"""
         if ray_init_kwargs is None:
             ray_init_kwargs = {}
         ray.init(**ray_init_kwargs)
 
-    def _kill_ray(self):
+    def _kill_ray(self) -> None:
         "Kill Ray."
         ray.shutdown()
 
-    def _execute_grid_search(self, batch_size=8):
+    def _execute_grid_search(self, batch_size: int = 8) -> Tuple:
         """Execute the gridsearch."""
 
         # This doesn't make me happy, but I'm out of clean ideas for now If I
@@ -482,9 +500,9 @@ class GridsearchBatchExecutor:
         total_completed = 0
         total_tasks = len(model_factories)
 
-        grid_scores = []
-        grid_curves = []
-        grid_params = []
+        grid_scores: List[Dict] = []
+        grid_curves: List[Dict] = []
+        grid_params: List[Dict] = []
 
         for model_factory_batch in _chunk(model_factories, batch_size):
             task_queue = []
@@ -497,7 +515,7 @@ class GridsearchBatchExecutor:
                                           self.metrics)
                 task_queue.append(task_id)
 
-            ready = []
+            ready: List[Any] = []
             while len(ready) < len(task_queue):
                 ready, remaining = ray.wait(task_queue,
                                             num_returns=len(task_queue),
@@ -516,7 +534,9 @@ class GridsearchBatchExecutor:
             del results  # Remove reference so Ray can free memory as needed
         return grid_scores, grid_curves, grid_params
 
-    def _process_results(self, grid_results, curve_subsample_rate=3):
+    def _process_results(self,
+                         grid_results: Tuple[List, List, List],
+                         curve_subsample_rate: int = 3) -> pd.DataFrame:
         """Process the gridsearch results into a single pandas Dataframe."""
         grid_scores, grid_curves, grid_params = grid_results
 
@@ -535,8 +555,22 @@ class GridsearchBatchExecutor:
 
         return result
 
-    def run(self, batch_size=8):
-        "Run the grid search and returns the results."
+    def run(self, batch_size: int = 8) -> pd.DataFrame:
+        """Run the grid search and returns the results.
+
+        Parameters
+        ----------
+        batch_size : int
+            The number of batches to use.
+            Default is 8.
+
+        Returns
+        -------
+        pandas dataframe
+            Pandas dataframe containing the scores, curves and tracked
+            parameters.
+
+        """
         logging.info('Starting Ray...')
         self._start_ray(self.ray_kwargs)
         logging.info('Running grid search...')
@@ -546,12 +580,17 @@ class GridsearchBatchExecutor:
         self._kill_ray()
         return self.result
 
-    def save(self, path):
-        """Save the result to disk in parquet format."""
+    def save(self, path: str) -> None:
+        """Save the result to disk in parquet format.
+
+        Parameters
+        ----------
+        path : str
+            The file path to save the results to.
+
+        """
         if self.result is None:
             raise ValueError('Nothing to save. Have you called `run` yet?')
         logging.info(f'Saving to result to file {path}')
         self.result.to_parquet(path)
         logging.info('Save complete!')
-
-
