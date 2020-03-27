@@ -1,24 +1,19 @@
-from copy import copy
-from collections import defaultdict
-from itertools import product
 import logging
+from collections import defaultdict
+from copy import copy
+from itertools import product
+from typing import List, Any, Dict, NamedTuple
 
 import numpy as np
 import pandas as pd
 import ray
 
-from unified_model import UnifiedModel
-from unified_model import MechanicalModel
-from unified_model import ElectricalModel
-from unified_model import CouplingModel
-from unified_model import mechanical_components
-from unified_model import electrical_components
-from unified_model import governing_equations
-from unified_model import pipeline
-from unified_model import evaluate
-from unified_model import metrics
+from unified_model import (ElectricalModel, MechanicalModel, UnifiedModel,
+                           pipeline)
 
-logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s',
+                    level=logging.INFO)
+
 
 class AbstractUnifiedModelFactory:
     """An abstract unified model factory that interpolates across all params.
@@ -31,25 +26,28 @@ class AbstractUnifiedModelFactory:
     gridsearch method. As such, this class is usually passed as input to the
     `GridSearchBatchExecutor` class.
 
+    Parameters
+    ----------
+    mechanical_components
+
     """
     def __init__(self,
-                 mechanical_components,
-                 electrical_components,
-                 coupling_models,
-                 governing_equations,
-                 ):
+                 mechanical_components: List[Any],
+                 electrical_components: List[Any],
+                 coupling_models: List[Any],
+                 governing_equations: List[Any],
+                 ) -> None:
         """Constructor"""
         self.mechanical_components = mechanical_components
         self.electrical_components = electrical_components
         self.coupling_models = coupling_models
         self.governing_equations = governing_equations
 
-        self.combined = {}
+        self.combined: Dict[Any, Any] = {}
         self.combined.update(mechanical_components)
         self.combined.update(electrical_components)
         self.combined['coupling_model'] = coupling_models
-        self.combined['governing_equations' ] = self.governing_equations
-        self._passed_kwargs = []
+        self.combined['governing_equations'] = self.governing_equations
 
     def generate(self):
         """Generate a UnifiedModelFactory for a combination of all components
@@ -67,8 +65,7 @@ class AbstractUnifiedModelFactory:
         """
         param_product = product(*[v for v in self.combined.values()])
         for pp in param_product:
-            new_kwargs = {k:v for k, v in zip(self.combined.keys(), pp)}
-            self._passed_kwargs.append(new_kwargs)
+            new_kwargs = {k: v for k, v in zip(self.combined.keys(), pp)}
             yield UnifiedModelFactory(**new_kwargs)
 
 
@@ -93,23 +90,28 @@ class UnifiedModelFactory:
                  coupling_model=None,
                  governing_equations=None):
         """Constructor"""
-        self.damper=damper
-        self.magnet_assembly=magnet_assembly
+        self.damper = damper
+        self.magnet_assembly = magnet_assembly
         self.magnetic_spring = magnetic_spring
         self.mechanical_spring = mechanical_spring
-        self.input_excitation=input_excitation
-        self.coil_resistance=coil_resistance
-        self.rectification_drop=rectification_drop
-        self.load_model=load_model
-        self.flux_model=flux_model
-        self.dflux_model=dflux_model
-        self.coupling_model=coupling_model
-        self.governing_equations=governing_equations
+        self.input_excitation = input_excitation
+        self.coil_resistance = coil_resistance
+        self.rectification_drop = rectification_drop
+        self.load_model = load_model
+        self.flux_model = flux_model
+        self.dflux_model = dflux_model
+        self.coupling_model = coupling_model
+        self.governing_equations = governing_equations
 
-    def get_args(self, param_filter=None):
-        """Get arguments arguments that will be passed to `UnifiedModel`.
+    def get_args(self, param_filter: List[str] = None) -> Dict[str, float]:
+        """Get arguments args that are be passed to `UnifiedModel`.
 
         The arguments can be filtered using `param_filter`.
+
+        Parameters
+        ----------
+        param_filter : list[str]
+            A list of "parameter paths" (see example) to retrieve.
 
         Example
         -------
@@ -120,8 +122,8 @@ class UnifiedModelFactory:
         Returns
         -------
         dict
-            Dictionary containing all arguments if `param_filter` is not specified, or
-            only the arguments specified by `param_filter`.
+            Dictionary containing all arguments if `param_filter` is not
+            specified, or only the arguments specified by `param_filter`.
 
         """
         if param_filter is None:
@@ -156,10 +158,22 @@ class UnifiedModelFactory:
         return unified_model
 
 
-def _get_nested_param(obj, path):
+def _get_nested_param(obj: Any, path: str) -> Any:
     """Get a parameter from `obj` with a tree-path `path`.
 
     Works with nested parameters on objects and dicts.
+
+    Parameters
+    ----------
+    obj : Any
+        The target object. Can be a dict or object.
+    path : str
+        The path to the nested parameter.
+
+    Returns
+    -------
+    Any
+        The value at the end of `path`.
 
     Example
     -------
@@ -175,11 +189,6 @@ def _get_nested_param(obj, path):
     >>> _get_nested_param(B(), 'some_class.x')
     'some value'
 
-    Returns
-    -------
-    any
-        The value at the end of `path`.
-
     """
     split_ = path.split('.')
     temp = obj[split_[0]]
@@ -190,24 +199,63 @@ def _get_nested_param(obj, path):
             temp = temp.__dict__[s]
     return temp
 
-def _get_params_of_interest(param_dict, params_of_interest):
+
+def _get_params_of_interest(param_dict: Dict,
+                            params_of_interest: List[str]) -> Dict[str, Any]:
+    """Get a list of parameters from `param_dict`
+
+    Parameters
+    ----------
+    param_dict : dict
+        Dictionary of parameters. Can be nested.
+    params_of_interest : List[str]
+        List of "parameter paths" to be retrieved.
+
+    Returns
+    -------
+    Dict[str, Any]
+        The value of the parameters specified in `params_of_interest`.
+
+    See Also
+    --------
+    _get_nested_param : function
+        The underlying function that is used.
+
+    """
     if not isinstance(param_dict, dict):
         raise TypeError('param_dict is not a dict')
     if not isinstance(params_of_interest, list):
         raise TypeError('params_of_interest is not a list')
 
-    result = {}
+    result: Dict[str, Any] = {}
     for param in params_of_interest:
         result[param] = _get_nested_param(param_dict, param)
     return result
 
-def _parse_score_dict(score_dict):
+
+def _parse_score_dict(score_dict: Dict[str, NamedTuple]) -> Dict:
+    """Parse a single `score_dict` that is part of a result of a gridsearch.
+
+    Parameters
+    ----------
+    score_dict : Dict[str, NamedTuple]
+        A dict with keys indicating the score category (eg. 'mechanical' or
+        'electrical') and values being a `Score` namedtuple containing scores.
+
+    Returns
+    -------
+    Dict
+        A flattened dictionary that contains all the scores from the various
+        categories.
+
+    """
     parsed_score = {}
     for category, score_named_tuple in score_dict.items():
         for metric, value in score_named_tuple._asdict().items():
             metric_name = category[:4] + '_' + metric
             parsed_score[metric_name] = value
     return parsed_score
+
 
 def _scores_to_dataframe(grid_scores):
     parsed_scores = [_parse_score_dict(score_dict)
@@ -222,6 +270,7 @@ def _scores_to_dataframe(grid_scores):
         result['param_set_id'].append(i)
     return pd.DataFrame(result)
 
+
 def _curves_to_dataframe(grid_curves, sample_rate):
 
     result = defaultdict(lambda: np.empty(0))
@@ -233,7 +282,8 @@ def _curves_to_dataframe(grid_curves, sample_rate):
             values_length = len(subsampled_values)
 
         param_set_id = np.full(values_length, i)
-        result['param_set_id'] = np.concatenate([result['param_set_id'], param_set_id])
+        result['param_set_id'] = np.concatenate([result['param_set_id'],
+                                                 param_set_id])
 
     return pd.DataFrame(result)
 
@@ -247,6 +297,7 @@ def _param_dict_list_to_dataframe(param_dict_list):
 
     return pd.DataFrame(result)
 
+
 def _chunk(array_like, chunk_size):
     """Chunk up an array-like. Generator"""
     total_size = len(array_like)
@@ -258,6 +309,7 @@ def _chunk(array_like, chunk_size):
 
     for start, stop in zip(indexes, indexes[1:]):
         yield array_like[start:stop]
+
 
 @ray.remote
 def run_cell(unified_model_factory, groundtruth, metrics):
@@ -293,6 +345,7 @@ def run_cell(unified_model_factory, groundtruth, metrics):
 
     return scores, curves
 
+
 class GridsearchBatchExecutor:
     """Execute a batch grid search using Ray."""
 
@@ -325,8 +378,9 @@ class GridsearchBatchExecutor:
 
     def _execute_grid_search(self, batch_size=8):
         """Execute the gridsearch."""
-        # This doesn't make me happy, but I'm out of clean ideas for now If I want
-        # this to work and _also_ preserve order.
+
+        # This doesn't make me happy, but I'm out of clean ideas for now If I
+        # want this to work and _also_ preserve order.
         model_factories = list(self.abstract_unified_model_factory.generate())
         total_completed = 0
         total_tasks = len(model_factories)
@@ -338,18 +392,24 @@ class GridsearchBatchExecutor:
         for model_factory_batch in _chunk(model_factories, batch_size):
             task_queue = []
             for model_factory in model_factory_batch:
-                grid_params.append(model_factory.get_args(self.parameters_to_track))
-                task_id = run_cell.remote(model_factory, self.groundtruth, self.metrics)
+                grid_params.append(model_factory.get_args(
+                    self.parameters_to_track
+                ))
+                task_id = run_cell.remote(model_factory,
+                                          self.groundtruth,
+                                          self.metrics)
                 task_queue.append(task_id)
 
             ready = []
             while len(ready) < len(task_queue):
-                ready, remaining = ray.wait(task_queue, num_returns=len(task_queue), timeout=5.)
-                logging.info(f'Progress: {len(ready)+total_completed}/{total_tasks}')
+                ready, remaining = ray.wait(task_queue,
+                                            num_returns=len(task_queue),
+                                            timeout=5.)
+                logging.info(f'Progress: {len(ready)+total_completed}/{total_tasks}')  # noqa
 
             # Once all tasks are completed...
-            total_completed += len(ready)# ... increment the total completed counter ...
-            results = [ray.get(task_id) for task_id in task_queue]  # ... and fetch results
+            total_completed += len(ready)  # noqa: increment the total completed counter
+            results = [ray.get(task_id) for task_id in task_queue]  # noqa: ... and fetch results
 
             # Parse the results
             for result in results:
@@ -369,7 +429,8 @@ class GridsearchBatchExecutor:
 
         df_params = _param_dict_list_to_dataframe(grid_params)
         df_scores = _scores_to_dataframe(grid_scores)
-        df_curves = _curves_to_dataframe(grid_curves, sample_rate=curve_subsample_rate)
+        df_curves = _curves_to_dataframe(grid_curves,
+                                         sample_rate=curve_subsample_rate)
 
         # Merge dataframes
         result = df_scores.merge(df_params, on='param_set_id')
