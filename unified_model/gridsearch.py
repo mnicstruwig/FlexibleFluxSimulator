@@ -2,7 +2,8 @@ import logging
 from collections import defaultdict
 from copy import copy
 from itertools import product
-from typing import List, Any, Dict, NamedTuple
+from typing import (Any, Dict, Generator, Iterable, List, NamedTuple, NewType,
+                    Union, Tuple)
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,21 @@ from unified_model import (ElectricalModel, MechanicalModel, UnifiedModel,
 
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s',
                     level=logging.INFO)
+
+
+class MechanicalGroundtruth(NamedTuple):
+    y_diff: Any
+    time: Any
+
+
+class ElectricalGroundtruth(NamedTuple):
+    emf: Any
+    time: Any
+
+
+class Groundtruth(NamedTuple):
+    mech: MechanicalGroundtruth
+    elec: ElectricalGroundtruth
 
 
 class AbstractUnifiedModelFactory:
@@ -257,7 +273,21 @@ def _parse_score_dict(score_dict: Dict[str, NamedTuple]) -> Dict:
     return parsed_score
 
 
-def _scores_to_dataframe(grid_scores):
+def _scores_to_dataframe(grid_scores: List[Dict]) -> pd.DataFrame:
+    """Parse scores from a grid search into a pandas dataframe.
+
+    Parameters
+    ----------
+    grid_scores : List[Dict]
+        The grid scores, which are a list of `score_dict`s where the keys
+        indicate the score category, and the values are a `Score` namedtuple.
+
+    Returns
+    -------
+    pandas dataframe
+        Pandas dataframe containing the scores.
+
+    """
     parsed_scores = [_parse_score_dict(score_dict)
                      for score_dict
                      in grid_scores]
@@ -271,9 +301,25 @@ def _scores_to_dataframe(grid_scores):
     return pd.DataFrame(result)
 
 
-def _curves_to_dataframe(grid_curves, sample_rate):
+def _curves_to_dataframe(grid_curves: List[Dict],
+                         sample_rate: int) -> pd.DataFrame:
+    """Parse the curve waveforms from a grid search into a pandas dataframe.
 
-    result = defaultdict(lambda: np.empty(0))
+    Parameters
+    ----------
+    grid_curves : List[Dict]
+        The grid curves, which are a list of Dicts where the keys indicate
+        the waveform, and the values are a List that holds the values.
+    sample_rate : int
+        The rate at which to *subsample* the curves, in order to save space.
+
+    Returns
+    -------
+    pandas dataframe
+        A pandas dataframe containing the curves.
+
+    """
+    result: Dict = defaultdict(lambda: np.empty(0))
 
     for i, curve_dict in enumerate(grid_curves):
         for key, values in curve_dict.items():
@@ -288,7 +334,24 @@ def _curves_to_dataframe(grid_curves, sample_rate):
     return pd.DataFrame(result)
 
 
-def _param_dict_list_to_dataframe(param_dict_list):
+def _param_dict_list_to_dataframe(param_dict_list: List[Dict]) -> pd.DataFrame:
+    """Parse the parameter list into a pandas dataframe.
+
+    Useful for parsing a lit of parameter values into a dataframe for later
+    analysis.
+
+    Parameters
+    ----------
+    param_dict_list : List[Dict]
+        List of dictionaries whose keys are the name of the parameter to track
+        and whose values is the value of the parameter.
+
+    Returns
+    -------
+    pandas dataframe
+        A pandas dataframe containing the parameter values.
+
+    """
     result = defaultdict(list)
     for i, param_dict in enumerate(param_dict_list):
         for key, value in param_dict.items():
@@ -298,8 +361,9 @@ def _param_dict_list_to_dataframe(param_dict_list):
     return pd.DataFrame(result)
 
 
-def _chunk(array_like, chunk_size):
-    """Chunk up an array-like. Generator"""
+def _chunk(array_like: Union[List, np.ndarray],
+           chunk_size: int) -> Generator:
+    """Chunk up an array-like yielded chunks."""
     total_size = len(array_like)
     indexes = list(range(0, total_size, chunk_size))
 
@@ -312,7 +376,40 @@ def _chunk(array_like, chunk_size):
 
 
 @ray.remote
-def run_cell(unified_model_factory, groundtruth, metrics):
+def run_cell(unified_model_factory: UnifiedModelFactory,
+             groundtruth: Groundtruth,
+             metrics: Dict[str, Dict]) -> Tuple[Dict, Dict]:
+    """Execute a single cell of a grid search.
+
+    This is designed to be executed in parallel using Ray.
+
+    Parameters
+    ----------
+    unified_model_factory : UnifiedModelFactory
+        The unified model factory that is used to make the unified model that
+        will be simulated.
+    groundtruth : NamedTuple
+        A Groundtruth namedtuple that contains the mechanical groundtruth under
+        the `MechanicalGroundtruth` attribute and the electrical groundtruth
+        under the `ElectricalGroundtruth` attribute.
+    metrics : Dict[str, Dict]
+        The metrics used to score the unified model. Keys are 'mechanical' and
+        `electrical`. The values are Dicts, where the key is the name of the
+        metric and the value is the function to compute.
+
+    Returns
+    -------
+    Tuple[Dict, Dict]
+        The scores and respective curves of the unified_model's simulation.
+
+    See Also
+    --------
+    Ray : library
+        The module the we use to execute.
+    unified_model.metrics : module
+        A module containing a number of metrics that can be used to score the model.
+
+    """
     model = unified_model_factory.make()
     model.solve(t_start=0,
                 t_end=8,
@@ -456,3 +553,5 @@ class GridsearchBatchExecutor:
         logging.info(f'Saving to result to file {path}')
         self.result.to_parquet(path)
         logging.info('Save complete!')
+
+

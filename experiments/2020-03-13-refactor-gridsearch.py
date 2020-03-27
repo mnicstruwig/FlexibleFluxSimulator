@@ -82,11 +82,9 @@ class GroundTruthFactory:
 
         self.lvp = evaluate.LabeledVideoProcessor(**lvp_kwargs)
         self.adc = evaluate.AdcProcessor(**adc_kwargs)
-        self.MechGroundtruth = namedtuple('MechanicalGroundtruth',
-                                          ['y_diff', 'time'])
-        self.ElecGroundtruth = namedtuple('ElectricalGroundtruth',
-                                          ['emf', 'time'])
-        self.Groundtruth = namedtuple('Groundtruth', ['mech', 'elec'])
+        self.MechGroundtruth = gridsearch.MechanicalGroundtruth
+        self.ElecGroundtruth = gridsearch.ElectricalGroundtruth
+        self.Groundtruth = gridsearch.Groundtruth
 
     def _make_mechanical_groundtruth(self, sample):
         y_target, y_time_target = self.lvp.fit_transform(
