@@ -695,22 +695,6 @@ class MechanicalSystemEvaluator:
         self.time_predict = time_predict
         self._clip_time = np.min([self.time_target[-1], self.time_predict[-1]])
 
-        # Resample the signals to the same sampling frequency
-        # This is required for calculating the sample delay between them.
-        # stop_time = np.max([self.time_target[-1], time_predict[-1]])
-
-        # resampled_time, resampled_y_target = interpolate_and_resample(
-        #     self.time_target,
-        #     self.y_target,
-        #     new_x_range=(0, stop_time)
-        # )
-
-        # _, resampled_y_predicted = interpolate_and_resample(
-        #     time_predict,
-        #     y_predict,
-        #     new_x_range=(0, stop_time)
-        # )
-
         resampled_signals = align_signals_in_time(
             t_1=self.time_target,
             y_1=self.y_target,
@@ -721,18 +705,6 @@ class MechanicalSystemEvaluator:
         resampled_time = resampled_signals[0]
         resampled_y_target = resampled_signals[1]
         resampled_y_predict = resampled_signals[2]
-
-        # # Calculate the sample delay
-        # sample_delay = get_sample_delay(resampled_y_target,
-        #                                 resampled_y_predicted)
-
-        # # Remove the delay between the signals
-        # time_delay = resampled_time[sample_delay]
-        # _, resampled_y_predicted = interpolate_and_resample(
-        #     resampled_time - time_delay,
-        #     resampled_y_predicted,
-        #     new_x_range=(0, stop_time)
-        # )
 
         # Clip signals
         self.clip_index = np.argmin(np.abs(resampled_time - self._clip_time))

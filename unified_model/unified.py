@@ -71,7 +71,7 @@ class UnifiedModel(object):
                 cloudpickle.dump(val, f)
 
     @classmethod
-    def load_from_disk(self, path):
+    def load_from_disk(cls, path):
         """Load a unified model from disk."""
         unified_model = UnifiedModel(name=None)
 
@@ -482,3 +482,20 @@ class UnifiedModel(object):
         if kwargs.get('return_evaluator', None):
             return electrical_scores, electrical_evaluator
         return electrical_scores
+
+    def calculate_metric(self, metric_func, prediction_expr):
+        """Calculate a metric on a prediction expression."""
+
+        # If we have more than one expression to evaluate
+        if isinstance(prediction_expr, list): 
+            prediction_exprs = {}
+            for i, expr in enumerate(prediction_expr):
+                prediction_exprs[str(i)] = expr
+            df_result = self.get_result(**prediction_exprs)
+
+            # .T --> We want return_value[i] to access a *column* of the df not
+            # a row
+            return metric_func(df_result.values.T)
+
+        df_result = self.get_result(prediction=prediction_expr)
+        return metric_func(df_result.values.T)

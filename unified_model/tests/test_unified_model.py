@@ -19,7 +19,7 @@ class TestUnifiedModel(unittest.TestCase):
     def test_set_mechanical_model(self):
         """Test the set_mechanical_model class method"""
 
-        test_unified_model = UnifiedModel(name='test_unified_model')
+        test_unified_model = UnifiedModel()
         test_mechanical_system = mock(MechanicalModel)
 
         self.assertTrue(test_unified_model.mechanical_model is None)  # before
@@ -32,7 +32,7 @@ class TestUnifiedModel(unittest.TestCase):
     def test_set_electrical_model(self):
         """Test the set_electrical_model class method"""
 
-        test_unified_model = UnifiedModel(name='test_unified_model')
+        test_unified_model = UnifiedModel()
         test_electrical_system = mock(ElectricalModel)
 
         self.assertTrue(test_unified_model.electrical_model is None)
@@ -45,7 +45,7 @@ class TestUnifiedModel(unittest.TestCase):
     def test_set_coupling_model(self):
         """Test the set_coupling_model class method."""
 
-        test_unified_model = UnifiedModel(name='test_unified_model')
+        test_unified_model = UnifiedModel()
         test_coupling_model = mock()
 
         self.assertTrue(test_unified_model.coupling_model is None)
@@ -55,7 +55,7 @@ class TestUnifiedModel(unittest.TestCase):
 
     def test_set_governing_equations(self):
         """Test the set_governing_equations class method"""
-        test_unified_model = UnifiedModel(name='test_unified_model')
+        test_unified_model = UnifiedModel()
         test_governing_equations = mock()
 
         self.assertTrue(test_unified_model.governing_equations is None)
@@ -64,7 +64,7 @@ class TestUnifiedModel(unittest.TestCase):
                               type(test_governing_equations))
 
     def test_solve(self):
-        """Test that he unified model will attempt to find a solution"""
+        """Test that the unified model will attempt to find a solution"""
 
         test_time = np.array([10., 20., 30.])
         test_y_raw_output = np.array([[1., 2., 3.], [4., 5., 6.]])
@@ -94,7 +94,7 @@ class TestUnifiedModel(unittest.TestCase):
         test_coupling_model = mock(CouplingModel)
         test_governing_equations = TestGoverningEquations()
 
-        test_unified_model = UnifiedModel(name='test_unified_model')
+        test_unified_model = UnifiedModel()
         test_unified_model.mechanical_model = test_mechanical_model
         test_unified_model.electrical_model = test_electrical_model
         test_unified_model.coupling_model = test_coupling_model
@@ -129,7 +129,7 @@ class TestUnifiedModel(unittest.TestCase):
             x1, x2, x3, x4, x5 = y
             return [99, 99, 99, 99, 99]
 
-        test_unified_model = UnifiedModel(name=None)
+        test_unified_model = UnifiedModel()
 
         # Pipeline should be empty before adding to it
         self.assertTrue(len(test_unified_model.post_processing_pipeline) == 0)
@@ -150,7 +150,7 @@ class TestUnifiedModel(unittest.TestCase):
         """
         Test the execution of the post-processing pipeline.
         """
-        test_unified_model = UnifiedModel(name=None)
+        test_unified_model = UnifiedModel()
 
         def square_pipeline(y):
             x1, x2, x3 = y
@@ -181,7 +181,7 @@ class TestUnifiedModel(unittest.TestCase):
             x1, x2, x3 = y
             return [x1+1, x2+1, x3+1]
 
-        test_unified_model = UnifiedModel(name=None)
+        test_unified_model = UnifiedModel()
         test_unified_model.set_post_processing_pipeline(plus_one_pipeline, 'test_pipeline_1')
         test_unified_model.set_post_processing_pipeline(plus_one_pipeline, 'test_pipeline_2')
 
@@ -194,27 +194,6 @@ class TestUnifiedModel(unittest.TestCase):
                                     [3, 3, 3],
                                     [4, 4, 4],
                                     [5, 5, 5]]).T
-        actual_result = test_unified_model.raw_solution
-
-        assert_array_equal(expected_result, actual_result)
-
-    def test_apply_pipeline_no_pipeline(self):
-        """
-        Test that the output doesn't get altered when there is no pipeline
-        to execute.
-        """
-        test_unified_model = UnifiedModel(name=None)
-
-        test_unified_model.raw_solution = np.array([[0, 0, 0],
-                                                    [1, 1, 1],
-                                                    [2, 2, 2],
-                                                    [3, 3, 3]]).T
-
-        test_unified_model._apply_pipeline()
-        expected_result = np.array([[0, 0, 0],
-                                    [1, 1, 1],
-                                    [2, 2, 2],
-                                    [3, 3, 3]]).T
         actual_result = test_unified_model.raw_solution
 
         assert_array_equal(expected_result, actual_result)
@@ -235,7 +214,7 @@ class TestUnifiedModel(unittest.TestCase):
         test_y_raw_output = np.array([[1., 1., 1., 1., 1.],
                                       [2., 2., 2., 2., 2.]])
 
-        test_unified_model = UnifiedModel(name='test_unified_model')
+        test_unified_model = UnifiedModel()
         test_unified_model.raw_solution = test_y_raw_output
         test_unified_model.time = test_time
 
@@ -245,3 +224,70 @@ class TestUnifiedModel(unittest.TestCase):
                                                       relative_displacement='x1+x2')
 
         assert_frame_equal(expected_output_dataframe, actual_result)
+
+    def test_calculate_metric_scalar_function(self):
+        """
+        Test the `calculate_metric` function where metric is a scalar output
+        """
+        test_max_metric = lambda x: np.max(x)
+
+        test_y_raw_output = np.array([
+            [1., 1., 1., 1., 1.],  # x1
+            [2., 3., 4., 5., 6.]  # x2
+        ])
+
+        test_unified_model = UnifiedModel()
+
+        # patch our model's results
+        test_unified_model.raw_solution = test_y_raw_output
+
+        actual_result = test_unified_model.calculate_metric(test_max_metric, 'x2')
+        expected_result = 6.
+
+        assert actual_result == expected_result
+
+    def test_calculate_metric_array_function(self):
+        """
+        Test the `calculate_metric` function where metric is a array output
+        """
+
+        # A metric that adds one to each value in the array
+        add_one = lambda x_arr: x_arr+1
+
+        test_y_raw_output = np.array([
+            [1., 1., 1., 1., 1.],  # x1
+            [2., 3., 4., 5., 6.]  # x2
+        ])
+
+        test_unified_model = UnifiedModel()
+
+        # patch our model's results
+        test_unified_model.raw_solution = test_y_raw_output
+        actual_result = test_unified_model.calculate_metric(add_one, 'x2')
+        # Reshape to have fixed dimension
+        expected_result = np.array([3., 4., 5., 6., 7.]).reshape(1, -1)
+
+        assert_array_equal(actual_result, expected_result)
+
+    def test_calculate_metric_multiple_expressions(self):
+        """
+        Test the `calculate_metric` function for multiple prediction expressions
+        """
+
+        # A metric that takes multiple expressions as input
+        add_together = lambda x_arr: x_arr[0]+x_arr[1]
+
+        test_y_raw_output = np.array([
+            [1., 1., 1., 1., 1.],  # x1
+            [2., 3., 4., 5., 6.]  # x2
+        ])
+
+        test_unified_model = UnifiedModel()
+
+        # patch our model's results
+        test_unified_model.raw_solution = test_y_raw_output
+
+        actual_result = test_unified_model.calculate_metric(add_together, ['x1', 'x2'])
+        expected_result = np.array([3., 4., 5., 6., 7.])
+
+        assert_array_equal(actual_result, expected_result)
