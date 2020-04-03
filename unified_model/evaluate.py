@@ -277,6 +277,32 @@ class ElectricalSystemEvaluator:
         self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(self.emf_predict_,
                                                                          self.emf_target_)
 
+    def _clip_signals(self, clip_threshold):
+        """Clip the target and predicted signals to only the active parts."""
+
+        if clip_threshold == 0.:
+            self.clipped_indexes = (None, None)
+            self.time_clipped_ = self.time_
+            self.emf_predict_clipped_ = self.emf_predict_
+            self.emf_target_clipped_ = self.emf_target_
+            return
+
+        # We find the limits on the predicted curve, since it's a lot less
+        # noisy than the target curve.
+        start_index, end_index = find_signal_limits(target=self.emf_predict_,
+                                                        sampling_period=1,
+                                                        threshold=clip_threshold)
+
+        # Convert to integer indices, since `find_signal_limits` actually
+        # returns the "time" of the signal, but we have a sampling frequency of
+        # 1, so we can directly convert to integer indexes.
+        start_index = int(start_index)
+        end_index = int(end_index)
+        self.clipped_indexes = (start_index, end_index)
+        self.time_clipped_ = self.time_[start_index:end_index]
+        self.emf_predict_clipped_ = self.emf_predict_[start_index:end_index]
+        self.emf_target_clipped_ = self.emf_target_[start_index:end_index]
+
     def score(self, **metrics):
         """Evaluate the electrical model using a selection of metrics.
 
@@ -316,37 +342,6 @@ class ElectricalSystemEvaluator:
         results = self._score(**metrics)
         return results
 
-    def _clip_signals(self, clip_threshold):
-        """Clip the target and predicted signals to only the active parts."""
-
-        if clip_threshold == 0.:
-            self.clipped_indexes = (None, None)
-            self.time_clipped_ = self.time_
-            self.emf_predict_clipped_ = self.emf_predict_
-            self.emf_target_clipped_ = self.emf_target_
-            return
-
-        start_index_a, end_index_a = find_signal_limits(target=self.emf_target_,
-                                                        sampling_period=1,
-                                                        threshold=clip_threshold)
-
-        start_index_b, end_index_b = find_signal_limits(target=self.emf_predict_,
-                                                        sampling_period=1,
-                                                        threshold=clip_threshold)
-
-        start_index = np.min([start_index_a, start_index_b])
-        end_index = np.max([end_index_a, end_index_b])
-
-        # Convert to integer indices, since `find_signal_limits` actually
-        # returns the "time" of the signal, but we have a sampling frequency of
-        # 1, so we can directly convert to integer indexes.
-        start_index = int(start_index)
-        end_index = int(end_index)
-        self.clipped_indexes = (start_index, end_index)
-        self.time_clipped_ = self.time_[start_index:end_index]
-        self.emf_predict_clipped_ = self.emf_predict_[start_index:end_index]
-        self.emf_target_clipped_ = self.emf_target_[start_index:end_index]
-
     def _score(self, **metrics):
         """Implement the underlying functionality of the `score` method."""
 
@@ -363,7 +358,7 @@ class ElectricalSystemEvaluator:
 
         return Results(*metric_results.values())
 
-    def poof(self, clipped=True, include_dtw=False, **kwargs):
+    def poof(self, include_dtw=False, **kwargs):
         """Plot the aligned target and predicted values.
 
         Parameters
@@ -379,25 +374,22 @@ class ElectricalSystemEvaluator:
             Kwargs passed to matplotlib.pyplot.plot function.
 
         """
-        if clipped:
-            time = self.time_clipped_
-            target = self.emf_target_clipped_
-            predict = self.emf_predict_clipped_
+        time = self.time_
+        target = self.emf_target_
+        predict = self.emf_predict_
 
-        else:
-            time = self.time_
-            target = self.emf_target_
-            predict = self.emf_predict_
+        clipped_x_begin = [self.clipped_indexes[0]]*2
+        clipped_x_end = [self.clipped_indexes[1]]*2
+        clipped_y = [0, np.max([target, predict])]
 
-            clipped_x_begin = [self.clipped_indexes[0]]*2
-            clipped_x_end = [self.clipped_indexes[1]]*2
-            clipped_y = [0, np.max([target, predict])]
-
-            plt.plot(time[clipped_x_begin], clipped_y, 'k--')
-            plt.plot(time[clipped_x_end], clipped_y, 'k--')
 
         plt.plot(time, target, label='Target', **kwargs)
         plt.plot(time, predict, label='Predictions', **kwargs)
+
+        # Show the clip marks
+        plt.plot(time[clipped_x_begin], clipped_y, 'k--')
+        plt.plot(time[clipped_x_end], clipped_y, 'k--')
+
         plt.legend()
 
         if include_dtw:
@@ -617,8 +609,8 @@ class MechanicalSystemEvaluator:
     def __init__(self,
                  y_target,
                  time_target,
-                 warp=False,
-                 clip_threshold=1e-4):
+                 clip=True,
+                 warp=False):
         """Constructor
 
         Parameters
@@ -629,13 +621,13 @@ class MechanicalSystemEvaluator:
             prediction will be compared against.
         time_target : ndarray
             The corresponding timestamps of the values in `y_target`
+        clip : bool
+            Whether to clip or trim the target and predicted arrays after
+            alignment in order to restrict scoring to the "active" part of the
+            signal.
         warp : bool
             Set to True to score after dynamically time-warping the target and
             prediction signals. Default value is False.
-        clip_threshold : float
-            If greater than 0., clip the leading and trailing emf target
-            samples that don't include signal information by taking a
-            spectrogram. Default value is 1e-4.
 
         Additional Notes
         ----------------
@@ -652,6 +644,7 @@ class MechanicalSystemEvaluator:
         clipping of the *actual* signal.
 
         """
+        self.clip = clip
         self.warp = warp
 
         if len(y_target) != len(time_target):
@@ -693,7 +686,9 @@ class MechanicalSystemEvaluator:
 
         self.y_predict = y_predict
         self.time_predict = time_predict
-        self._clip_time = np.min([self.time_target[-1], self.time_predict[-1]])
+
+        # Get the end time we should clip the signal at (in case our target
+        # data is shorter than our simulation time)
 
         resampled_signals = align_signals_in_time(
             t_1=self.time_target,
@@ -706,8 +701,13 @@ class MechanicalSystemEvaluator:
         resampled_y_target = resampled_signals[1]
         resampled_y_predict = resampled_signals[2]
 
-        # Clip signals
-        self.clip_index = np.argmin(np.abs(resampled_time - self._clip_time))
+        # Find where to clip the resampled signals
+        if self.clip:
+            self._clip_time = np.min([self.time_target[-1], self.time_predict[-1]])
+            self._clip_index = np.argmin(np.abs(resampled_time - self._clip_time))
+        else:
+            self._clip_time = resampled_time[0]
+            self._clip_index = len(resampled_time) - 1
 
         # Store results
         self.y_target_ = resampled_y_target
@@ -718,9 +718,8 @@ class MechanicalSystemEvaluator:
         """Perform dynamic time warping on prediction and targets."""
 
         # Exclude trailing (i.e. steady state) portion of the predicted waveform.
-        clip_index = np.argmin(np.abs(self.time_ - self._clip_time))
-        self.y_predict_warped_, self.y_target_warped_ = warp_signals(self.y_predict_[:clip_index],
-                                                                     self.y_target_[:clip_index])
+        self.y_predict_warped_, self.y_target_warped_ = warp_signals(self.y_predict_[self._clip_index],
+                                                                     self.y_target_[self._clip_index])
 
     def fit_transform(self, y_predict, time_predict):
         """Align `y_predicted` and `y_target` in time.
@@ -804,8 +803,8 @@ class MechanicalSystemEvaluator:
                                                     self.y_target_warped_,
                                                     **metrics)
         else:
-            metric_results = apply_scalar_functions(self.y_predict_,
-                                                    self.y_target_,
+            metric_results = apply_scalar_functions(self.y_predict_[:self._clip_index],
+                                                    self.y_target_[:self._clip_index],
                                                     **metrics)
         # Output "Score" class
         Results = namedtuple('Score', metric_results.keys())
@@ -826,6 +825,11 @@ class MechanicalSystemEvaluator:
         """
         plt.plot(self.time_, self.y_target_, label='Target', **kwargs)
         plt.plot(self.time_, self.y_predict_, label='Prediction', **kwargs)
+
+        # Show the clip marks
+        plt.plot([0, 0], [0, max(self.y_target_)], 'k--')  # start
+        plt.plot([self.time_[self._clip_index], self.time_[self._clip_index]], [0, max(self.y_target_)], 'k--')  # end
+
         plt.legend()
 
         if include_dtw:

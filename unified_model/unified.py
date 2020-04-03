@@ -13,7 +13,7 @@ from unified_model.evaluate import MechanicalSystemEvaluator, ElectricalSystemEv
 from unified_model.utils.utils import pretty_str
 
 
-class UnifiedModel(object):
+class UnifiedModel:
     """Unified model class
 
     This class is used to solve your combined or unified electrical and
@@ -296,14 +296,10 @@ class UnifiedModel(object):
 
         Parameters
         ----------
-        time_target : array
-            Manually specify the corresponding target time values. Specifying
-            `y_target` will  take precedence over the labels processed from
-            `labeled_video_processor` and `video_labels_df`.
-        y_target : array
-            Manually specify the target values. Specifying `y_target` will
-            take precedence over the labels processed from
-            `labeled_video_processor` and `video_labels_df`.
+        time_target : numpy array
+            The corresponding target time values.
+        y_target : numpy array
+            The target mechanical values.
         metrics_dict: dict
             Metrics to compute on the predicted and target mechanical data.
             Keys must be the name of the metric returned in the Results object.
@@ -331,14 +327,12 @@ class UnifiedModel(object):
         See Also
         --------
         unified_model.evaluate.LabeledVideoProcessor : class
-            Class used to preprocess `video_labels_df`
+            Helper class used to preprocess labeled mechanical video data into
+            `time_target` and `y_target`.
         unified_model.evaluate.MechanicalSystemEvaluator.score : method
             Method that implements the scoring mechanism.
         unified_model.unified.UnifiedModel.get_result : method
             Method used to evaluate `prediction_expr`.
-        unified_model.utils.utils.parse_output_expression : function
-            Function that details additional functions that can be applied
-            using `prediction_expr`.
 
         Example
         -------
@@ -355,10 +349,18 @@ class UnifiedModel(object):
         ...                                                 mm=10,
         ...                                                 seconds_per_frame=3/240,
         ...                                                 pixel_scale=pixel_scale)
-        >>> mech_scores = unified_model.score_mechanical_model(metrics_dict=mechanical_metrics,
-        ...                                                    video_labels_df=sample.video_labels_df,
-        ...                                                    labeled_video_processor=labeled_video_processor,
-        ...                                                    prediction_expr='x3-x1')
+        >>> y_target, y_time_target = labeled_video_processor.fit_transform(
+        ...     video_labels_df,
+        ...     impute_missing_values=True
+        ... )
+        >>> mech_scores = unified_model.score_mechanical_model(
+        ...     time_target=y_time_target,
+        ...     y_target=y_target,
+        ...     metrics_dict=mechanical_metrics,
+        ...     video_labels_df=sample.video_labels_df,
+        ...     labeled_video_processor=labeled_video_processor,
+        ...     prediction_expr='x3-x1'
+        ... )
 
         """
 
@@ -371,7 +373,8 @@ class UnifiedModel(object):
         # Scoring
         mechanical_evaluator = MechanicalSystemEvaluator(y_target,
                                                          time_target,
-                                                         warp)
+                                                         clip=kwargs.get('clip', True),
+                                                         warp=warp)
         mechanical_evaluator.fit(y_predict, time_predict)
         mechanical_scores = mechanical_evaluator.score(**metrics_dict)
 
