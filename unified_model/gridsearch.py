@@ -378,7 +378,7 @@ def _chunk(array_like: Union[List, np.ndarray],
 @ray.remote
 def run_cell(unified_model_factory: UnifiedModelFactory,
              groundtruth: Groundtruth,
-             metrics: Dict[str, Dict]) -> Tuple[Dict, Dict]:
+             score_metrics: Dict[str, Dict]) -> Tuple[Dict, Dict]:
     """Execute a single cell of a grid search.
 
     This is designed to be executed in parallel using Ray.
@@ -392,7 +392,7 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
         A Groundtruth namedtuple that contains the mechanical groundtruth under
         the `MechanicalGroundtruth` attribute and the electrical groundtruth
         under the `ElectricalGroundtruth` attribute.
-    metrics : Dict[str, Dict]
+    score_metrics : Dict[str, Dict]
         The metrics used to score the unified model. Keys are 'mechanical' and
         `electrical`. The values are Dicts, where the key is the name of the
         metric and the value is the function to compute.
@@ -420,7 +420,7 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
     mech_score, mech_eval = model.score_mechanical_model(
         time_target=groundtruth.mech.time,
         y_target=groundtruth.mech.y_diff,
-        metrics_dict=metrics['mechanical'],
+        metrics_dict=score_metrics['mechanical'],
         prediction_expr='x3-x1',
         return_evaluator=True
     )
@@ -428,7 +428,7 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
     elec_score, elec_eval = model.score_electrical_model(
         time_target=groundtruth.elec.time,
         emf_target=groundtruth.elec.emf,
-        metrics_dict=metrics['electrical'],
+        metrics_dict=score_metrics['electrical'],
         prediction_expr='g(t, x5)',
         return_evaluator=True,
         clip_threshold=1e-1
@@ -455,7 +455,7 @@ class GridsearchBatchExecutor:
         abstract_unified_model_factory.
     groundtruth : Groundtruth
         Groundtruth used to as a basis for scoring each unified model.
-    metrics : Dict[str, Dict]
+    score_metrics : Dict[str, Dict]
         The metrics used to score the unified model. Keys are 'mechanical' and
         `electrical`. The values are Dicts, where the key is the name of the
         metric and the value is the function to compute.
@@ -467,12 +467,12 @@ class GridsearchBatchExecutor:
     def __init__(self,
                  abstract_unified_model_factory: AbstractUnifiedModelFactory,
                  groundtruth: Groundtruth,
-                 metrics: Dict[str, Dict],
+                 score_metrics: Dict[str, Dict],
                  parameters_to_track: List[str],
                  **ray_kwargs) -> None:
         """Constructor"""
 
-        self.metrics = metrics
+        self.score_metrics = score_metrics
         self.abstract_unified_model_factory = abstract_unified_model_factory
         self.groundtruth = groundtruth
         self.parameters_to_track = parameters_to_track
@@ -512,7 +512,7 @@ class GridsearchBatchExecutor:
                 ))
                 task_id = run_cell.remote(model_factory,
                                           self.groundtruth,
-                                          self.metrics)
+                                          self.score_metrics)
                 task_queue.append(task_id)
 
             ready: List[Any] = []

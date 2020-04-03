@@ -195,8 +195,8 @@ electrical_metrics = {
     'dtw_distance': metrics.dtw_euclid_distance
 }
 
-metrics = {'mechanical': mechanical_metrics,
-           'electrical': electrical_metrics}
+score_metrics = {'mechanical': mechanical_metrics,
+                 'electrical': electrical_metrics}
 
 
 groundtruth = groundtruth_factory.make()[0]
@@ -211,7 +211,7 @@ parameters_to_track = [
 # Run the gridsearch
 grid_executor = gridsearch.GridsearchBatchExecutor(abstract_model_factory,
                                                    groundtruth,
-                                                   metrics,
+                                                   score_metrics,
                                                    parameters_to_track)
 
-grid_executor.run()  # Execute
+results = grid_executor.run()  # Execute
