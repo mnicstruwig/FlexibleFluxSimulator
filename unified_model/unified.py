@@ -3,14 +3,17 @@ Contains the unified model architecture that encapsulates the mechanical
 system, electrical system, the coupling between them and the master system
 model that describes their interaction.
 """
-from glob import glob
 import os
+from glob import glob
+
 import cloudpickle
 import numpy as np
+import pandas as pd
 from scipy import integrate
-from unified_model.utils.utils import parse_output_expression
-from unified_model.evaluate import MechanicalSystemEvaluator, ElectricalSystemEvaluator
-from unified_model.utils.utils import pretty_str
+
+from unified_model.evaluate import (ElectricalSystemEvaluator,
+                                    MechanicalSystemEvaluator)
+from unified_model.utils.utils import parse_output_expression, pretty_str
 
 
 class UnifiedModel:
@@ -234,7 +237,7 @@ class UnifiedModel:
         self.raw_solution = psoln.y
         self._apply_pipeline()
 
-    def get_result(self, **kwargs):
+    def get_result(self, **kwargs) -> pd.DataFrame:
         """Get a dataframe of the results using expressions.
 
         *Any* reasonable expression is possible. You can refer to each of the
@@ -486,19 +489,12 @@ class UnifiedModel:
             return electrical_scores, electrical_evaluator
         return electrical_scores
 
-    def calculate_metric(self, metric_func, prediction_expr):
-        """Calculate a metric on a prediction expression."""
+    def calculate_metrics(self, prediction_expr, metric_dict):
+        """Calculate metrics on a prediction expressions."""
 
-        # If we have more than one expression to evaluate
-        if isinstance(prediction_expr, list): 
-            prediction_exprs = {}
-            for i, expr in enumerate(prediction_expr):
-                prediction_exprs[str(i)] = expr
-            df_result = self.get_result(**prediction_exprs)
+        df_result = self.get_result(expr=prediction_expr)
 
-            # .T --> We want return_value[i] to access a *column* of the df not
-            # a row
-            return metric_func(df_result.values.T)
-
-        df_result = self.get_result(prediction=prediction_expr)
-        return metric_func(df_result.values.T)
+        results = {}
+        for name, metric_func in metric_dict.items():
+            results[name] = metric_func(df_result['expr'].values)
+        return results

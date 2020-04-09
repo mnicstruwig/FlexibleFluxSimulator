@@ -320,6 +320,7 @@ def find_signal_limits(target, sampling_period, threshold=1e-4):
         if val > threshold:
             start_index = i
             break
+
     for i, val in enumerate(max_density):
         if val > threshold:
             end_index = i

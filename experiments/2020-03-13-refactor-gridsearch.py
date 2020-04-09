@@ -151,7 +151,7 @@ mech_components = {
     'input_excitation': input_excitation_factories['A'].make()[:1],
     'magnetic_spring': [magnetic_spring],
     'magnet_assembly': [magnet_assembly],
-    'damper': ConstantDamperFactory(np.linspace(0.01, 0.07, 10)).make(),
+    'damper': ConstantDamperFactory(np.linspace(0.01, 0.07, 3)).make(),
     'mechanical_spring':  MechanicalSpringFactory(110/1000, [0]).make()
 }
 
@@ -198,8 +198,16 @@ electrical_metrics = {
 score_metrics = {'mechanical': mechanical_metrics,
                  'electrical': electrical_metrics}
 
-
 groundtruth = groundtruth_factory.make()[0]
+
+score_metrics = {
+    'x3-x1': evaluate.MechanicalSystemEvaluator(
+        y_target=groundtruth.mech.y_diff,
+        time_target=groundtruth.mech.time,
+        metrics={'dtw_distance': metrics.dtw_euclid_distance}
+        )
+}
+
 
 # Parameters we want to track
 parameters_to_track = [
@@ -208,10 +216,27 @@ parameters_to_track = [
     'mechanical_spring.damping_coefficient'
 ]
 
+unified_factory = list(abstract_model_factory.generate())[0]
+
+def mymax(x):
+    return max(x)
+
+
+calc_metrics = {
+    'x3-x1': {'max_y_diff': mymax}
+}
+
+curve_expressions = {
+    't' : 'time',
+    'x3-x1' : 'y_diff',
+    'g(t, x5)': 'emf'
+}
+
 # Run the gridsearch
 grid_executor = gridsearch.GridsearchBatchExecutor(abstract_model_factory,
-                                                   groundtruth,
+                                                   curve_expressions,
                                                    score_metrics,
+                                                   calc_metrics,
                                                    parameters_to_track)
 
 results = grid_executor.run()  # Execute
