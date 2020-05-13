@@ -101,11 +101,11 @@ class AdcProcessor:
 
 class Evaluator(ABC):
     def __init__(self,
-                 time: np.ndarray,
                  target: np.ndarray,
+                 time: np.ndarray,
                  metrics: Dict[str, Callable]) -> None:
-        self.time = time
         self.target = target
+        self.time = time
         self.metrics = metrics
 
     @abstractmethod

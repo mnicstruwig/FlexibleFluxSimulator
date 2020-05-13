@@ -1,4 +1,5 @@
 import logging
+import warnings
 from collections import defaultdict, namedtuple
 from copy import copy
 from itertools import product
@@ -58,6 +59,10 @@ class AbstractUnifiedModelFactory:
                  governing_equations: List[Any],
                  ) -> None:
         """Constructor"""
+
+        if 'input_excitation' in mechanical_components:
+            warnings.warn('input_excitation was specified in mechanical_components! This will break when `generate` is called!')  # noqa
+
         self.mechanical_components = mechanical_components
         self.electrical_components = electrical_components
         self.coupling_models = coupling_models
@@ -101,7 +106,6 @@ class UnifiedModelFactory:
                  magnet_assembly: Any = None,
                  magnetic_spring: Any = None,
                  mechanical_spring: Any = None,
-                 input_excitation: Any = None,
                  coil_resistance: Any = None,
                  rectification_drop: Any = None,
                  load_model: Any = None,
@@ -114,7 +118,6 @@ class UnifiedModelFactory:
         self.magnet_assembly = magnet_assembly
         self.magnetic_spring = magnetic_spring
         self.mechanical_spring = mechanical_spring
-        self.input_excitation = input_excitation
         self.coil_resistance = coil_resistance
         self.rectification_drop = rectification_drop
         self.load_model = load_model
@@ -150,11 +153,11 @@ class UnifiedModelFactory:
             return self.__dict__
         return _get_params_of_interest(self.__dict__, param_filter)
 
-    def make(self) -> UnifiedModel:
+    def make(self, input_excitation: AccelerometerInput) -> UnifiedModel:
         """Make and return a `UnifiedModel`."""
         mechanical_model = (
             MechanicalModel()
-            .set_input(self.input_excitation)
+            .set_input(input_excitation)  # <-- set from parameter!
             .set_damper(self.damper)
             .set_magnet_assembly(self.magnet_assembly)
             .set_mechanical_spring(self.mechanical_spring)
@@ -390,7 +393,7 @@ def _chunk(array_like: Union[List, np.ndarray],
 
 @ray.remote
 def run_cell(unified_model_factory: UnifiedModelFactory,
-             input_excitations: List,
+             input_excitation: AccelerometerInput,
              curve_expressions: Dict[str, str] = None,
              score_metrics: Dict[str, Evaluator] = None,
              calc_metrics: Dict[str, Callable] = None) -> Tuple[Dict, Dict, Dict]:  # noqa
@@ -437,7 +440,7 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
 
     """
 
-    model = unified_model_factory.make()
+    model = unified_model_factory.make(input_excitation)
     model.solve(t_start=0,
                 t_end=8,
                 t_max_step=1e-3,
@@ -522,6 +525,14 @@ class GridsearchBatchExecutor:
                  parameters_to_track: List[str] = None,
                  **ray_kwargs) -> None:
         """Constructor"""
+
+        if score_metrics:
+            try:
+                for _, v in score_metrics.items():
+                    assert len(input_excitations) == len(v)
+            except AssertionError:
+                raise AssertionError('len(input excitations) != len(score_metrics[x]) ')
+
         self.input_excitations = input_excitations
         self.curve_expressions = curve_expressions
         self.score_metrics = score_metrics
@@ -552,7 +563,6 @@ class GridsearchBatchExecutor:
         # This doesn't make me happy, but I'm out of clean ideas for now If I
         # want this to work and _also_ preserve order.
         model_factories = list(self.abstract_unified_model_factory.generate())
-        total_completed = 0
         total_tasks = len(model_factories)
 
         grid_curves: List[Dict] = []
@@ -560,40 +570,58 @@ class GridsearchBatchExecutor:
         grid_calcs: List[Dict] = []
         grid_params: List[Dict] = []
 
-        for model_factory_batch in _chunk(model_factories, batch_size):
-            task_queue = []
-            for model_factory in model_factory_batch:
-                grid_params.append(model_factory.get_args(
-                    self.parameters_to_track
-                ))
-                task_id = run_cell.remote(model_factory,
-                                          self.curve_expressions,
-                                          self.score_metrics,
-                                          self.calc_metrics)
+        for input_number, input_ in enumerate(self.input_excitations):
 
-                task_queue.append(task_id)
+            # Build score metric that needs to be calculated for the input
+            # excitation. Remember: each groundtruth evaluator is directly
+            # linked to only one input!
+            linked_score_metric = None
+            if self.score_metrics:
+                linked_score_metric = {k: evaluators[input_number]
+                                       for k, evaluators
+                                       in self.score_metrics.items()}
 
-            ready: List[Any] = []
-            while len(ready) < len(task_queue):
-                ready, remaining = ray.wait(task_queue,
-                                            num_returns=len(task_queue),
-                                            timeout=5.)
-                logging.info(f'Progress: {len(ready)+total_completed}/{total_tasks}')  # noqa
+            total_completed = 0
+            for model_factory_batch in _chunk(model_factories, batch_size):
+                task_queue = []
+                for model_factory in model_factory_batch:
+                    grid_params.append(model_factory.get_args(
+                        self.parameters_to_track
+                    ))
+                    task_id = run_cell.remote(model_factory,
+                                              input_excitation=input_,
+                                              curve_expressions=self.curve_expressions,
+                                              score_metrics=linked_score_metric,
+                                              calc_metrics=self.calc_metrics)
 
-            # Once all tasks are completed...
-            total_completed += len(ready)  # noqa: increment the total completed counter
-            results = [ray.get(task_id) for task_id in task_queue]  # noqa: ... and fetch results
+                    task_queue.append(task_id)
 
-            # Parse the results
-            for result in results:
-                grid_curves.append(copy(result[0]))
-                grid_scores.append(copy(result[1]))
-                grid_calcs.append(copy(result[2]))
+                ready: List[Any] = []
+                while len(ready) < len(task_queue):
+                    ready, remaining = ray.wait(task_queue,
+                                                num_returns=len(task_queue),
+                                                timeout=5.)
+                    # Log output
+                    log_base = 'Progress: '
+                    input_log = f':: Input: {input_number}/{len(self.input_excitations)} '  # noqa
+                    grid_progress_log = f':: {len(ready)+total_completed}/{total_tasks}'  # noqa
+                    logging.info(log_base + input_log + grid_progress_log)
 
-            del results  # Remove reference so Ray can free memory as needed
+                # Once all tasks are completed...
+                total_completed += len(ready)  # noqa: increment the total completed counter
+                results = [ray.get(task_id) for task_id in task_queue]  # noqa: ... and fetch results
+
+                # Parse the results
+                for result in results:
+                    grid_curves.append(copy(result[0]))
+                    grid_scores.append(copy(result[1]))
+                    grid_calcs.append(copy(result[2]))
+
+                del results  # Remove reference so Ray can free memory as needed
         return grid_curves, grid_scores, grid_calcs, grid_params
 
     def _process_results(self,
+                         input_excitations,
                          grid_results: Tuple[List, List, List, List],
                          curve_subsample_rate: int = 3) -> pd.DataFrame:
         """Process the gridsearch results into a single pandas Dataframe."""
@@ -611,16 +639,20 @@ class GridsearchBatchExecutor:
         df_params = _param_dict_list_to_dataframe(grid_params)
 
         # Merge dataframes
-        result = None
-        for df in [df_curves, df_scores, df_calcs, df_params]:
-            # Get the first defined dataframe
-            if result is None:
-                if df is not None:
-                    result = df
+        results = []
+        for input_number in range(len(input_excitations)):
+            result: pd.DataFrame = None
+            for df in [df_curves, df_scores, df_calcs, df_params]:
+                # Get the first defined dataframe
+                if result is None:
+                    if df is not None:
+                        result = df
 
-            else:  # If we have our first defined dataframe ...
-                if df is not None:  # ... and the next one is defined ...
-                    result = result.merge(df, on='param_set_id')  # ... merge
+                else:  # If we have our first defined dataframe ...
+                    if df is not None:  # ... and the next one is defined ...
+                        result = result.merge(df, on='param_set_id')  # ... merge
+            result['input'] = input_number
+            results.append(result)
 
         return result
 
@@ -631,20 +663,29 @@ class GridsearchBatchExecutor:
         else:
             print('None')
 
-    def _print_list(self, list_):
+    def _print_list(self, list_: List[Any]):
         for x in list_:
             print(x)
 
     def preview(self) -> None:
         """Preview the gridsearch."""
 
+        factory_copy = copy(self.abstract_unified_model_factory)
+        num_models = len(list(factory_copy.generate()))
+
         print('Gridsearch Preview')
         print('==================')
         print()
 
+        print('Number of inputs:')
+        print('----------------')
+        print(f'Total # inputs --> {len(self.input_excitations)}')
+        print()
+
         print('Tracking the following parameters:')
         print('----------------------------------')
-        self._print_list(self.parameters_to_track)
+        if self.parameters_to_track:
+            self._print_list(self.parameters_to_track)
         print()
 
         print('Saving the following curves:')
@@ -652,9 +693,9 @@ class GridsearchBatchExecutor:
         self._print_dict(self.curve_expressions)
         print()
 
-        print('Scoring with the following metrics:')
-        print('-----------------------------------')
-        self._print_dict(self.score_metrics)
+        print('Scoring on the following expressions:')
+        print('---------------------------------------------')
+        self._print_list(self.score_metrics.keys())
         print()
 
         print('Calculating the following metrics:')
@@ -662,17 +703,16 @@ class GridsearchBatchExecutor:
         self._print_dict(self.calc_metrics)
         print()
 
-        print('Number of model parameters:')
+        print('Model parameters:')
         print('---------------------------')
 
-        factory_copy = copy(self.abstract_unified_model_factory)
-        num_models = len(list(factory_copy.generate()))
-        print(f'Total number of models --> {num_models}')
+        print(f'Total # models per input --> {num_models}')
         print()
         for param_path, param_values_list in factory_copy.combined.items():
             print(f'{param_path} --> number: {len(param_values_list)}')
-
         print()
+        print('==================')
+        print(f'Total # simulations --> {num_models*len(self.input_excitations)}')
         print('==================')
 
     def run(self, batch_size: int = 8) -> pd.DataFrame:
@@ -695,7 +735,7 @@ class GridsearchBatchExecutor:
         self._start_ray(self.ray_kwargs)
         logging.info('Running grid search...')
         self.raw_grid_result = self._execute_grid_search(batch_size=batch_size)
-        self.result = self._process_results(self.raw_grid_result)
+        self.result = self._process_results(self.input_excitations, self.raw_grid_result)
         logging.info('Gridsearch complete. Shutting down Ray...')
         self._kill_ray()
         return self.result

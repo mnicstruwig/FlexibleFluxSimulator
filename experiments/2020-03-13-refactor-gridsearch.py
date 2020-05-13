@@ -1,4 +1,5 @@
 from collections import namedtuple
+from typing import List, Any, Dict, Callable
 
 import numpy as np
 from scipy.signal import savgol_filter
@@ -114,7 +115,35 @@ class GroundTruthFactory:
         return groundtruths
 
 
-# Groundtruth
+class EvaluatorFactory:
+    def __init__(self,
+                 evaluator_cls: Any,
+                 expr_targets: List,
+                 time_targets: List,
+                 metrics: Dict[str, Callable],
+                 **kwargs) -> None:
+
+        # Do some validation
+        assert len(expr_targets) == len(time_targets)
+
+        self.evaluator_cls = evaluator_cls
+        self.expr_targets = expr_targets
+        self.time_targets = time_targets
+        self.metrics = metrics
+        self.evaluator_kwargs = kwargs
+
+    def make(self) -> List[Any]:
+        evaluator_list = []
+        for expr_target, time_target in zip(self.expr_targets, self.time_targets):  # noqa
+            evaluator = self.evaluator_cls(expr_target,
+                                           time_target,
+                                           self.metrics,
+                                           **self.evaluator_kwargs)
+            evaluator_list.append(evaluator)
+        return evaluator_list
+
+
+# Prepare data
 base_groundtruth_path = './data/2019-05-23_C/'
 samples = {}
 samples['A'] = collect_samples(base_path=base_groundtruth_path,
@@ -130,15 +159,28 @@ samples['C'] = collect_samples(base_path=base_groundtruth_path,
                                adc_pattern='C/*adc*.csv',
                                video_label_pattern='B/*labels*.csv')
 
-# Set components
+# Groundtruth
+groundtruth_factory = GroundTruthFactory(samples_list=samples['A'][:5],  # noqa <-- take the first five groundtruth samples
+                                         lvp_kwargs=dict(L=125,
+                                                         mm=10,
+                                                         seconds_per_frame=1/60,
+                                                         pixel_scale=0.154508),
+                                         adc_kwargs=dict(voltage_division_ratio=1 / 0.342)  # noqa
+)
+groundtruth = groundtruth_factory.make()  # TODO: Consider changing the factory to make it more user-friendly
+mech_y_targets = [gt.mech.y_diff for gt in groundtruth]
+mech_time_targets = [gt.mech.time for gt in groundtruth]
+elec_emf_targets = [gt.elec.emf for gt in groundtruth]
+elec_time_targets = [gt.elec.time for gt in groundtruth]
+
+
+# Components
 input_excitation_factories = {k: AccelerometerInputsFactory(samples[k])
                               for k in ['A', 'B', 'C']}
-
 magnetic_spring = mechanical_components.MagneticSpringInterp(
     fea_data_file='./data/magnetic-spring/10x10alt.csv',
     filter_obj=lambda x: savgol_filter(x, 27, 5)
 )
-
 magnet_assembly = mechanical_components.MagnetAssembly(
     n_magnet=1,
     l_m=10,
@@ -146,14 +188,12 @@ magnet_assembly = mechanical_components.MagnetAssembly(
     dia_magnet=10,
     dia_spacer=10
 )
-
 mech_components = {
     'magnetic_spring': [magnetic_spring],
     'magnet_assembly': [magnet_assembly],
     'damper': ConstantDamperFactory(np.linspace(0.01, 0.07, 10)).make(),
-    'mechanical_spring':  MechanicalSpringFactory(110/1000, [0]).make()
+    'mechanical_spring':  MechanicalSpringFactory(110/1000, np.linspace(0, 3, 5)).make()
 }
-
 elec_components = {
     'coil_resistance': [abc_config.coil_resistance['A']],
     'rectification_drop': [0.1],
@@ -162,13 +202,11 @@ elec_components = {
     'dflux_model': [abc_config.dflux_models['A']],
 
 }
-
-input_excitations = input_excitation_factories['A'].make()[:5]
-
+coupling_models = CouplingModelFactory(np.linspace(0, 3, 2)).make()
 governing_equations = [governing_equations.unified_ode]
 
-coupling_models = CouplingModelFactory(np.linspace(0, 3, 5)).make()
 
+# Models we want to simulate
 abstract_model_factory = gridsearch.AbstractUnifiedModelFactory(
     mech_components,
     elec_components,
@@ -176,36 +214,33 @@ abstract_model_factory = gridsearch.AbstractUnifiedModelFactory(
     governing_equations
 )
 
-# Set groundtruth
-# TODO: Do away with the GroundTruthFactory at some point, since we're only
-# going to run gridsearches with single groundtruth samples + inputs
-groundtruth_factory = GroundTruthFactory(
-    samples['A'][:5],  # <-- take the first five groundtruth samples
-    lvp_kwargs=dict(L=125,
-                    mm=10,
-                    seconds_per_frame=1/60,
-                    pixel_scale=0.154508),
-    adc_kwargs=dict(voltage_division_ratio=1 / 0.342)
-)
 
+# Inputs we want to excite the system with
+input_excitations = input_excitation_factories['A'].make()[:3]
 
-# Metrics
-groundtruth = groundtruth_factory.make()[0]
-
-# TODO: Implement a EvaluatorFactory?
-score_metrics = {
-    'x3-x1': evaluate.MechanicalSystemEvaluator(
-        y_target=groundtruth.mech.y_diff,
-        time_target=groundtruth.mech.time,
-        metrics={'ydiff_dtw_distance': metrics.dtw_euclid_distance}
-        ),
-    'g(t, x5)': evaluate.ElectricalSystemEvaluator(
-        emf_target=groundtruth.elec.emf,
-        time_target=groundtruth.elec.time,
-        metrics={'rms_perc_diff': metrics.root_mean_square_percentage_diff,
-                 'emf_dtw_distance': metrics.dtw_euclid_distance}
-    )
+# Curves we want to capture
+curve_expressions = {
+    't': 'time',
+    'x3-x1': 'y_diff',
+    'g(t, x5)': 'emf'
 }
+
+# Expressions we want to score
+score_metrics = {
+    'x3-x1': EvaluatorFactory(evaluator_cls=evaluate.MechanicalSystemEvaluator,
+                              expr_targets=mech_y_targets,
+                              time_targets=mech_time_targets,
+                              metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance}).make()[:len(input_excitations)],  # noqa
+
+    'g(t, x5)': EvaluatorFactory(evaluator_cls=evaluate.ElectricalSystemEvaluator,  # noqa
+                                 expr_targets=elec_emf_targets,
+                                 time_targets=elec_time_targets,
+                                 metrics={'rms_perc_diff': metrics.root_mean_square_percentage_diff,  # noqa
+                                          'emf_dtw_distance': metrics.dtw_euclid_distance}).make()[:len(input_excitations)]  # noqa
+}
+
+# Metrics we want to calculate
+calc_metrics = None
 
 # Parameters we want to track
 parameters_to_track = [
@@ -214,19 +249,14 @@ parameters_to_track = [
     'mechanical_spring.damping_coefficient'
 ]
 
-# Curves we want to capture
-curve_expressions = {
-    't' : 'time',
-    'x3-x1' : 'y_diff',
-    'g(t, x5)': 'emf'
-}
 
 # Run the gridsearch
 grid_executor = gridsearch.GridsearchBatchExecutor(abstract_model_factory,
                                                    input_excitations,
                                                    curve_expressions,
                                                    score_metrics,
-                                                   calc_metrics=None,  # <-- we'll really only use this for optimization step
-                                                   parameters_to_track=parameters_to_track)
+                                                   calc_metrics=calc_metrics,  # noqa <-- use this for optimization, not scoring
+                                                   parameters_to_track=parameters_to_track)  # noqa
 
-# results = grid_executor.run()  # Execute
+grid_executor.preview()
+results = grid_executor.run()  # Execute
