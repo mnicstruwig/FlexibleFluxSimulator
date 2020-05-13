@@ -1,18 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Callable, Any
+from typing import Any, Callable, Dict
 
-from collections import namedtuple
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.signal import correlate, detrend
-from scipy.interpolate import UnivariateSpline
 
-from unified_model.utils.utils import (apply_scalar_functions,
-                                       get_sample_delay, find_signal_limits,
-                                       smooth_butterworth, warp_signals,
-                                       interpolate_and_resample,
-                                       align_signals_in_time)
+from scipy.signal import detrend
+
+from unified_model.utils.utils import (align_signals_in_time,
+                                       apply_scalar_functions,
+                                       find_signal_limits, smooth_butterworth,
+                                       warp_signals)
 
 
 class AdcProcessor:
@@ -91,7 +89,7 @@ class AdcProcessor:
         voltage_readings = groundtruth_dataframe[voltage_col].values
 
         if self.smooth:
-            critical_frequency = self.smooth_kwargs.get('critical_frequency', 1/5)
+            critical_frequency = self.smooth_kwargs.get('critical_frequency', 1/5)  # noqa
             self.critical_frequency = critical_frequency
             voltage_readings = smooth_butterworth(voltage_readings,
                                                   critical_frequency)
@@ -214,9 +212,9 @@ class MechanicalSystemEvaluator:
         self.time_predict = None
 
         # Holds resampled values
-        self.y_target_ = None
-        self.y_predict_ = None
-        self.time_ = None
+        self.y_target_: np.ndarray = None
+        self.y_predict_: np.ndarray = None
+        self.time_: np.ndarray = None
 
         # Holds dynamic time-warped values
         self.y_target_warped_ = None
@@ -330,7 +328,9 @@ class MechanicalSystemEvaluator:
 
         # Show the clip marks
         plt.plot([0, 0], [0, max(self.y_target_)], 'k--')  # start
-        plt.plot([self.time_[self._clip_index], self.time_[self._clip_index]], [0, max(self.y_target_)], 'k--')  # end
+        plt.plot([self.time_[self._clip_index], self.time_[self._clip_index]],
+                 [0, max(self.y_target_)],
+                 'k--')  # end
 
         plt.legend()
 
@@ -344,6 +344,7 @@ class MechanicalSystemEvaluator:
             plt.legend()
 
         plt.show()
+
 
 # TODO: Update attributes
 # TODO: Write tests
@@ -404,15 +405,17 @@ class ElectricalSystemEvaluator:
     """
 
     def __init__(self,
-                 emf_target,
-                 time_target,
-                 warp=False,
-                 clip_threshold=1e-4):
+                 emf_target: np.ndarray,
+                 time_target: np.ndarray,
+                 metrics: Dict[str, Callable],
+                 warp: bool = False,
+                 clip_threshold: float = 1e-4):
         """Constructor.
 
 
         """
 
+        self.metrics = metrics
         self.warp = warp
         self.clip_threshold = clip_threshold
 
@@ -424,9 +427,9 @@ class ElectricalSystemEvaluator:
 
         # Holds resampled values
         # Trailing underscores indicate resampled values were used.
-        self.emf_target_ = None
-        self.emf_predict_ = None
-        self.time_ = None
+        self.emf_target_: np.ndarray = None
+        self.emf_predict_: np.ndarray = None
+        self.time_: np.ndarray = None
 
         # Holds clipped resampled values (using spectrogram)
         self.time_clipped_ = None
@@ -463,10 +466,6 @@ class ElectricalSystemEvaluator:
 
         """
 
-        self._fit(emf_predict, time_predict)
-
-    def _fit(self, emf_predict, time_predict):
-        """Implement the functionality of the `fit` method."""
         self.emf_predict = emf_predict
         self.time_predict = time_predict
 
@@ -489,40 +488,14 @@ class ElectricalSystemEvaluator:
         self.time_ = resampled_time
         self._clip_signals(self.clip_threshold)
 
-    def fit_transform(self, emf_predict, time_predict):
-        """Align `emf_predict` with `emf_target` in time and return the
-        result.
-
-        Parameters
-        ----------
-        emf_predict : ndarray
-            The predicted emf values produced by the electrical system.
-        time_predict : ndarray
-            The corresponding time values assosciated with `emf_predicted`.
-
-        Returns
-        -------
-        time_ : array
-            Common timestamps of both the resampled emf predicted signal and
-            emf target signal.
-        emf_predict_ : array
-            Resampled and interpolated values of the emf predicted signal values.
-
-        See Also
-        --------
-        ElectricalSystemEvaluator.fit : function
-            The underlying method that is called.
-
-        """
-        self._fit(emf_predict, time_predict)
-        return self.time_, self.emf_predict_
-
     def _calc_dtw(self):
         """Perform dynamic time warping on prediction and targets."""
 
-        # Exclude trailing (i.e. steady state) portion of the predicted waveform.
-        self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(self.emf_predict_,
-                                                                         self.emf_target_)
+        # Exclude trailing (i.e. steady state) portion of the predicted waveform
+        self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(
+            self.emf_predict_,
+            self.emf_target_
+        )
 
     def _clip_signals(self, clip_threshold):
         """Clip the target and predicted signals to only the active parts."""
@@ -536,9 +509,11 @@ class ElectricalSystemEvaluator:
 
         # We find the limits on the predicted curve, since it's a lot less
         # noisy than the target curve.
-        start_index, end_index = find_signal_limits(target=self.emf_predict_,
-                                                        sampling_period=1,
-                                                        threshold=clip_threshold)
+        start_index, end_index = find_signal_limits(
+            target=self.emf_predict_,
+            sampling_period=1,
+            threshold=clip_threshold
+        )
 
         # Convert to integer indices, since `find_signal_limits` actually
         # returns the "time" of the signal, but we have a sampling frequency of
@@ -550,7 +525,7 @@ class ElectricalSystemEvaluator:
         self.emf_predict_clipped_ = self.emf_predict_[start_index:end_index]
         self.emf_target_clipped_ = self.emf_target_[start_index:end_index]
 
-    def score(self, **metrics):
+    def score(self) -> Dict[str, Any]:
         """Evaluate the electrical model using a selection of metrics.
 
         A `Score` object is returned containing the results.
@@ -581,31 +556,24 @@ class ElectricalSystemEvaluator:
         >>> es_evaluator = ElectricalSystemEvaluator(emf_target, time_target)
         >>> es_evaluator.fit(emf_predict, time_predict)
         Calculate the score using any function of your choice
-        >>> es_evaluator.score(mean_difference=(lambda x, y: np.mean(x-y)), max_value=(lambda x,y: np.max([x, y])))
+        >>> es_evaluator.score(mean_difference=(lambda x, y: np.mean(x-y)), max_value=(lambda x,y: np.max([x, y])))  # noqa
         Score(mean_difference=0.21169084032224028, max_value=5.078793981160988)
 
         """
-
-        results = self._score(**metrics)
-        return results
-
-    def _score(self, **metrics):
-        """Implement the underlying functionality of the `score` method."""
 
         if self.warp:
             self._calc_dtw()
             metric_results = apply_scalar_functions(self.emf_predict_warped_,
                                                     self.emf_target_warped_,
-                                                    **metrics)
+                                                    **self.metrics)
         else:
             metric_results = apply_scalar_functions(self.emf_predict_clipped_,
                                                     self.emf_target_clipped_,
-                                                    **metrics)
-        Results = namedtuple('Score', metric_results.keys())
+                                                    **self.metrics)
 
-        return Results(*metric_results.values())
+        return metric_results
 
-    def poof(self, include_dtw=False, **kwargs):
+    def poof(self, include_dtw=False, **kwargs) -> None:
         """Plot the aligned target and predicted values.
 
         Parameters
@@ -628,7 +596,6 @@ class ElectricalSystemEvaluator:
         clipped_x_begin = [self.clipped_indexes[0]]*2
         clipped_x_end = [self.clipped_indexes[1]]*2
         clipped_y = [0, np.max([target, predict])]
-
 
         plt.plot(time, target, label='Target', **kwargs)
         plt.plot(time, predict, label='Predictions', **kwargs)
@@ -727,11 +694,11 @@ class LabeledVideoProcessor:
             assert df is not None
         except AssertionError:
             raise AssertionError('Groundtruth dataframe is `None`.'
-                                 + 'Was the groundtruth file parsed correctly? Does it exist?')
+                                 + 'Was the groundtruth file parsed correctly? Does it exist?')  # noqa
 
         if self.pixel_scale is None:  # If we don't manually set pixel scale
-            if np.any(df['y_pixel_scale'] == -1):  # ... and it isn't in the parsed file.
-                raise ValueError('Dataframe contains missing pixel scale values and the pixel scale has not been '
+            if np.any(df['y_pixel_scale'] == -1):  # ... and it isn't in the parsed file.  # noqa
+                raise ValueError('Dataframe contains missing pixel scale values and the pixel scale has not been '  # noqa
                                  'manually specified.')
         else:
             df['y_pixel_scale'] = self.pixel_scale
@@ -740,7 +707,7 @@ class LabeledVideoProcessor:
         df['y_mm'] = df['y'] * df['y_pixel_scale']  # Adjust with pixel scale
         df['y_prime_mm'] = df['y_mm']  # Get actual position
         # Adjust for top / bottom of magnet during labeling process
-        df.loc[df['top_of_magnet'] == 1, 'y_prime_mm'] = df['y_prime_mm'] - self.mm
+        df.loc[df['top_of_magnet'] == 1, 'y_prime_mm'] = df['y_prime_mm'] - self.mm  # noqa
 
         # Correct calculations made with missing values, if they exist.
         if impute_missing_values:
@@ -806,16 +773,16 @@ def impute_missing(df_missing, indexes):
             # imputing are _also_ unlabelled.
             # TODO: Turn this check into a function w/ tests
             if df_missing.loc[end_velocity_calc, 'start_y'] == -1:
-                raise ValueError('Too few many sequential missing values to be able to impute all missing values.')
+                raise ValueError('Too few many sequential missing values to be able to impute all missing values.')  # noqa
             if df_missing.loc[start_velocity_calc, 'start_y'] == -1:
                 start_velocity_calc = start_velocity_calc - 1
                 if df_missing.loc[start_velocity_calc, 'start_y'] == -1:
-                    raise ValueError('Too many sequential missing values to be able to impute all missing values.')
+                    raise ValueError('Too many sequential missing values to be able to impute all missing values.')  # noqa
         except KeyError:
-            raise IndexError('Too few points available to calculate velocity and impute missing values.')
+            raise IndexError('Too few points available to calculate velocity and impute missing values.')  # noqa
 
-        velocity = df_missing.loc[end_velocity_calc, 'y_prime_mm'] - df_missing.loc[start_velocity_calc, 'y_prime_mm']
-        df_missing.loc[index, 'y_prime_mm'] = df_missing.loc[index - 1, 'y_prime_mm'] + velocity
+        velocity = (df_missing.loc[end_velocity_calc, 'y_prime_mm']
+                    - df_missing.loc[start_velocity_calc, 'y_prime_mm'])
+
+        df_missing.loc[index, 'y_prime_mm'] = df_missing.loc[index - 1, 'y_prime_mm'] + velocity  # noqa
     return df_missing
-
-

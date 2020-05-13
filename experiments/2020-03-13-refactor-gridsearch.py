@@ -12,7 +12,7 @@ from unified_model import metrics
 from unified_model import gridsearch
 
 from unified_model.utils.utils import collect_samples
-from config import abc_config
+from local_config import abc_config
 
 
 class ConstantDamperFactory:
@@ -58,7 +58,7 @@ class AccelerometerInputsFactory:
         self.acc_input_kwargs.setdefault('smooth', True),
         self.acc_input_kwargs.setdefault('interpolate', True)
 
-    def make(self):
+    def make(self) -> List[mechanical_components.AccelerometerInput]:
         accelerometer_inputs = []
         for sample in self.sample_list:
             acc_input = mechanical_components.AccelerometerInput(
@@ -148,10 +148,9 @@ magnet_assembly = mechanical_components.MagnetAssembly(
 )
 
 mech_components = {
-    'input_excitation': input_excitation_factories['A'].make()[:1],
     'magnetic_spring': [magnetic_spring],
     'magnet_assembly': [magnet_assembly],
-    'damper': ConstantDamperFactory(np.linspace(0.01, 0.07, 3)).make(),
+    'damper': ConstantDamperFactory(np.linspace(0.01, 0.07, 10)).make(),
     'mechanical_spring':  MechanicalSpringFactory(110/1000, [0]).make()
 }
 
@@ -164,9 +163,11 @@ elec_components = {
 
 }
 
+input_excitations = input_excitation_factories['A'].make()[:5]
+
 governing_equations = [governing_equations.unified_ode]
 
-coupling_models = CouplingModelFactory([0]).make()
+coupling_models = CouplingModelFactory(np.linspace(0, 3, 5)).make()
 
 abstract_model_factory = gridsearch.AbstractUnifiedModelFactory(
     mech_components,
@@ -176,8 +177,10 @@ abstract_model_factory = gridsearch.AbstractUnifiedModelFactory(
 )
 
 # Set groundtruth
+# TODO: Do away with the GroundTruthFactory at some point, since we're only
+# going to run gridsearches with single groundtruth samples + inputs
 groundtruth_factory = GroundTruthFactory(
-    samples['A'][:5],
+    samples['A'][:5],  # <-- take the first five groundtruth samples
     lvp_kwargs=dict(L=125,
                     mm=10,
                     seconds_per_frame=1/60,
@@ -187,27 +190,22 @@ groundtruth_factory = GroundTruthFactory(
 
 
 # Metrics
-mechanical_metrics = {
-    'dtw_distance': metrics.dtw_euclid_distance,
-}
-electrical_metrics = {
-    'rms_perc_diff': metrics.root_mean_square_percentage_diff,
-    'dtw_distance': metrics.dtw_euclid_distance
-}
-
-score_metrics = {'mechanical': mechanical_metrics,
-                 'electrical': electrical_metrics}
-
 groundtruth = groundtruth_factory.make()[0]
 
+# TODO: Implement a EvaluatorFactory?
 score_metrics = {
     'x3-x1': evaluate.MechanicalSystemEvaluator(
         y_target=groundtruth.mech.y_diff,
         time_target=groundtruth.mech.time,
-        metrics={'dtw_distance': metrics.dtw_euclid_distance}
-        )
+        metrics={'ydiff_dtw_distance': metrics.dtw_euclid_distance}
+        ),
+    'g(t, x5)': evaluate.ElectricalSystemEvaluator(
+        emf_target=groundtruth.elec.emf,
+        time_target=groundtruth.elec.time,
+        metrics={'rms_perc_diff': metrics.root_mean_square_percentage_diff,
+                 'emf_dtw_distance': metrics.dtw_euclid_distance}
+    )
 }
-
 
 # Parameters we want to track
 parameters_to_track = [
@@ -216,16 +214,7 @@ parameters_to_track = [
     'mechanical_spring.damping_coefficient'
 ]
 
-unified_factory = list(abstract_model_factory.generate())[0]
-
-def mymax(x):
-    return max(x)
-
-
-calc_metrics = {
-    'x3-x1': {'max_y_diff': mymax}
-}
-
+# Curves we want to capture
 curve_expressions = {
     't' : 'time',
     'x3-x1' : 'y_diff',
@@ -234,9 +223,10 @@ curve_expressions = {
 
 # Run the gridsearch
 grid_executor = gridsearch.GridsearchBatchExecutor(abstract_model_factory,
+                                                   input_excitations,
                                                    curve_expressions,
                                                    score_metrics,
-                                                   calc_metrics,
-                                                   parameters_to_track)
+                                                   calc_metrics=None,  # <-- we'll really only use this for optimization step
+                                                   parameters_to_track=parameters_to_track)
 
-results = grid_executor.run()  # Execute
+# results = grid_executor.run()  # Execute

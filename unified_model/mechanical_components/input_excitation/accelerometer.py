@@ -151,7 +151,7 @@ class AccelerometerInput:
             The interpolation object is available under `self.interpolator`.
 
         """
-
+        self.raw_accelerometer_input = raw_accelerometer_input
         self._accel_column = accel_column
         self._time_column = time_column
         self._accel_unit = accel_unit

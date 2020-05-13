@@ -244,8 +244,14 @@ def interpolate_and_resample(x, y, num_samples=10000, new_x_range=None):
     return new_x, interp(new_x)
 
 
-def align_signals_in_time(t_1, y_1, t_2, y_2, num_samples=10000):
-    """Align two signals in time using interpolation and resampling.
+def align_signals_in_time(
+        t_1,
+        y_1,
+        t_2,
+        y_2,
+        num_samples=10000
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Align two signals in time.
 
     The signal `y_2` is shifted to be in time with `y_1`, using
     cross-correlation, to calculate the time delay. Calculating

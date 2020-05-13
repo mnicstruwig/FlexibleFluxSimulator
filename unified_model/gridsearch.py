@@ -12,6 +12,7 @@ import ray
 
 from unified_model import (ElectricalModel, MechanicalModel, UnifiedModel,
                            pipeline)
+from unified_model.mechanical_components import AccelerometerInput
 from unified_model.evaluate import Evaluator
 from unified_model.utils.utils import align_signals_in_time, find_signal_limits, apply_scalar_functions
 
@@ -389,6 +390,7 @@ def _chunk(array_like: Union[List, np.ndarray],
 
 @ray.remote
 def run_cell(unified_model_factory: UnifiedModelFactory,
+             input_excitations: List,
              curve_expressions: Dict[str, str] = None,
              score_metrics: Dict[str, Evaluator] = None,
              calc_metrics: Dict[str, Callable] = None) -> Tuple[Dict, Dict, Dict]:  # noqa
@@ -467,6 +469,7 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
     if calc_metrics:  # TODO: Convert this to helper function (DRY)
         metric_calcs = {}
         for expression, metric_dict in calc_metrics.items():
+            # We use the model's helper function to calculate the metrics
             result = model.calculate_metrics(expression, metric_dict)
             metric_calcs.update(result)
 
@@ -512,13 +515,14 @@ class GridsearchBatchExecutor:
     """
     def __init__(self,
                  abstract_unified_model_factory: AbstractUnifiedModelFactory,
+                 input_excitations: List[AccelerometerInput],  # TODO: Docstring
                  curve_expressions: Dict[str, str] = None,
-                 score_metrics: Dict[str, Evaluator] = None,
+                 score_metrics: Dict[str, List[Evaluator]] = None,
                  calc_metrics: Dict[str, Callable] = None,
                  parameters_to_track: List[str] = None,
                  **ray_kwargs) -> None:
         """Constructor"""
-
+        self.input_excitations = input_excitations
         self.curve_expressions = curve_expressions
         self.score_metrics = score_metrics
         self.calc_metrics = calc_metrics
@@ -619,6 +623,57 @@ class GridsearchBatchExecutor:
                     result = result.merge(df, on='param_set_id')  # ... merge
 
         return result
+
+    def _print_dict(self, dict_):
+        if dict_ is not None:
+            for key, value in dict_.items():
+                print(f'{key} --> {value}')
+        else:
+            print('None')
+
+    def _print_list(self, list_):
+        for x in list_:
+            print(x)
+
+    def preview(self) -> None:
+        """Preview the gridsearch."""
+
+        print('Gridsearch Preview')
+        print('==================')
+        print()
+
+        print('Tracking the following parameters:')
+        print('----------------------------------')
+        self._print_list(self.parameters_to_track)
+        print()
+
+        print('Saving the following curves:')
+        print('----------------------------')
+        self._print_dict(self.curve_expressions)
+        print()
+
+        print('Scoring with the following metrics:')
+        print('-----------------------------------')
+        self._print_dict(self.score_metrics)
+        print()
+
+        print('Calculating the following metrics:')
+        print('----------------------------------')
+        self._print_dict(self.calc_metrics)
+        print()
+
+        print('Number of model parameters:')
+        print('---------------------------')
+
+        factory_copy = copy(self.abstract_unified_model_factory)
+        num_models = len(list(factory_copy.generate()))
+        print(f'Total number of models --> {num_models}')
+        print()
+        for param_path, param_values_list in factory_copy.combined.items():
+            print(f'{param_path} --> number: {len(param_values_list)}')
+
+        print()
+        print('==================')
 
     def run(self, batch_size: int = 8) -> pd.DataFrame:
         """Run the grid search and returns the results.
