@@ -1,13 +1,12 @@
 import logging
 import warnings
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from copy import copy
 from itertools import product
 from typing import (Any, Dict, Generator, List, NamedTuple,
                     Union, Tuple, Callable)
 
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 import ray
 
@@ -15,7 +14,7 @@ from unified_model import (ElectricalModel, MechanicalModel, UnifiedModel,
                            pipeline)
 from unified_model.mechanical_components import AccelerometerInput
 from unified_model.evaluate import Evaluator
-from unified_model.utils.utils import align_signals_in_time, find_signal_limits, apply_scalar_functions
+from unified_model.utils.utils import find_signal_limits
 
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s',
                     level=logging.INFO)
@@ -89,8 +88,9 @@ class AbstractUnifiedModelFactory:
 
         """
         param_product = product(*[v for v in self.combined.values()])
-        for pp in param_product:
+        for i, pp in enumerate(param_product):
             new_kwargs = {k: v for k, v in zip(self.combined.keys(), pp)}
+            new_kwargs['model_id'] = i
             yield UnifiedModelFactory(**new_kwargs)
 
 
@@ -112,7 +112,8 @@ class UnifiedModelFactory:
                  flux_model: Any = None,
                  dflux_model: Any = None,
                  coupling_model: Any = None,
-                 governing_equations: Any = None) -> None:
+                 governing_equations: Any = None,
+                 model_id: int = None) -> None:
         """Constructor"""
         self.damper = damper
         self.magnet_assembly = magnet_assembly
@@ -125,6 +126,7 @@ class UnifiedModelFactory:
         self.dflux_model = dflux_model
         self.coupling_model = coupling_model
         self.governing_equations = governing_equations
+        self.model_id = model_id  # <-- used to keep track of a set of parameters
 
     def get_args(self, param_filter: List[str] = None) -> Dict[str, float]:
         """Get arguments args that are be passed to `UnifiedModel`.
@@ -256,7 +258,8 @@ def _get_params_of_interest(param_dict: Dict[Any, Any],
     return result
 
 
-def _scores_to_dataframe(grid_scores: List[Dict[str, Any]]) -> pd.DataFrame:
+def _scores_to_dataframe(grid_scores: List[Dict[str, Any]],
+                         model_ids: List[int]) -> pd.DataFrame:  # TODO: Docstring
     """Parse scores from a grid search into a pandas dataframe.
 
     Parameters
@@ -279,12 +282,14 @@ def _scores_to_dataframe(grid_scores: List[Dict[str, Any]]) -> pd.DataFrame:
         for key, val in score_dict.items():
             result[key].append(val)
 
-        result['param_set_id'].append(i)
+        result['grid_cell_id'].append(i)
+        result['model_id'].append(model_ids[i])
     return pd.DataFrame(result)
 
 
 def _calc_metrics_to_dataframe(
-        grid_calcs: List[Dict[str, Any]]
+        grid_calcs: List[Dict[str, Any]],
+        model_ids: List[int]  # TODO: Docstring
 ) -> pd.DataFrame:
     """Parse calculated metrics from a grid search into a pandas dataframe.
 
@@ -292,7 +297,8 @@ def _calc_metrics_to_dataframe(
     ----------
     grid_scores : List[Dict[str, Any]]
         The grid's calculated metrics, which are a list of dicts, where the key
-        is the name of the calculated metric and the values are the calculated metric.
+        is the name of the calculated metric and the values are the calculated
+        metric.
 
     Returns
     -------
@@ -307,12 +313,14 @@ def _calc_metrics_to_dataframe(
         for key, val in calc_dict.items():
             result[key].append(val)
 
-        result['param_set_id'].append(i)
+        result['grid_cell_id'].append(i)
+        result['model_id'].append(model_ids[i])
     return pd.DataFrame(result)
 
 
 def _curves_to_dataframe(grid_curves: List[Dict[str, Any]],
-                         sample_rate: int) -> pd.DataFrame:
+                         sample_rate: int,
+                         model_ids: List[int]) -> pd.DataFrame:
     """Parse the curve waveforms from a grid search into a pandas dataframe.
 
     Parameters
@@ -340,14 +348,20 @@ def _curves_to_dataframe(grid_curves: List[Dict[str, Any]],
             result[key] = np.concatenate([result[key], subsampled_values])
             values_length = len(subsampled_values)
 
-        param_set_id = np.full(values_length, i)
-        result['param_set_id'] = np.concatenate([result['param_set_id'],
-                                                 param_set_id])
+        grid_cell_id = np.full(values_length, i, dtype=int)
+        model_id = np.full(values_length, model_ids[i], dtype=int)
 
-    return pd.DataFrame(result)
+        result['grid_cell_id'] = np.concatenate([result['grid_cell_id'],
+                                                 grid_cell_id])
+        result['model_id'] = np.concatenate([result['model_id'], model_id])
+
+    df = pd.DataFrame(result)
+    df['model_id'] = df['model_id'].astype('int')  # Force `model_id` to be int
+    return df
 
 
-def _param_dict_list_to_dataframe(param_dict_list: List[Dict]) -> pd.DataFrame:
+def _param_dict_list_to_dataframe(param_dict_list: List[Dict],
+                                  model_ids: List[int]) -> pd.DataFrame:
     """Parse the parameter list into a pandas dataframe.
 
     Useful for parsing a lit of parameter values into a dataframe for later
@@ -372,7 +386,9 @@ def _param_dict_list_to_dataframe(param_dict_list: List[Dict]) -> pd.DataFrame:
     for i, param_dict in enumerate(param_dict_list):
         for key, value in param_dict.items():
             result[key].append(value)
-        result['param_set_id'].append(i)
+
+        result['grid_cell_id'].append(i)
+        result['model_id'].append(model_ids[i])
 
     return pd.DataFrame(result)
 
@@ -451,7 +467,8 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
     metric_calcs: Dict[str, Any] = {}
 
     if curve_expressions:
-        # We need to do a key-value swap to match the `.get_result` method interface
+        # We need to do a key-value swap to match the `.get_result` method
+        # interface
         swapped = {v: k for k, v in curve_expressions.items()}
         df_result = model.get_result(**swapped)
         curves = df_result.to_dict(orient='list')
@@ -531,7 +548,7 @@ class GridsearchBatchExecutor:
                 for _, v in score_metrics.items():
                     assert len(input_excitations) == len(v)
             except AssertionError:
-                raise AssertionError('len(input excitations) != len(score_metrics[x]) ')
+                raise AssertionError('len(input excitations) != len(score_metrics[x]) ')  # noqa
 
         self.input_excitations = input_excitations
         self.curve_expressions = curve_expressions
@@ -557,11 +574,10 @@ class GridsearchBatchExecutor:
     def _execute_grid_search(
             self,
             batch_size: int = 8
-    ) -> Tuple[List, List, List, List]:
+    ) -> Tuple[List, List, List, List, List]:
         """Execute the gridsearch."""
 
-        # This doesn't make me happy, but I'm out of clean ideas for now If I
-        # want this to work and _also_ preserve order.
+        # Convert to list since we may iterate over it multiple times
         model_factories = list(self.abstract_unified_model_factory.generate())
         total_tasks = len(model_factories)
 
@@ -569,6 +585,7 @@ class GridsearchBatchExecutor:
         grid_scores: List[Dict] = []
         grid_calcs: List[Dict] = []
         grid_params: List[Dict] = []
+        model_ids: List[int] = []
 
         for input_number, input_ in enumerate(self.input_excitations):
 
@@ -585,12 +602,15 @@ class GridsearchBatchExecutor:
             for model_factory_batch in _chunk(model_factories, batch_size):
                 task_queue = []
                 for model_factory in model_factory_batch:
-                    grid_params.append(model_factory.get_args(
-                        self.parameters_to_track
-                    ))
+                    # Get the model id
+                    model_ids.append(model_factory.model_id)
+                    # Record grid parameters
+                    grid_params.append(model_factory.get_args(self.parameters_to_track))  # noqa
+
+                    # Queue a simulation
                     task_id = run_cell.remote(model_factory,
                                               input_excitation=input_,
-                                              curve_expressions=self.curve_expressions,
+                                              curve_expressions=self.curve_expressions,  # noqa
                                               score_metrics=linked_score_metric,
                                               calc_metrics=self.calc_metrics)
 
@@ -603,7 +623,7 @@ class GridsearchBatchExecutor:
                                                 timeout=5.)
                     # Log output
                     log_base = 'Progress: '
-                    input_log = f':: Input: {input_number}/{len(self.input_excitations)} '  # noqa
+                    input_log = f':: Input: {input_number+1}/{len(self.input_excitations)} '  # noqa
                     grid_progress_log = f':: {len(ready)+total_completed}/{total_tasks}'  # noqa
                     logging.info(log_base + input_log + grid_progress_log)
 
@@ -618,14 +638,14 @@ class GridsearchBatchExecutor:
                     grid_calcs.append(copy(result[2]))
 
                 del results  # Remove reference so Ray can free memory as needed
-        return grid_curves, grid_scores, grid_calcs, grid_params
+        return grid_curves, grid_scores, grid_calcs, grid_params, model_ids
 
     def _process_results(self,
                          input_excitations,
-                         grid_results: Tuple[List, List, List, List],
+                         grid_results: Tuple[List, List, List, List, List],
                          curve_subsample_rate: int = 3) -> pd.DataFrame:
         """Process the gridsearch results into a single pandas Dataframe."""
-        grid_curves, grid_scores, grid_calcs, grid_params = grid_results
+        grid_curves, grid_scores, grid_calcs, grid_params, model_ids = grid_results  # noqa
 
         # Some basic validation
         assert(len(grid_calcs) == len(grid_curves))
@@ -633,10 +653,12 @@ class GridsearchBatchExecutor:
         assert(len(grid_scores) == len(grid_params))
 
         df_curves = _curves_to_dataframe(grid_curves,
-                                         sample_rate=curve_subsample_rate)
-        df_scores = _scores_to_dataframe(grid_scores)
-        df_calcs = _calc_metrics_to_dataframe(grid_calcs)
-        df_params = _param_dict_list_to_dataframe(grid_params)
+                                         sample_rate=curve_subsample_rate,
+                                         model_ids=model_ids)
+        df_scores = _scores_to_dataframe(grid_scores, model_ids=model_ids)
+        df_calcs = _calc_metrics_to_dataframe(grid_calcs, model_ids=model_ids)
+        df_params = _param_dict_list_to_dataframe(grid_params,
+                                                  model_ids=model_ids)
 
         # Merge dataframes
         results = []
@@ -650,8 +672,8 @@ class GridsearchBatchExecutor:
 
                 else:  # If we have our first defined dataframe ...
                     if df is not None:  # ... and the next one is defined ...
-                        result = result.merge(df, on='param_set_id')  # ... merge
-            result['input'] = input_number
+                        result = result.merge(df, on=['grid_cell_id', 'model_id'])  # ...merge
+            result['input_excitation_number'] = input_number
             results.append(result)
 
         return result
@@ -695,7 +717,8 @@ class GridsearchBatchExecutor:
 
         print('Scoring on the following expressions:')
         print('---------------------------------------------')
-        self._print_list(self.score_metrics.keys())
+        if self.score_metrics:
+            self._print_list(list(self.score_metrics.keys()))
         print()
 
         print('Calculating the following metrics:')
@@ -712,7 +735,7 @@ class GridsearchBatchExecutor:
             print(f'{param_path} --> number: {len(param_values_list)}')
         print()
         print('==================')
-        print(f'Total # simulations --> {num_models*len(self.input_excitations)}')
+        print(f'Total # simulations --> {num_models*len(self.input_excitations)}')  # noqa
         print('==================')
 
     def run(self, batch_size: int = 8) -> pd.DataFrame:
@@ -735,7 +758,8 @@ class GridsearchBatchExecutor:
         self._start_ray(self.ray_kwargs)
         logging.info('Running grid search...')
         self.raw_grid_result = self._execute_grid_search(batch_size=batch_size)
-        self.result = self._process_results(self.input_excitations, self.raw_grid_result)
+        self.result = self._process_results(self.input_excitations,
+                                            self.raw_grid_result)
         logging.info('Gridsearch complete. Shutting down Ray...')
         self._kill_ray()
         return self.result

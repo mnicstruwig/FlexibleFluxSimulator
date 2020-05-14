@@ -191,8 +191,8 @@ magnet_assembly = mechanical_components.MagnetAssembly(
 mech_components = {
     'magnetic_spring': [magnetic_spring],
     'magnet_assembly': [magnet_assembly],
-    'damper': ConstantDamperFactory(np.linspace(0.01, 0.07, 10)).make(),
-    'mechanical_spring':  MechanicalSpringFactory(110/1000, np.linspace(0, 3, 5)).make()
+    'damper': ConstantDamperFactory(np.linspace(0.01, 0.07, 2)).make(),
+    'mechanical_spring':  MechanicalSpringFactory(110/1000, np.linspace(0, 3, 2)).make()
 }
 elec_components = {
     'coil_resistance': [abc_config.coil_resistance['A']],
@@ -216,7 +216,7 @@ abstract_model_factory = gridsearch.AbstractUnifiedModelFactory(
 
 
 # Inputs we want to excite the system with
-input_excitations = input_excitation_factories['A'].make()[:3]
+input_excitations = input_excitation_factories['A'].make()[:2]
 
 # Curves we want to capture
 curve_expressions = {
