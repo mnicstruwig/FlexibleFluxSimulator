@@ -481,7 +481,7 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
 
         # Ok, let's calculate the score metrics
         metric_scores = {}
-        for i, (expression, evaluator) in enumerate(score_metrics.items()):
+        for i, (_, evaluator) in enumerate(score_metrics.items()):
             evaluator.fit(df_result[str(i)].values, df_result['time'].values)
             score: Dict[str, Any] = evaluator.score()  # type: ignore
             metric_scores.update(score)  # Score and update the table
@@ -776,5 +776,5 @@ class GridsearchBatchExecutor:
         if self.result is None:
             raise ValueError('Nothing to save. Have you called `run` yet?')
         logging.info(f'Saving to result to file {path}')
-        self.result.to_parquet(path)
+        self.result.to_parquet(path, engine='pyarrow', compression='brotli')
         logging.info('Save complete!')

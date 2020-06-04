@@ -115,6 +115,7 @@ class GroundTruthFactory:
         return groundtruths
 
 
+# TODO: Docstrings <-- NB
 class EvaluatorFactory:
     def __init__(self,
                  evaluator_cls: Any,
@@ -159,8 +160,12 @@ samples['C'] = collect_samples(base_path=base_groundtruth_path,
                                adc_pattern='C/*adc*.csv',
                                video_label_pattern='B/*labels*.csv')
 
+which_device = 'A'
+which_input = np.array([0,1,2,3,4])
+
+
 # Groundtruth
-groundtruth_factory = GroundTruthFactory(samples_list=samples['A'][:5],  # noqa <-- take the first five groundtruth samples
+groundtruth_factory = GroundTruthFactory(samples_list=samples[which_device][:5],  # noqa <-- take the first five groundtruth samples
                                          lvp_kwargs=dict(L=125,
                                                          mm=10,
                                                          seconds_per_frame=1/60,
@@ -175,8 +180,8 @@ elec_time_targets = [gt.elec.time for gt in groundtruth]
 
 
 # Components
-input_excitation_factories = {k: AccelerometerInputsFactory(samples[k])
-                              for k in ['A', 'B', 'C']}
+input_excitation_factories = {device: AccelerometerInputsFactory(samples[device])
+                              for device in ['A', 'B', 'C']}
 magnetic_spring = mechanical_components.MagneticSpringInterp(
     fea_data_file='./data/magnetic-spring/10x10alt.csv',
     filter_obj=lambda x: savgol_filter(x, 27, 5)
@@ -191,18 +196,18 @@ magnet_assembly = mechanical_components.MagnetAssembly(
 mech_components = {
     'magnetic_spring': [magnetic_spring],
     'magnet_assembly': [magnet_assembly],
-    'damper': ConstantDamperFactory(np.linspace(0.01, 0.07, 2)).make(),
-    'mechanical_spring':  MechanicalSpringFactory(110/1000, np.linspace(0, 3, 2)).make()
+    'damper': ConstantDamperFactory(np.linspace(0.01, 0.07, 10)).make(),
+    'mechanical_spring':  MechanicalSpringFactory(110/1000, np.linspace(0, 10, 10)).make()
 }
 elec_components = {
-    'coil_resistance': [abc_config.coil_resistance['A']],
+    'coil_resistance': [abc_config.coil_resistance[which_device]],
     'rectification_drop': [0.1],
-    'load_model': [electrical_components.SimpleLoad(30)],
-    'flux_model': [abc_config.flux_models['A']],
-    'dflux_model': [abc_config.dflux_models['A']],
+    'load_model': [electrical_components.SimpleLoad(R=30)],
+    'flux_model': [abc_config.flux_models[which_device]],
+    'dflux_model': [abc_config.dflux_models[which_device]],
 
 }
-coupling_models = CouplingModelFactory(np.linspace(0, 3, 2)).make()
+coupling_models = CouplingModelFactory(np.linspace(0, 10, 10)).make()
 governing_equations = [governing_equations.unified_ode]
 
 
@@ -216,7 +221,7 @@ abstract_model_factory = gridsearch.AbstractUnifiedModelFactory(
 
 
 # Inputs we want to excite the system with
-input_excitations = input_excitation_factories['A'].make()[:2]
+input_excitations = input_excitation_factories[which_device].make()[:5]
 
 # Curves we want to capture
 curve_expressions = {
@@ -230,13 +235,13 @@ score_metrics = {
     'x3-x1': EvaluatorFactory(evaluator_cls=evaluate.MechanicalSystemEvaluator,
                               expr_targets=mech_y_targets,
                               time_targets=mech_time_targets,
-                              metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance}).make()[:len(input_excitations)],  # noqa
+                              metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance}).make()[:5],  # noqa
 
     'g(t, x5)': EvaluatorFactory(evaluator_cls=evaluate.ElectricalSystemEvaluator,  # noqa
                                  expr_targets=elec_emf_targets,
                                  time_targets=elec_time_targets,
                                  metrics={'rms_perc_diff': metrics.root_mean_square_percentage_diff,  # noqa
-                                          'emf_dtw_distance': metrics.dtw_euclid_distance}).make()[:len(input_excitations)]  # noqa
+                                          'emf_dtw_distance': metrics.dtw_euclid_distance}).make()[:5]  # noqa
 }
 
 # Metrics we want to calculate
@@ -246,7 +251,9 @@ calc_metrics = None
 parameters_to_track = [
     'damper.damping_coefficient',
     'coupling_model.coupling_constant',
-    'mechanical_spring.damping_coefficient'
+    'mechanical_spring.damping_coefficient',
+    'coil_resistance',
+    'load_model.R'
 ]
 
 
@@ -260,3 +267,4 @@ grid_executor = gridsearch.GridsearchBatchExecutor(abstract_model_factory,
 
 grid_executor.preview()
 results = grid_executor.run()  # Execute
+grid_executor.save(f'{which_device}_{which_input+1}.parquet')
