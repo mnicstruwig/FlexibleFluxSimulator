@@ -114,8 +114,11 @@ class ElectricalModel:
                 emf = emf - self.rectification_drop
             else:
                 emf = 0
-            return emf
-        return emf
+
+        # Calculate load voltage
+        v_load = emf*self.load_model.R / (self.load_model.R + self.coil_resistance)
+
+        return v_load
 
     def get_current(self, emf_oc):
         """Return the instantaneous current produced by the electrical system.

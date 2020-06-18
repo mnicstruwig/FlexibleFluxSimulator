@@ -638,6 +638,7 @@ class GridsearchBatchExecutor:
                     grid_calcs.append(copy(result[2]))
 
                 del results  # Remove reference so Ray can free memory as needed
+                ray.internal.free(task_queue)
         return grid_curves, grid_scores, grid_calcs, grid_params, model_ids
 
     def _process_results(self,

@@ -4,7 +4,8 @@ import warnings
 from collections import namedtuple
 from glob import glob
 from itertools import product, zip_longest
-from typing import Tuple
+from typing import Tuple, List, Any
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -360,8 +361,20 @@ def apply_scalar_functions(x1, x2, **func):
     return results
 
 
+@dataclass
+class Sample:
+    """A class for holding groundtruth sample data"""
+    acc_df: pd.DataFrame
+    adc_df: pd.DataFrame
+    video_labels_df: pd.DataFrame
+    paths: List
+
+
 # TODO: Add test (might need to be a bit creative)
-def collect_samples(base_path, acc_pattern, adc_pattern, video_label_pattern):
+def collect_samples(base_path,
+                    acc_pattern,
+                    adc_pattern,
+                    video_label_pattern) -> np.array:
     """Collect groundtruth samples from a directory with filename matching.
 
     Parameters
@@ -380,13 +393,12 @@ def collect_samples(base_path, acc_pattern, adc_pattern, video_label_pattern):
 
     Returns
     -------
-    list
-        List of `Sample` objects, with attributes containing pandas dataframes
+    ndarray
+        Numpy array of `Sample` objects, with attributes containing pandas dataframes
         of the labeled video and recorded accelerometer and adc data.
 
     """
     # Holds the final result
-    Sample = namedtuple('Sample', ['acc_df', 'adc_df', 'video_labels_df', 'paths'])
 
     acc_paths = glob(os.path.join(base_path, acc_pattern))
     adc_paths = glob(os.path.join(base_path, adc_pattern))
@@ -421,8 +433,8 @@ def collect_samples(base_path, acc_pattern, adc_pattern, video_label_pattern):
                                         adc_dfs,
                                         lvp_dfs,
                                         paths,
-                                        fillvalue=None)]
-    return sample_collection
+                                       fillvalue=None)]
+    return np.array(sample_collection)
 
 
 # TODO: Add test

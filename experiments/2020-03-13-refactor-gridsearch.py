@@ -59,7 +59,7 @@ class AccelerometerInputsFactory:
         self.acc_input_kwargs.setdefault('smooth', True),
         self.acc_input_kwargs.setdefault('interpolate', True)
 
-    def make(self) -> List[mechanical_components.AccelerometerInput]:
+    def make(self) -> np.ndarray:
         accelerometer_inputs = []
         for sample in self.sample_list:
             acc_input = mechanical_components.AccelerometerInput(
@@ -72,7 +72,7 @@ class AccelerometerInputsFactory:
                 interpolate=self.acc_input_kwargs.setdefault('interpolate', True)  # noqa
             )
             accelerometer_inputs.append(acc_input)
-        return accelerometer_inputs
+        return np.array(accelerometer_inputs)
 
 
 class GroundTruthFactory:
@@ -133,7 +133,7 @@ class EvaluatorFactory:
         self.metrics = metrics
         self.evaluator_kwargs = kwargs
 
-    def make(self) -> List[Any]:
+    def make(self) -> np.ndarray:
         evaluator_list = []
         for expr_target, time_target in zip(self.expr_targets, self.time_targets):  # noqa
             evaluator = self.evaluator_cls(expr_target,
@@ -141,7 +141,7 @@ class EvaluatorFactory:
                                            self.metrics,
                                            **self.evaluator_kwargs)
             evaluator_list.append(evaluator)
-        return evaluator_list
+        return np.array(evaluator_list)
 
 
 # Prepare data
@@ -160,8 +160,8 @@ samples['C'] = collect_samples(base_path=base_groundtruth_path,
                                adc_pattern='C/*adc*.csv',
                                video_label_pattern='B/*labels*.csv')
 
-which_device = 'A'
-which_input = np.array([0,1,2,3,4])
+which_device = 'B'
+which_input = np.array([4])
 
 
 # Groundtruth
@@ -172,7 +172,9 @@ groundtruth_factory = GroundTruthFactory(samples_list=samples[which_device][:5],
                                                          pixel_scale=0.154508),
                                          adc_kwargs=dict(voltage_division_ratio=1 / 0.342)  # noqa
 )
-groundtruth = groundtruth_factory.make()  # TODO: Consider changing the factory to make it more user-friendly
+
+#TODO: Consider changing the factory to make it more user-friendly
+groundtruth = groundtruth_factory.make()
 mech_y_targets = [gt.mech.y_diff for gt in groundtruth]
 mech_time_targets = [gt.mech.time for gt in groundtruth]
 elec_emf_targets = [gt.elec.emf for gt in groundtruth]
@@ -197,7 +199,8 @@ mech_components = {
     'magnetic_spring': [magnetic_spring],
     'magnet_assembly': [magnet_assembly],
     'damper': ConstantDamperFactory(np.linspace(0.01, 0.07, 10)).make(),
-    'mechanical_spring':  MechanicalSpringFactory(110/1000, np.linspace(0, 10, 10)).make()
+    'mechanical_spring':  MechanicalSpringFactory(110/1000,
+                                                  np.linspace(0, 10, 10)).make()
 }
 elec_components = {
     'coil_resistance': [abc_config.coil_resistance[which_device]],
@@ -221,7 +224,7 @@ abstract_model_factory = gridsearch.AbstractUnifiedModelFactory(
 
 
 # Inputs we want to excite the system with
-input_excitations = input_excitation_factories[which_device].make()[:5]
+input_excitations = input_excitation_factories[which_device].make()[which_input]
 
 # Curves we want to capture
 curve_expressions = {
@@ -230,18 +233,23 @@ curve_expressions = {
     'g(t, x5)': 'emf'
 }
 
+x= EvaluatorFactory(evaluator_cls=evaluate.MechanicalSystemEvaluator,
+                              expr_targets=mech_y_targets,
+                              time_targets=mech_time_targets,
+                              metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance}).make()
+
 # Expressions we want to score
 score_metrics = {
     'x3-x1': EvaluatorFactory(evaluator_cls=evaluate.MechanicalSystemEvaluator,
                               expr_targets=mech_y_targets,
                               time_targets=mech_time_targets,
-                              metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance}).make()[:5],  # noqa
+                              metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance}).make()[which_input],  # noqa
 
     'g(t, x5)': EvaluatorFactory(evaluator_cls=evaluate.ElectricalSystemEvaluator,  # noqa
                                  expr_targets=elec_emf_targets,
                                  time_targets=elec_time_targets,
                                  metrics={'rms_perc_diff': metrics.root_mean_square_percentage_diff,  # noqa
-                                          'emf_dtw_distance': metrics.dtw_euclid_distance}).make()[:5]  # noqa
+                                          'emf_dtw_distance': metrics.dtw_euclid_distance}).make()[which_input]  # noqa
 }
 
 # Metrics we want to calculate
