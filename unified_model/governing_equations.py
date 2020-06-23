@@ -49,7 +49,7 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     x2_dot = input_.get_acceleration(t)
     x3_dot = x4
 
-    emf = electrical_model.get_emf(x3-x1, x4-x2)
+    emf = electrical_model.get_emf(x3 - x1, x4 - x2)
     current = electrical_model.get_current(emf)
     coupling_force = coupling_model.get_mechanical_force(current)
 
