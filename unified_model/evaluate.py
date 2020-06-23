@@ -621,8 +621,6 @@ class LabeledVideoProcessor:
 
     Attributes
     ----------
-    L : float
-        Height of the microgenerator tube in mm.
     mm : float
         Height of the moving magnet assembly in mm.
     seconds_per_frame : float
@@ -635,15 +633,18 @@ class LabeledVideoProcessor:
         the recorded pixel values in the groundtruth_dataframe.
         Default value is None.
 
+    Methods
+    -------
+    fit_transform(groundtruth_dataframe, impute_missing_values)
+        Process and transform groundtruth video measurements.
+
     """
 
-    def __init__(self, L, mm, seconds_per_frame, pixel_scale=None):
+    def __init__(self, mm, seconds_per_frame, pixel_scale=None):
         """Constructor.
 
         Parameters
         ----------
-        L : float
-            Height of the microgenerator tube in mm.
         mm : float
             Height of the moving magnet assembly in mm.
         seconds_per_frame : float
@@ -657,7 +658,6 @@ class LabeledVideoProcessor:
             Default value is None.
 
         """
-        self.L = L
         self.mm = mm
         self.spf = seconds_per_frame
         self.pixel_scale = pixel_scale
@@ -680,9 +680,9 @@ class LabeledVideoProcessor:
 
         Returns
         -------
-        mag_bottom_pos : array
-            Position of the bottom of the magnet assembly relative to the
-            top of the fixed magnet. Unit is metres.
+        mag_center_pos : array
+            Position of the center of the bottom-most magnet in the assembly
+            relative to the top of the fixed magnet. Unit is metres.
         timestamps : array
             Timestamp of each position. Unit is seconds.
 
@@ -716,7 +716,7 @@ class LabeledVideoProcessor:
 
         timestamps = np.linspace(0, (len(df)-1)*self.spf, len(df))
 
-        return df['y_prime_mm'].values / 1000, timestamps
+        return (df['y_prime_mm'].values + self.mm/2) / 1000, timestamps
 
 
 def impute_missing(df_missing, indexes):
