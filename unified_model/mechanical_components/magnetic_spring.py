@@ -63,7 +63,7 @@ class MagneticSpringInterp:
         Path to the FEA magnet force readings file. Position values must be in
         a column with name 'z' (with unit metres) and force values must be in a
         column with name 'force' (with unit Newtons).
-    magnet_height : float
+    magnet_length : float
         The height of the magnet in *metres*. This is used to offset the model
         so that the distance between the magnets is relative to the center of
         the moving magnet.
@@ -81,18 +81,18 @@ class MagneticSpringInterp:
 
     def __init__(self,
                  fea_data_file: str,
-                 magnet_height: float,
+                 magnet_length: float,
                  filter_callable: Callable = None,
                  **model_kwargs) -> None:
         """Constructor."""
         self.fea_data_file = fea_data_file
         self.filter_callable = filter_callable
-        self.magnet_height = magnet_height
+        self.magnet_length = magnet_length
 
         self.fea_dataframe = _preprocess(pd.read_csv(fea_data_file),
                                          filter_callable)
         self._model = self._fit_model(self.fea_dataframe,
-                                      self.magnet_height,
+                                      self.magnet_length,
                                       **model_kwargs)
 
     def __repr__(self):
@@ -100,14 +100,14 @@ class MagneticSpringInterp:
 
     @staticmethod
     def _fit_model(fea_dataframe: pd.DataFrame,
-                   magnet_height: float,
+                   magnet_length: float,
                    **model_kwargs) -> Callable:
         """Fit the 1d interpolation model."""
         # Set a few defaults
         model_kwargs.setdefault('fill_value', 0)
         model_kwargs.setdefault('bounds_error', False)
 
-        return interpolate.interp1d(fea_dataframe.z.values + magnet_height/2,
+        return interpolate.interp1d(fea_dataframe.z.values + magnet_length/2,
                                     fea_dataframe.force.values,
                                     **model_kwargs)
 

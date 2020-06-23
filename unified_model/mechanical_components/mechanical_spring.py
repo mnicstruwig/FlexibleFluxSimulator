@@ -8,6 +8,7 @@ class MechanicalSpring:
 
     def __init__(self,
                  position: float,
+                 magnet_length: float,
                  strength: float = 1e6,
                  damping_coefficient: float = 0) -> None:
         """Constructor.
@@ -16,6 +17,9 @@ class MechanicalSpring:
         ----------
         position : float
             The height at which the mechanical spring acts. In metres.
+        magnet_length : float
+            The length of the magnet in *metres*. This is used to properly
+            offset when the mechanical spring is supposed to begin acting.
         strength : float
             The "strength" of the mechanical spring. It is recommended to use a
             large value, or to leave this at the default value. Default value
@@ -26,11 +30,12 @@ class MechanicalSpring:
 
         """
         self.position = position
+        self.magnet_length = magnet_length
         self.strength = strength
         self.damping_coefficient = damping_coefficient
 
     def __repr__(self):
-        return f'MechanicalSpring(position={self.position}, strength={self.strength}, damping_coefficient={self.damping_coefficient})'  # noqa
+        return f'MechanicalSpring(position={self.position}, magnet_length={self.magnet_length}, strength={self.strength}, damping_coefficient={self.damping_coefficient})'  # noqa
 
     def _heaviside_step_function(self, x, boundary):
         """Compute the output of a Heaviside step function"""
@@ -52,8 +57,11 @@ class MechanicalSpring:
             The force exerted by the mechanical spring. In Newtons.
 
         """
-        force = self._heaviside_step_function(x, self.position) \
+        offset = self.magnet_length / 2
+        force = (
+            self._heaviside_step_function(x + offset, self.position)
             * (self.strength * (x - self.position)
                + self.damping_coefficient * x_dot)
+            )
 
         return force
