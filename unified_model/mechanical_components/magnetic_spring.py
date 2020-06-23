@@ -1,17 +1,15 @@
+from typing import Callable, Optional
+
 import numpy as np
 import pandas as pd
 from scipy import optimize
 from scipy import interpolate
 from scipy.signal import savgol_filter
 
-# Local imports
-from unified_model.mechanical_components.utils import read_raw_file, \
-    get_model_function
-
 
 def _model_savgol_smoothing(z_arr, force_arr):
     """
-    Apply a savgol filter and interpolate the result
+    Apply a savgol filter_callable and interpolate the result
     """
     filtered_force_arr = savgol_filter(force_arr, 27, 5)
     interp = interpolate.interp1d(z_arr, filtered_force_arr, fill_value=0,
@@ -43,10 +41,11 @@ def _model_power_series_3(z, a0, a1, a2, a3):
     return part0 + part1 + part2 + part3
 
 
-def _preprocess(dataframe, filter_obj):
-    """Filter the `force` values in `dataframe` using `filter_obj`."""
-    if filter_obj:
-        dataframe['force'] = filter_obj(dataframe['force'].values)
+def _preprocess(dataframe: pd.DataFrame,
+                filter_callable: Optional[Callable]) -> pd.DataFrame:
+    """Filter the `force` values in `dataframe` using `filter_callable`."""
+    if filter_callable:
+        dataframe['force'] = filter_callable(dataframe['force'].values)
         return dataframe
     return dataframe
 
@@ -64,8 +63,12 @@ class MagneticSpringInterp:
         Path to the FEA magnet force readings file. Position values must be in
         a column with name 'z' (with unit metres) and force values must be in a
         column with name 'force' (with unit Newtons).
-    filter : obj
-        A filter to smooth the data in the data file. Optional.
+    magnet_height : float
+        The height of the magnet in *metres*. This is used to offset the model
+        so that the distance between the magnets is relative to the center of
+        the moving magnet.
+    filter_callable : Callable
+        A filter_callable to smooth the data in the data file. Optional.
     **model_kwargs :
         Keyword arguments passed to `scipy.interpolate.interp1d`.
 
@@ -76,29 +79,39 @@ class MagneticSpringInterp:
 
     """
 
-    def __init__(self, fea_data_file, filter_obj=None, **model_kwargs):
+    def __init__(self,
+                 fea_data_file: str,
+                 magnet_height: float,
+                 filter_callable: Callable = None,
+                 **model_kwargs) -> None:
         """Constructor."""
         self.fea_data_file = fea_data_file
-        self.filter_obj = filter_obj
+        self.filter_callable = filter_callable
+        self.magnet_height = magnet_height
+
         self.fea_dataframe = _preprocess(pd.read_csv(fea_data_file),
-                                         filter_obj)
-        self._model = self._fit_model(self.fea_dataframe, **model_kwargs)
+                                         filter_callable)
+        self._model = self._fit_model(self.fea_dataframe,
+                                      self.magnet_height,
+                                      **model_kwargs)
 
     def __repr__(self):
-        return f'MagneticSpringInterp({self.fea_data_file}, {self.filter_obj})'
+        return f'MagneticSpringInterp({self.fea_data_file}, {self.filter_callable})'  # noqa
 
     @staticmethod
-    def _fit_model(fea_dataframe, **model_kwargs):
+    def _fit_model(fea_dataframe: pd.DataFrame,
+                   magnet_height: float,
+                   **model_kwargs) -> Callable:
         """Fit the 1d interpolation model."""
         # Set a few defaults
         model_kwargs.setdefault('fill_value', 0)
         model_kwargs.setdefault('bounds_error', False)
 
-        return interpolate.interp1d(fea_dataframe.z.values,
+        return interpolate.interp1d(fea_dataframe.z.values + magnet_height,
                                     fea_dataframe.force.values,
                                     **model_kwargs)
 
-    def get_force(self, z):
+    def get_force(self, z: float) -> float:
         """Calculate the force between two magnets at a distance `z` apart.
 
         Parameters
@@ -125,25 +138,27 @@ class MagnetSpringAnalytic:
         Path to the FEA magnet force readings file. Position values must be in
         a column with name 'z' (with unit metres) and force values must be in a
         column with name 'force' (with unit Newtons).
-    filter : obj
-        A filter to smooth the data in the data file. Optional.
     model : func
         A function representing the magnetic spring model. Must be compatible
         with `scipy.optimize.curve_fit`.
-
+    filter_callable : Callable
+        A filter_callable to smooth the data in the data file. Optional.
     Attributes
     ----------
     fea_dataframe : dataframe
         Pandas dataframe containing the processed FEA magnet force readings.
 
     """
-    def __init__(self, fea_data_file, model, filter_obj=None):
+    def __init__(self,
+                 fea_data_file: str,
+                 model: Callable,
+                 filter_callable: Callable = None) -> None:
         """Constructor"""
         self.fea_dataframe = _preprocess(pd.read_csv(fea_data_file),
-                                         filter_obj)
+                                         filter_callable)
         self._model_params = self._fit_model(model)
 
-    def _fit_model(self, model):
+    def _fit_model(self, model: Callable) -> np.ndarray:
         """Find the best-fit parameters for `model`"""
         popt, _ = optimize.curve_fit(model,
                                      self.fea_dataframe.z.values,
