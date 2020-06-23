@@ -107,7 +107,7 @@ class MagneticSpringInterp:
         model_kwargs.setdefault('fill_value', 0)
         model_kwargs.setdefault('bounds_error', False)
 
-        return interpolate.interp1d(fea_dataframe.z.values + magnet_height,
+        return interpolate.interp1d(fea_dataframe.z.values + magnet_height/2,
                                     fea_dataframe.force.values,
                                     **model_kwargs)
 

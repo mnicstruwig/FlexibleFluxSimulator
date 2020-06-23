@@ -1,6 +1,5 @@
+import numpy as np
 from unified_model.utils.utils import fetch_key_from_dictionary
-from unified_model.mechanical_components.utils import \
-    calc_contact_surface_area_cylinder, calc_volume_cylinder
 
 MATERIAL_DICT = {'NdFeB': 7.5e-6,
                  'iron': 7.5e-6}
@@ -64,7 +63,6 @@ class MagnetAssembly:
         self.density_magnet = _get_material_density(MATERIAL_DICT, mat_magnet)
         self.density_spacer = _get_material_density(MATERIAL_DICT, mat_spacer)
         self.weight = self._calculate_weight()
-        self.surface_area = self._calculate_contact_surface_area()
 
     def __repr__(self):
         to_print_dict = {
@@ -77,10 +75,13 @@ class MagnetAssembly:
         to_print = ', '.join([f'{k}={v}' for k, v in to_print_dict.items()])
         return f'MagnetAssembly({to_print})'
 
+    def _calc_volume_cylinder(self, diameter, length):
+        return np.pi*(diameter/2)**2*length
+
     def _calculate_weight(self):
         """Calculate the weight of the magnet assembly."""
-        volume_magnet = calc_volume_cylinder(self.dia_magnet, self.l_m)
-        volume_spacer = calc_volume_cylinder(self.dia_spacer, self.l_mcd)
+        volume_magnet = self._calc_volume_cylinder(self.dia_magnet, self.l_m)
+        volume_spacer = self._calc_volume_cylinder(self.dia_spacer, self.l_mcd)
 
         weight_magnet = volume_magnet * self.density_magnet * 9.81
         weight_spacer = volume_spacer * self.density_spacer * 9.81
@@ -90,21 +91,6 @@ class MagnetAssembly:
             * weight_magnet
             + (self.n_magnet - 1) * weight_spacer
         )
-
-    def _calculate_contact_surface_area(self):
-        """Calculate the contact surface area of the magnet assembly."""
-        surface_area_magnet = calc_contact_surface_area_cylinder(
-            self.dia_magnet, self.l_m
-        )
-        surface_area_spacer = calc_contact_surface_area_cylinder(
-            self.dia_spacer, self.l_mcd
-        )
-
-        return (
-            self.n_magnet
-            * surface_area_magnet
-            + (self.n_magnet - 1) * surface_area_spacer
-            )
 
     def get_mass(self):
         """Get the mass of the magnet assembly."""
