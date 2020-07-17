@@ -1,4 +1,3 @@
-from collections import namedtuple
 from typing import List, Any, Dict, Callable
 
 import numpy as np
@@ -13,7 +12,7 @@ from unified_model import metrics
 from unified_model import gridsearch
 
 from unified_model.utils.utils import collect_samples
-from local_config import abc_config
+from local_config import ABC_CONFIG
 
 
 class ConstantDamperFactory:
@@ -25,12 +24,14 @@ class ConstantDamperFactory:
 
 
 class MechanicalSpringFactory:
-    def __init__(self, position, damping_coefficient_list):
+    def __init__(self, position, magnet_length, damping_coefficient_list):
         self.position = position
+        self.magnet_length = magnet_length
         self.damping_coefficient_list = damping_coefficient_list
 
     def make(self):
         return [mechanical_components.MechanicalSpring(self.position,
+                                                       magnet_length=self.magnet_length,  # noqa
                                                        damping_coefficient=dc)
                 for dc
                 in self.damping_coefficient_list]
@@ -75,6 +76,7 @@ class AccelerometerInputsFactory:
         return np.array(accelerometer_inputs)
 
 
+# TODO: Major rework to get rid of all of these weird in-between namedtuples
 class GroundTruthFactory:
     def __init__(self, samples_list, lvp_kwargs, adc_kwargs):
         self.samples_list = samples_list
@@ -160,20 +162,19 @@ samples['C'] = collect_samples(base_path=base_groundtruth_path,
                                adc_pattern='C/*adc*.csv',
                                video_label_pattern='B/*labels*.csv')
 
-which_device = 'B'
-which_input = np.array([4])
+which_device = 'C'
+which_input = np.array([2])
 
 
 # Groundtruth
 groundtruth_factory = GroundTruthFactory(samples_list=samples[which_device][:5],  # noqa <-- take the first five groundtruth samples
-                                         lvp_kwargs=dict(L=125,
-                                                         mm=10,
+                                         lvp_kwargs=dict(mm=10,
                                                          seconds_per_frame=1/60,
                                                          pixel_scale=0.154508),
                                          adc_kwargs=dict(voltage_division_ratio=1 / 0.342)  # noqa
 )
 
-#TODO: Consider changing the factory to make it more user-friendly
+# TODO: Consider changing the factory to make it more user-friendly
 groundtruth = groundtruth_factory.make()
 mech_y_targets = [gt.mech.y_diff for gt in groundtruth]
 mech_time_targets = [gt.mech.time for gt in groundtruth]
@@ -182,11 +183,12 @@ elec_time_targets = [gt.elec.time for gt in groundtruth]
 
 
 # Components
-input_excitation_factories = {device: AccelerometerInputsFactory(samples[device])
+input_excitation_factories = {device: AccelerometerInputsFactory(samples[device])  # noqa
                               for device in ['A', 'B', 'C']}
 magnetic_spring = mechanical_components.MagneticSpringInterp(
     fea_data_file='./data/magnetic-spring/10x10alt.csv',
-    filter_obj=lambda x: savgol_filter(x, 27, 5)
+    magnet_length=10/1000,
+    filter_callable=lambda x: savgol_filter(x, 27, 5)
 )
 magnet_assembly = mechanical_components.MagnetAssembly(
     n_magnet=1,
@@ -200,14 +202,15 @@ mech_components = {
     'magnet_assembly': [magnet_assembly],
     'damper': ConstantDamperFactory(np.linspace(0.01, 0.07, 10)).make(),
     'mechanical_spring':  MechanicalSpringFactory(110/1000,
+                                                  10/1000,
                                                   np.linspace(0, 10, 10)).make()
 }
 elec_components = {
-    'coil_resistance': [abc_config.coil_resistance[which_device]],
+    'coil_resistance': [ABC_CONFIG.coil_resistance[which_device]],
     'rectification_drop': [0.1],
     'load_model': [electrical_components.SimpleLoad(R=30)],
-    'flux_model': [abc_config.flux_models[which_device]],
-    'dflux_model': [abc_config.dflux_models[which_device]],
+    'flux_model': [ABC_CONFIG.flux_models[which_device]],
+    'dflux_model': [ABC_CONFIG.dflux_models[which_device]],
 
 }
 coupling_models = CouplingModelFactory(np.linspace(0, 10, 10)).make()
@@ -233,10 +236,10 @@ curve_expressions = {
     'g(t, x5)': 'emf'
 }
 
-x= EvaluatorFactory(evaluator_cls=evaluate.MechanicalSystemEvaluator,
-                              expr_targets=mech_y_targets,
-                              time_targets=mech_time_targets,
-                              metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance}).make()
+x = EvaluatorFactory(evaluator_cls=evaluate.MechanicalSystemEvaluator,
+                     expr_targets=mech_y_targets,
+                     time_targets=mech_time_targets,
+                     metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance}).make()  # noqa
 
 # Expressions we want to score
 score_metrics = {

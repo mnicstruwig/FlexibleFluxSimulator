@@ -320,11 +320,12 @@ class MechanicalSystemEvaluator:
             Set to `True` to also plot the dynamic-time-warped signals.
             Default value is False.
         kwargs:
-            Kwargs passed to matplotlib.pyplot.plot function.
+            Kwargs passed to matplotlib.pyplot.figure function.
 
         """
-        plt.plot(self.time_, self.y_target_, label='Target', **kwargs)
-        plt.plot(self.time_, self.y_predict_, label='Prediction', **kwargs)
+        plt.figure(**kwargs)
+        plt.plot(self.time_, self.y_target_, label='Target')
+        plt.plot(self.time_, self.y_predict_, label='Prediction')
 
         # Show the clip marks
         plt.plot([0, 0], [0, max(self.y_target_)], 'k--')  # start
@@ -338,7 +339,6 @@ class MechanicalSystemEvaluator:
             if self.y_predict_warped_ is None:
                 self._calc_dtw()
 
-            plt.figure()
             plt.plot(self.y_target_warped_, label='Target, time-warped')
             plt.plot(self.y_predict_warped_, label='Prediction, time-warped')
             plt.legend()
@@ -597,8 +597,9 @@ class ElectricalSystemEvaluator:
         clipped_x_end = [self.clipped_indexes[1]]*2
         clipped_y = [0, np.max([target, predict])]
 
-        plt.plot(time, target, label='Target', **kwargs)
-        plt.plot(time, predict, label='Predictions', **kwargs)
+        plt.figure(**kwargs)
+        plt.plot(time, target, label='Target')
+        plt.plot(time, predict, label='Predictions')
 
         # Show the clip marks
         plt.plot(time[clipped_x_begin], clipped_y, 'k--')
@@ -609,7 +610,6 @@ class ElectricalSystemEvaluator:
         if include_dtw:
             if self.emf_target_warped_ is None:
                 self._calc_dtw()
-            plt.figure()
             plt.plot(self.emf_target_warped_, label='Target, time-warped')
             plt.plot(self.emf_predict_warped_, label='Predictions, time-warped')
             plt.legend()

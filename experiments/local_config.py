@@ -2,6 +2,8 @@
 Constants for each microgenerator device / collection of devices.
 """
 import os
+from dataclasses import dataclass
+from typing import Any, Dict
 
 from scipy.signal import savgol_filter
 
@@ -45,7 +47,8 @@ abc_magnet_assembly = MagnetAssembly(n_magnet=1,
 
 abc_spring_fea_data_path = os.path.join(base_dir, './data/magnetic-spring/10x10alt.csv')
 abc_spring = MagneticSpringInterp(fea_data_file=abc_spring_fea_data_path,
-                                  filter_obj=lambda x: savgol_filter(x, 27, 5))
+                                  magnet_length=10/1000,
+                                  filter_callable=lambda x: savgol_filter(x, 27, 5))  # noqa
 
 abc_flux_database = FluxDatabase(csv_database_path='./data/fea-flux-curves/fea-flux-curves-numr[5,15]-numz[17,33,66]-wdiam[0.15]-cheight[8,12,14]-2019-04-11.csv', fixed_velocity=0.35)
 
@@ -81,9 +84,22 @@ config_parameters = ['coil_center',
                      'dflux_models',
                      'magnet_assembly']
 
-Config = namedtuple('Config', config_parameters, defaults=[None]*len(config_parameters))
+@dataclass
+class Config:
+    """A configuration class"""
+    coil_center: Dict
+    coil_resistance: Dict
+    winding_num_z: Dict
+    winding_num_r: Dict
+    coil_height: Dict
+    spring: Dict
+    flux_database: Any
+    flux_models: Dict
+    dflux_models: Dict
+    magnet_assembly: Any
 
-abc_config = Config(coil_center=abc_coil_center,
+
+ABC_CONFIG = Config(coil_center=abc_coil_center,
                     coil_resistance=abc_coil_resistance,
                     winding_num_z=abc_winding_num_z,
                     winding_num_r=abc_winding_num_r,

@@ -9,7 +9,7 @@ class MechanicalSpring:
     def __init__(self,
                  position: float,
                  magnet_length: float,
-                 strength: float = 1e6,
+                 strength: float = 1e9,
                  damping_coefficient: float = 0) -> None:
         """Constructor.
 
@@ -60,7 +60,7 @@ class MechanicalSpring:
         offset = self.magnet_length / 2
         force = (
             self._heaviside_step_function(x + offset, self.position)
-            * (self.strength * (x - self.position)
+            * (self.strength * (x - self.position + offset)
                + self.damping_coefficient * x_dot)
             )
 

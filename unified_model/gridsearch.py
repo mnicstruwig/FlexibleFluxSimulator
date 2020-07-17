@@ -673,11 +673,11 @@ class GridsearchBatchExecutor:
 
                 else:  # If we have our first defined dataframe ...
                     if df is not None:  # ... and the next one is defined ...
-                        result = result.merge(df, on=['grid_cell_id', 'model_id'])  # ...merge
+                        result = result.merge(df, on=['grid_cell_id', 'model_id'])  # noqa ...merge
             result['input_excitation_number'] = input_number
             results.append(result)
 
-        return result
+        return pd.concat(results)
 
     def _print_dict(self, dict_):
         if dict_ is not None:
