@@ -363,8 +363,8 @@ class ElectricalSystemEvaluator:
         prediction signals. Default value is False.
     clip_threshold : float
         If greater than 0., clip the leading and trailing emf target
-        samples that don't include signal information by taking a
-        spectrogram. Default value is 1e-4.
+        samples that don't include signal information.
+        Default value is 0.05
 
     Attributes
     ----------
@@ -409,7 +409,7 @@ class ElectricalSystemEvaluator:
                  time_target: np.ndarray,
                  metrics: Dict[str, Callable],
                  warp: bool = False,
-                 clip_threshold: float = 1e-4):
+                 clip_threshold: float = 0.05):
         """Constructor.
 
 
@@ -511,15 +511,9 @@ class ElectricalSystemEvaluator:
         # noisy than the target curve.
         start_index, end_index = find_signal_limits(
             target=self.emf_predict_,
-            sampling_period=1,
             threshold=clip_threshold
         )
 
-        # Convert to integer indices, since `find_signal_limits` actually
-        # returns the "time" of the signal, but we have a sampling frequency of
-        # 1, so we can directly convert to integer indexes.
-        start_index = int(start_index)
-        end_index = int(end_index)
         self.clipped_indexes = (start_index, end_index)
         self.time_clipped_ = self.time_[start_index:end_index]
         self.emf_predict_clipped_ = self.emf_predict_[start_index:end_index]

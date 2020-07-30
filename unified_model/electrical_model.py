@@ -85,6 +85,13 @@ class ElectricalModel:
         self.load_model = load_model
         return self
 
+    def get_load_voltage(self, mag_pos, mag_vel):
+        emf = self.get_emf(mag_pos, mag_vel)
+        v_load = emf*self.load_model.R / (self.load_model.R
+                                          + self.coil_resistance)
+
+        return v_load
+
     def get_emf(self, mag_pos, mag_vel):
         """Return the instantaneous emf produced by the electrical system.
 
@@ -115,10 +122,7 @@ class ElectricalModel:
             else:
                 emf = 0
 
-        # Calculate load voltage
-        v_load = emf*self.load_model.R / (self.load_model.R + self.coil_resistance)
-
-        return v_load
+        return emf
 
     def get_current(self, emf_oc):
         """Return the instantaneous current produced by the electrical system.

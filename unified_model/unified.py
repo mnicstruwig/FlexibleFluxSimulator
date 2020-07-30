@@ -428,8 +428,8 @@ class UnifiedModel:
                 system.
             clip_threshold : float
                 If greater than 0., clip the leading and trailing emf target
-                samples that don't include signal information by taking a
-                spectrogram. Default value is 1e-4.
+                samples that don't include signal information.
+                Default value is 0.05.
 
         Returns
         -------
@@ -474,7 +474,7 @@ class UnifiedModel:
             emf_predict = emf_predict*(R_load/(R_load+R_coil))  # Load voltage
 
         # Scoring
-        clip_threshold = kwargs.get('clip_threshold', 1e-4)
+        clip_threshold = kwargs.get('clip_threshold', 0.05)
         electrical_evaluator = ElectricalSystemEvaluator(emf_target,
                                                          time_target,
                                                          warp,

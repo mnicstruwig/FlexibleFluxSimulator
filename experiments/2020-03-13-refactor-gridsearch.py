@@ -163,7 +163,7 @@ samples['C'] = collect_samples(base_path=base_groundtruth_path,
                                video_label_pattern='B/*labels*.csv')
 
 which_device = 'C'
-which_input = np.array([2])
+which_input = np.array([0])
 
 
 # Groundtruth
@@ -278,4 +278,4 @@ grid_executor = gridsearch.GridsearchBatchExecutor(abstract_model_factory,
 
 grid_executor.preview()
 results = grid_executor.run()  # Execute
-grid_executor.save(f'{which_device}_{which_input+1}.parquet')
+grid_executor.save(f'{which_device}_{which_input[0]+1}.parquet')

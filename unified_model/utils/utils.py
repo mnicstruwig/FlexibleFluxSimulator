@@ -314,25 +314,45 @@ def align_signals_in_time(
     return resampled_t, resampled_y_1, resampled_y_2
 
 
-def find_signal_limits(target, sampling_period, threshold=1e-4):
-    """Find the beginning and end of a signal using its spectrogram."""
-    freqs, times, spectrum_density = signal.spectrogram(target,
-                                                        1/sampling_period,
-                                                        nperseg=128)
+def find_signal_limits(target: Any, threshold: float = 0.05) -> Tuple[int, int]:
+    """Find the beginning and end of a signal"""
 
-    spectrum_density = spectrum_density.T # rows -> time, cols -> frequencies
-    max_density = np.array([np.max(density) for density in spectrum_density])
+    def _calc_threshold_mask(arr, threshold):
+        above_threshold_mask = [1 if x > np.max(arr)*threshold else 0
+                                for x in arr]
+        return np.array(above_threshold_mask)
 
-    for i, val in enumerate(max_density):
-        if val > threshold:
-            start_index = i
-            break
+    def _find_start_index(arr, threshold):
+        arr_mask = _calc_threshold_mask(arr, threshold)
+        max_index = np.argmax(arr)
 
-    for i, val in enumerate(max_density):
-        if val > threshold:
-            end_index = i
+        longest = 0
+        start_index_candidates = [0]
+        count = 0
+        for i, x in enumerate(arr_mask):
+            if x == 0:
+                count+=1
+            if x == 1:
+                if count >= longest:
+                    longest = count
+                    start_index_candidates.append(i)
+                count = 0
+        start_index_candidates = np.array(start_index_candidates)
+        mask = np.where(start_index_candidates < max_index)[0]
+        start_index = start_index_candidates[mask][-1]
+        return int(start_index-1)
 
-    return times[start_index], times[end_index]
+    def _find_end_index(arr, threshold):
+        end_index = _find_start_index(arr[::-1], threshold)
+        end_index = len(arr) - end_index
+        # don't need to subtract one, since find_start_index already subtracts
+        # one --> (-(-1))
+        return int(end_index)
+
+    return (
+        _find_start_index(target, threshold),
+        _find_end_index(target, threshold)
+        )
 
 
 def apply_scalar_functions(x1, x2, **func):

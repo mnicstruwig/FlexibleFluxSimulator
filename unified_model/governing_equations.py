@@ -50,6 +50,8 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     x3_dot = x4
 
     emf = electrical_model.get_emf(x3 - x1, x4 - x2)
+    load_voltage = electrical_model.get_load_voltage(x3 - x1, x4 - x2)
+
     current = electrical_model.get_current(emf)
     coupling_force = coupling_model.get_mechanical_force(current)
 
@@ -66,6 +68,6 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
               - damper.get_force(x4 - x2)
               - coupling_force) / magnet_assembly.get_mass()
 
-    x5_dot = emf
+    x5_dot = load_voltage  # NB <-- we want the EMf 'output' to be the load voltage
 
     return [x1_dot, x2_dot, x3_dot, x4_dot, x5_dot]
