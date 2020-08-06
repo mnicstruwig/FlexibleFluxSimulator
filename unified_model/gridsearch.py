@@ -9,6 +9,8 @@ from typing import (Any, Dict, Generator, List, NamedTuple,
 import numpy as np
 import pandas as pd
 import ray
+import pyarrow.parquet as pq
+import pyarrow as pa
 
 from unified_model import (ElectricalModel, MechanicalModel, UnifiedModel,
                            pipeline)
@@ -361,10 +363,11 @@ def _curves_to_dataframe(grid_curves: List[Dict[str, Any]],
 
 
 def _param_dict_list_to_dataframe(param_dict_list: List[Dict],
-                                  model_ids: List[int]) -> pd.DataFrame:
+                                  model_ids: List[int],
+                                  input_excitations: List[int]) -> pd.DataFrame:
     """Parse the parameter list into a pandas dataframe.
 
-    Useful for parsing a lit of parameter values into a dataframe for later
+    Useful for parsing a list of parameter values into a dataframe for later
     analysis.
 
     Parameters
@@ -389,6 +392,8 @@ def _param_dict_list_to_dataframe(param_dict_list: List[Dict],
 
         result['grid_cell_id'].append(i)
         result['model_id'].append(model_ids[i])
+        # TODO: A bit of a hack. Find another place to append the input excitations.
+        result['input_excitation'].append(input_excitations[i])
 
     return pd.DataFrame(result)
 
@@ -574,7 +579,7 @@ class GridsearchBatchExecutor:
     def _execute_grid_search(
             self,
             batch_size: int = 8
-    ) -> Tuple[List, List, List, List, List]:
+    ) -> Tuple[List, List, List, List, List, List]:
         """Execute the gridsearch."""
 
         # Convert to list since we may iterate over it multiple times
@@ -586,6 +591,7 @@ class GridsearchBatchExecutor:
         grid_calcs: List[Dict] = []
         grid_params: List[Dict] = []
         model_ids: List[int] = []
+        input_numbers: List[int] = []
 
         for input_number, input_ in enumerate(self.input_excitations):
 
@@ -606,6 +612,8 @@ class GridsearchBatchExecutor:
                     model_ids.append(model_factory.model_id)
                     # Record grid parameters
                     grid_params.append(model_factory.get_args(self.parameters_to_track))  # noqa
+                    # Record which input
+                    input_numbers.append(input_number)
 
                     # Queue a simulation
                     task_id = run_cell.remote(model_factory,
@@ -639,14 +647,20 @@ class GridsearchBatchExecutor:
 
                 del results  # Remove reference so Ray can free memory as needed
                 ray.internal.free(task_queue)
-        return grid_curves, grid_scores, grid_calcs, grid_params, model_ids
+        return grid_curves, grid_scores, grid_calcs, grid_params, model_ids, input_numbers
+
+    def _write_out_results(self,
+                           df_results,
+                           path,
+                           partition_cols):
+        table = pa.Table.from_pandas(df_results)
+        pq.write_to_dataset(table, path, partition_cols=partition_cols)
 
     def _process_results(self,
-                         input_excitations,
-                         grid_results: Tuple[List, List, List, List, List],
+                         grid_results: Tuple[List, List, List, List, List, List],
                          curve_subsample_rate: int = 3) -> pd.DataFrame:
         """Process the gridsearch results into a single pandas Dataframe."""
-        grid_curves, grid_scores, grid_calcs, grid_params, model_ids = grid_results  # noqa
+        grid_curves, grid_scores, grid_calcs, grid_params, model_ids, input_excitations = grid_results  # noqa
 
         # Some basic validation
         assert(len(grid_calcs) == len(grid_curves))
@@ -659,23 +673,23 @@ class GridsearchBatchExecutor:
         df_scores = _scores_to_dataframe(grid_scores, model_ids=model_ids)
         df_calcs = _calc_metrics_to_dataframe(grid_calcs, model_ids=model_ids)
         df_params = _param_dict_list_to_dataframe(grid_params,
-                                                  model_ids=model_ids)
+                                                  model_ids=model_ids,
+                                                  input_excitations=input_excitations)
 
         # Merge dataframes
         results = []
-        for input_number in range(len(input_excitations)):
-            result: pd.DataFrame = None
-            for df in [df_curves, df_scores, df_calcs, df_params]:
-                # Get the first defined dataframe
-                if result is None:
-                    if df is not None:
-                        result = df
+        result: pd.DataFrame = None
+        for df in [df_curves, df_scores, df_calcs, df_params]:
+            # Get the first defined dataframe
+            if result is None:
+                if df is not None:
+                    result = df
 
-                else:  # If we have our first defined dataframe ...
-                    if df is not None:  # ... and the next one is defined ...
-                        result = result.merge(df, on=['grid_cell_id', 'model_id'])  # noqa ...merge
-            result['input_excitation_number'] = input_number
-            results.append(result)
+            else:  # If we have our first defined dataframe ...
+                if df is not None:  # ... and the next one is defined ...
+                    result = result.merge(df, on=['grid_cell_id', 'model_id'])  # noqa ...merge
+
+        results.append(result)
 
         return pd.concat(results)
 
@@ -759,8 +773,7 @@ class GridsearchBatchExecutor:
         self._start_ray(self.ray_kwargs)
         logging.info('Running grid search...')
         self.raw_grid_result = self._execute_grid_search(batch_size=batch_size)
-        self.result = self._process_results(self.input_excitations,
-                                            self.raw_grid_result)
+        self.result = self._process_results(self.raw_grid_result)
         logging.info('Gridsearch complete. Shutting down Ray...')
         self._kill_ray()
         return self.result
