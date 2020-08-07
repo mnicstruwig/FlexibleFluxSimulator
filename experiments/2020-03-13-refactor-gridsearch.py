@@ -162,8 +162,8 @@ samples['C'] = collect_samples(base_path=base_groundtruth_path,
                                adc_pattern='C/*adc*.csv',
                                video_label_pattern='B/*labels*.csv')
 
-which_device = 'C'
-which_input = np.array([0])
+which_device = 'B'
+which_input = np.array([0, 1, 2, 3, 4])
 
 
 # Groundtruth
@@ -236,11 +236,6 @@ curve_expressions = {
     'g(t, x5)': 'emf'
 }
 
-x = EvaluatorFactory(evaluator_cls=evaluate.MechanicalSystemEvaluator,
-                     expr_targets=mech_y_targets,
-                     time_targets=mech_time_targets,
-                     metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance}).make()  # noqa
-
 # Expressions we want to score
 score_metrics = {
     'x3-x1': EvaluatorFactory(evaluator_cls=evaluate.MechanicalSystemEvaluator,
@@ -277,5 +272,7 @@ grid_executor = gridsearch.GridsearchBatchExecutor(abstract_model_factory,
                                                    parameters_to_track=parameters_to_track)  # noqa
 
 grid_executor.preview()
-results = grid_executor.run()  # Execute
-grid_executor.save(f'{which_device}_{which_input[0]+1}.parquet')
+grid_executor.run('./A.parquet')  # Execute
+
+# import pyarrow.parquet as pq
+# table = pq.read_table('./out_test.parquet').to_pandas()

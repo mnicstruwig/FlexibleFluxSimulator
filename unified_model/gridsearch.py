@@ -578,28 +578,30 @@ class GridsearchBatchExecutor:
 
     def _execute_grid_search(
             self,
+            output_file: str,
             batch_size: int = 8
-    ) -> Tuple[List, List, List, List, List, List]:
+    ):
         """Execute the gridsearch."""
 
         # Convert to list since we may iterate over it multiple times
         model_factories = list(self.abstract_unified_model_factory.generate())
         total_tasks = len(model_factories)
 
-        grid_curves: List[Dict] = []
-        grid_scores: List[Dict] = []
-        grid_calcs: List[Dict] = []
-        grid_params: List[Dict] = []
-        model_ids: List[int] = []
-        input_numbers: List[int] = []
-
         for input_number, input_ in enumerate(self.input_excitations):
+
+            grid_curves: List[Dict] = []
+            grid_scores: List[Dict] = []
+            grid_calcs: List[Dict] = []
+            grid_params: List[Dict] = []
+            model_ids: List[int] = []
+            input_numbers: List[int] = []
 
             # Build score metric that needs to be calculated for the input
             # excitation. Remember: each groundtruth evaluator is directly
             # linked to only one input!
             linked_score_metric = None
             if self.score_metrics:
+                # Fetch the evaluator with the correct groundtruth data
                 linked_score_metric = {k: evaluators[input_number]
                                        for k, evaluators
                                        in self.score_metrics.items()}
@@ -612,7 +614,7 @@ class GridsearchBatchExecutor:
                     model_ids.append(model_factory.model_id)
                     # Record grid parameters
                     grid_params.append(model_factory.get_args(self.parameters_to_track))  # noqa
-                    # Record which input
+                    # Record which input excitation
                     input_numbers.append(input_number)
 
                     # Queue a simulation
@@ -645,16 +647,28 @@ class GridsearchBatchExecutor:
                     grid_scores.append(copy(result[1]))
                     grid_calcs.append(copy(result[2]))
 
+                # Process results to dataframe
+                df_results = self._process_results(
+                    grid_results=(grid_curves,
+                                  grid_scores,
+                                  grid_calcs,
+                                  grid_params,
+                                  model_ids,
+                                  input_numbers)
+                )
+
+                # Write out results to file
+                logging.info(f'Writing chunk to :: {output_file} ...')
+                self._write_out_results(df_results, output_file, ['input_excitation'])
                 del results  # Remove reference so Ray can free memory as needed
                 ray.internal.free(task_queue)
-        return grid_curves, grid_scores, grid_calcs, grid_params, model_ids, input_numbers
 
     def _write_out_results(self,
                            df_results,
                            path,
                            partition_cols):
         table = pa.Table.from_pandas(df_results)
-        pq.write_to_dataset(table, path, partition_cols=partition_cols)
+        pq.write_to_dataset(table, path, partition_cols=partition_cols, compression='brotli')
 
     def _process_results(self,
                          grid_results: Tuple[List, List, List, List, List, List],
@@ -753,7 +767,7 @@ class GridsearchBatchExecutor:
         print(f'Total # simulations --> {num_models*len(self.input_excitations)}')  # noqa
         print('==================')
 
-    def run(self, batch_size: int = 8) -> pd.DataFrame:
+    def run(self, output_file, batch_size: int = 8) -> pd.DataFrame:
         """Run the grid search and returns the results.
 
         Parameters
@@ -772,11 +786,9 @@ class GridsearchBatchExecutor:
         logging.info('Starting Ray...')
         self._start_ray(self.ray_kwargs)
         logging.info('Running grid search...')
-        self.raw_grid_result = self._execute_grid_search(batch_size=batch_size)
-        self.result = self._process_results(self.raw_grid_result)
+        self._execute_grid_search(output_file, batch_size=batch_size)
         logging.info('Gridsearch complete. Shutting down Ray...')
         self._kill_ray()
-        return self.result
 
     def save(self, path: str) -> None:
         """Save the result to disk in parquet format.
