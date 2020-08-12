@@ -682,6 +682,7 @@ class LabeledVideoProcessor:
 
         """
         df = groundtruth_dataframe
+        df.columns = [col.lower() for col in df.columns]
 
         # Prevent a cryptic error from getting thrown later
         try:

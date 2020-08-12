@@ -589,12 +589,6 @@ class GridsearchBatchExecutor:
 
         for input_number, input_ in enumerate(self.input_excitations):
 
-            grid_curves: List[Dict] = []
-            grid_scores: List[Dict] = []
-            grid_calcs: List[Dict] = []
-            grid_params: List[Dict] = []
-            model_ids: List[int] = []
-            input_numbers: List[int] = []
 
             # Build score metric that needs to be calculated for the input
             # excitation. Remember: each groundtruth evaluator is directly
@@ -608,6 +602,14 @@ class GridsearchBatchExecutor:
 
             total_completed = 0
             for model_factory_batch in _chunk(model_factories, batch_size):
+
+                grid_curves: List[Dict] = []
+                grid_scores: List[Dict] = []
+                grid_calcs: List[Dict] = []
+                grid_params: List[Dict] = []
+                model_ids: List[int] = []
+                input_numbers: List[int] = []
+
                 task_queue = []
                 for model_factory in model_factory_batch:
                     # Get the model id

@@ -147,7 +147,7 @@ class EvaluatorFactory:
 
 
 # Prepare data
-base_groundtruth_path = './data/2019-05-23_C/'
+base_groundtruth_path = './data/2019-05-23_D/'
 samples = {}
 samples['A'] = collect_samples(base_path=base_groundtruth_path,
                                acc_pattern='A/*acc*.csv',
@@ -160,14 +160,14 @@ samples['B'] = collect_samples(base_path=base_groundtruth_path,
 samples['C'] = collect_samples(base_path=base_groundtruth_path,
                                acc_pattern='C/*acc*.csv',
                                adc_pattern='C/*adc*.csv',
-                               video_label_pattern='B/*labels*.csv')
+                               video_label_pattern='C/*labels*.csv')
 
-which_device = 'B'
-which_input = np.array([0, 1, 2, 3, 4])
+which_device = 'C'
+which_input = np.array(range(len(samples[which_device])))
 
 
 # Groundtruth
-groundtruth_factory = GroundTruthFactory(samples_list=samples[which_device][:5],  # noqa <-- take the first five groundtruth samples
+groundtruth_factory = GroundTruthFactory(samples_list=samples[which_device],  # noqa <-- take the first five groundtruth samples
                                          lvp_kwargs=dict(mm=10,
                                                          seconds_per_frame=1/60,
                                                          pixel_scale=0.154508),
@@ -269,10 +269,11 @@ grid_executor = gridsearch.GridsearchBatchExecutor(abstract_model_factory,
                                                    curve_expressions,
                                                    score_metrics,
                                                    calc_metrics=calc_metrics,  # noqa <-- use this for optimization, not scoring
-                                                   parameters_to_track=parameters_to_track)  # noqa
+                                                   parameters_to_track=parameters_to_track,
+                                                   num_cpus=4)  # noqa
 
 grid_executor.preview()
-grid_executor.run('./A.parquet')  # Execute
+grid_executor.run(f'./{which_device}.parquet')  # Execute
 
 # import pyarrow.parquet as pq
 # table = pq.read_table('./out_test.parquet').to_pandas()
