@@ -1,10 +1,12 @@
-from typing import Callable, Optional
+from typing import Callable, Optional, Any
 
 import numpy as np
 import pandas as pd
 from scipy import optimize
 from scipy import interpolate
 from scipy.signal import savgol_filter
+
+from unified_model.utils.utils import FastInterpolator
 
 
 def _model_savgol_smoothing(z_arr, force_arr):
@@ -101,15 +103,10 @@ class MagneticSpringInterp:
     @staticmethod
     def _fit_model(fea_dataframe: pd.DataFrame,
                    magnet_length: float,
-                   **model_kwargs) -> Callable:
+                   **model_kwargs) -> Any:
         """Fit the 1d interpolation model."""
-        # Set a few defaults
-        model_kwargs.setdefault('fill_value', 0)
-        model_kwargs.setdefault('bounds_error', False)
-
-        return interpolate.interp1d(fea_dataframe.z.values + magnet_length/2,
-                                    fea_dataframe.force.values,
-                                    **model_kwargs)
+        return FastInterpolator(fea_dataframe.z.values + magnet_length/2,
+                                fea_dataframe.force.values)
 
     def get_force(self, z: float) -> float:
         """Calculate the force between two magnets at a distance `z` apart.
@@ -125,7 +122,7 @@ class MagneticSpringInterp:
             The force in Newtons.
 
         """
-        return self._model(z)
+        return self._model.get(z)
 
 
 class MagnetSpringAnalytic:

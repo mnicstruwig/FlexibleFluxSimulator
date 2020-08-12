@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from numba import jit
 
-from unified_model.utils.utils import smooth_savgol
+from unified_model.utils.utils import smooth_savgol, FastInterpolator
 from scipy.interpolate import UnivariateSpline
 
 
@@ -170,10 +170,12 @@ class AccelerometerInput:
                                                                   self.smooth)
 
         if self.interpolate:
-            self.interpolator = UnivariateSpline(x=self.acceleration_df['simulation_time_seconds'].values,
-                                                 y=self.acceleration_df[self._accel_column].values,
-                                                 s=0,
-                                                 ext='zeros')
+            self.interpolator = FastInterpolator(self.acceleration_df['simulation_time_seconds'].values,
+                                                 self.acceleration_df[self._accel_column].values)
+            # self.interpolator = UnivariateSpline(x=self.acceleration_df['simulation_time_seconds'].values,
+            #                                      y=self.acceleration_df[self._accel_column].values,
+            #                                      s=0,
+            #                                      ext='zeros')
 
     def get_acceleration(self, t):
         """Get the acceleration at time `t`.
@@ -190,7 +192,7 @@ class AccelerometerInput:
 
         """
         if self.interpolate:
-            return self.interpolator(t)
+            return self.interpolator.get(t)
 
         return _find_nearest_acc_value(t,
                                        self.acceleration_df['simulation_time_seconds'].values,

@@ -632,7 +632,7 @@ class GridsearchBatchExecutor:
                 while len(ready) < len(task_queue):
                     ready, remaining = ray.wait(task_queue,
                                                 num_returns=len(task_queue),
-                                                timeout=5.)
+                                                timeout=1.)
                     # Log output
                     log_base = 'Progress: '
                     input_log = f':: Input: {input_number+1}/{len(self.input_excitations)} '  # noqa

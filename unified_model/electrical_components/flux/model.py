@@ -3,7 +3,7 @@ import numpy as np
 from scipy.interpolate import interp1d, UnivariateSpline
 import warnings
 from functools import reduce
-from unified_model.utils.utils import grad
+from unified_model.utils.utils import grad, FastInterpolator
 
 
 # TODO: Document this class
@@ -112,18 +112,6 @@ def _find_min_max_arg_gradient(arr):
     return np.argmin(grad_arr), np.argmax(grad_arr)
 
 
-# TODO: Docs
-@jitclass([('x', float64[:]), ('y', float64[:]), ('length', int32)])  # noaq
-class FastFluxInterpolator:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.length = len(x)
-
-    def get(self, x):
-        return np.interp(x, self.x, self.y)
-
-
 def flux_interpolate(z_arr, phi_arr, coil_center):
     """Model the flux by interpolating between values
 
@@ -164,11 +152,11 @@ def flux_interpolate(z_arr, phi_arr, coil_center):
     z_arr_fine = z_arr_fine - (z_when_phi_peak - coil_center)
     # Reinterpolate with new z values to update our flux linkage model
     phi_interpolator = interp1d(z_arr_fine, new_phi_arr, bounds_error=False, fill_value=0)
-    fast_phi_interpolator = FastFluxInterpolator(z_arr_fine, new_phi_arr)
+    fast_phi_interpolator = FastInterpolator(z_arr_fine, new_phi_arr)
     # Get an interpolator for the gradient
     # We ignore start/end values of z to prevent gradient errors
     dphi_dz = np.array([grad(phi_interpolator, z) for z in z_arr_fine[1:-1]], dtype=np.float64)
-    fast_dphi_interpolator = FastFluxInterpolator(z_arr_fine[1:-1], dphi_dz)
+    fast_dphi_interpolator = FastInterpolator(z_arr_fine[1:-1], dphi_dz)
 
     return fast_phi_interpolator, fast_dphi_interpolator
 

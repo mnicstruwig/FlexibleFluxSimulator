@@ -62,11 +62,16 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     except TypeError:
         mechanical_spring_force = 0
 
-    x4_dot = (+ magnetic_spring.get_force(x3 - x1)
+    magnetic_spring_force = magnetic_spring.get_force(x3 - x1)
+    damper_force = damper.get_force(x4-x2)
+    assembly_mass = magnet_assembly.get_mass()
+    assembly_weight = magnet_assembly.get_weight()
+
+    x4_dot = (+ magnetic_spring_force
               - mechanical_spring_force
-              - magnet_assembly.get_weight()
-              - damper.get_force(x4 - x2)
-              - coupling_force) / magnet_assembly.get_mass()
+              - assembly_weight
+              - damper_force
+              - coupling_force) / assembly_mass
 
     x5_dot = load_voltage  # NB <-- we want the EMf 'output' to be the load voltage
 

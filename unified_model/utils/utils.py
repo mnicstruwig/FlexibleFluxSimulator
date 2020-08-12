@@ -14,7 +14,18 @@ from fastdtw import fastdtw
 from scipy import signal
 from scipy.spatial.distance import euclidean
 from scipy.interpolate import UnivariateSpline
+from numba import jitclass, float64, int32
 
+
+@jitclass([('x', float64[:]), ('y', float64[:]), ('length', int32)])  # noaq
+class FastInterpolator:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.length = len(x)
+
+    def get(self, x):
+        return np.interp(x, self.x, self.y)
 
 def rms(x):
     """Calculate the RMS of a signal."""
