@@ -112,7 +112,7 @@ class ElectricalModel:
             The instantaneous emf. In volts.
 
         """
-        dphi_dz = self.dflux_model(mag_pos)
+        dphi_dz = self.dflux_model.get(mag_pos)
         emf = dphi_dz * (mag_vel)
 
         if self.rectification_drop:

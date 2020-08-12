@@ -1,3 +1,4 @@
+from numba import jitclass, int32, float64
 import numpy as np
 from scipy.interpolate import interp1d, UnivariateSpline
 import warnings
@@ -99,16 +100,28 @@ class FluxModelInterp:
         return phi_super_interpolator, dphi_super_interpolator
 
     def flux(self, z):
-        return self.flux_model(z)
+        return self.flux_model.get(z)
 
     def dflux(self, z):
-        return self.dflux_model(z)
+        return self.dflux_model.get(z)
 
 
 def _find_min_max_arg_gradient(arr):
     """Find the arguments that give the min/max gradient of `arr`."""
     grad_arr = np.gradient(arr)
     return np.argmin(grad_arr), np.argmax(grad_arr)
+
+
+# TODO: Docs
+@jitclass([('x', float64[:]), ('y', float64[:]), ('length', int32)])  # noaq
+class FastFluxInterpolator:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.length = len(x)
+
+    def get(self, x):
+        return np.interp(x, self.x, self.y)
 
 
 def flux_interpolate(z_arr, phi_arr, coil_center):
@@ -125,6 +138,8 @@ def flux_interpolate(z_arr, phi_arr, coil_center):
     coil_center : float
         The position (in metres) of the center of the coil of the
         microgenerator, relative to the *top* of the fixed magnet.
+    custom_interpolator : class
+        A custom interpolator class
 
     Returns
     -------
@@ -133,14 +148,12 @@ def flux_interpolate(z_arr, phi_arr, coil_center):
         linkage.
 
     """
-    phi_interpolator = interp1d(z_arr,
-                                phi_arr,
-                                kind='cubic',
-                                bounds_error=False,
-                                fill_value=0)
+    z_arr = z_arr
+    phi_arr = phi_arr
+    phi_interpolator = interp1d(z_arr, phi_arr, 'cubic', bounds_error=False, fill_value=0)
 
-    z_arr_fine = np.linspace(z_arr.min(), z_arr.max(), 5*len(z_arr))
-    new_phi_arr = phi_interpolator(z_arr_fine)  # Get smooth fit before shifting
+    z_arr_fine = np.linspace(z_arr.min(), z_arr.max(), 10*len(z_arr))
+    new_phi_arr = np.array([phi_interpolator(z) for z in z_arr_fine])  # Get smooth fit before shifting
 
     # Find the value of z when the flux linkage is maximum (i.e. center of
     # magnet in center of coil)
@@ -150,22 +163,14 @@ def flux_interpolate(z_arr, phi_arr, coil_center):
     # coil center
     z_arr_fine = z_arr_fine - (z_when_phi_peak - coil_center)
     # Reinterpolate with new z values to update our flux linkage model
-    phi_interpolator = interp1d(z_arr_fine,
-                                new_phi_arr,
-                                kind='cubic',
-                                bounds_error=False,
-                                fill_value=0)
-
+    phi_interpolator = interp1d(z_arr_fine, new_phi_arr, bounds_error=False, fill_value=0)
+    fast_phi_interpolator = FastFluxInterpolator(z_arr_fine, new_phi_arr)
     # Get an interpolator for the gradient
     # We ignore start/end values of z to prevent gradient errors
-    dphi_dz = [grad(phi_interpolator, z) for z in z_arr_fine[1:-1]]
-    dphi_interpolator = interp1d(z_arr_fine[1:-1],
-                                 dphi_dz,
-                                 kind='cubic',
-                                 bounds_error=False,
-                                 fill_value=0)
+    dphi_dz = np.array([grad(phi_interpolator, z) for z in z_arr_fine[1:-1]], dtype=np.float64)
+    fast_dphi_interpolator = FastFluxInterpolator(z_arr_fine[1:-1], dphi_dz)
 
-    return phi_interpolator, dphi_interpolator
+    return fast_phi_interpolator, fast_dphi_interpolator
 
 
 def flux_univariate_spline(z_arr, phi_arr, coil_center, mm):

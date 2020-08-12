@@ -190,11 +190,6 @@ class AccelerometerInput:
 
         """
         if self.interpolate:
-            # if y[0] <0 and y[1] < 0:
-            #     if self.interpolator(t) < 0:
-            #         return -self.interpolator(t)
-            #     elif self.interpolator(t) == 0:
-            #         return 0.1
             return self.interpolator(t)
 
         return _find_nearest_acc_value(t,
