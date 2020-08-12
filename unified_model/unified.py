@@ -196,7 +196,7 @@ class UnifiedModel:
             # raw solution has dimensions d, n rather than n, d
             self.raw_solution = np.array([pipeline(y) for y in self.raw_solution.T]).T
 
-    def solve(self, t_start, t_end, y0, t_max_step=1e-5, method='RK45'):
+    def solve(self, t_start, t_end, y0, t_eval, t_max_step=1e-5, method='RK45'):
         """Solve the unified model.
 
         Parameters
@@ -208,6 +208,8 @@ class UnifiedModel:
         y0 : ndarray
             The initial values of `y`, or the result vector that is passed
             to the governing equations.
+        t_eval : ndarray[float]
+            Times at which to store the computed solution.
         t_max_step : float, optional
             The maximum time step (in seconds) to be used when solving the
             unified model. Default value is 1e-5.
@@ -231,6 +233,7 @@ class UnifiedModel:
         psoln = integrate.solve_ivp(fun=lambda t, y: self.governing_equations(t, y, **high_level_models),
                                     t_span=[t_start, t_end],
                                     y0=y0,
+                                    t_eval=t_eval,
                                     max_step=t_max_step)
 
         self.time = psoln.t
