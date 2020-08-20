@@ -119,35 +119,6 @@ class GroundTruthFactory:
         return groundtruths
 
 
-# TODO: Docstrings <-- NB
-class EvaluatorFactory:
-    def __init__(self,
-                 evaluator_cls: Any,
-                 expr_targets: List,
-                 time_targets: List,
-                 metrics: Dict[str, Callable],
-                 **kwargs) -> None:
-
-        # Do some validation
-        assert len(expr_targets) == len(time_targets)
-
-        self.evaluator_cls = evaluator_cls
-        self.expr_targets = expr_targets
-        self.time_targets = time_targets
-        self.metrics = metrics
-        self.evaluator_kwargs = kwargs
-
-    def make(self) -> np.ndarray:
-        evaluator_list = []
-        for expr_target, time_target in zip(self.expr_targets, self.time_targets):  # noqa
-            evaluator = self.evaluator_cls(expr_target,
-                                           time_target,
-                                           self.metrics,
-                                           **self.evaluator_kwargs)
-            evaluator_list.append(evaluator)
-        return np.array(evaluator_list)
-
-
 # Prepare data
 base_groundtruth_path = './data/2019-05-23_D/'
 samples = {}
@@ -240,16 +211,16 @@ curve_expressions = {
 
 # Expressions we want to score
 score_metrics = {
-    'x3-x1': EvaluatorFactory(evaluator_cls=evaluate.MechanicalSystemEvaluator,
-                              expr_targets=mech_y_targets,
-                              time_targets=mech_time_targets,
-                              metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance}).make()[which_input],  # noqa
+    'x3-x1': gridsearch.EvaluatorFactory(evaluator_cls=evaluate.MechanicalSystemEvaluator,
+                                         expr_targets=mech_y_targets,
+                                         time_targets=mech_time_targets,
+                                         metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance}).make()[which_input],  # noqa
 
-    'g(t, x5)': EvaluatorFactory(evaluator_cls=evaluate.ElectricalSystemEvaluator,  # noqa
-                                 expr_targets=elec_emf_targets,
-                                 time_targets=elec_time_targets,
-                                 metrics={'rms_perc_diff': metrics.root_mean_square_percentage_diff,  # noqa
-                                          'emf_dtw_distance': metrics.dtw_euclid_distance}).make()[which_input]  # noqa
+    'g(t, x5)': gridsearch.EvaluatorFactory(evaluator_cls=evaluate.ElectricalSystemEvaluator,  # noqa
+                                            expr_targets=elec_emf_targets,
+                                            time_targets=elec_time_targets,
+                                            metrics={'rms_perc_diff': metrics.root_mean_square_percentage_diff,  # noqa
+                                                     'emf_dtw_distance': metrics.dtw_euclid_distance}).make()[which_input]  # noqa
 }
 
 # Metrics we want to calculate
