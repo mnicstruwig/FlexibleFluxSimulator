@@ -15,12 +15,65 @@ import pyarrow as pa
 from unified_model import (ElectricalModel, MechanicalModel, UnifiedModel,
                            pipeline)
 from unified_model.mechanical_components import AccelerometerInput
-from unified_model.evaluate import Evaluator
-from unified_model.utils.utils import find_signal_limits
 
 logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s',
                     level=logging.INFO)
 
+
+class EvaluatorFactory:
+
+    def __init__(self,
+                 evaluator_cls: Any,
+                 expr_targets: List,
+                 time_targets: List,
+                 metrics: Dict[str, Callable],
+                 **kwargs) -> None:
+        """Build a factory that produces fitted Evaluators
+
+        Parameters
+        ----------
+        evaluator_cls : Any
+            The class of evaluator to construct.
+        expr_targets : List
+            Each element in the list must contain the "target" values.
+        time_targets : List
+            Each element in the list must contain the corresponding time values
+            of the target values.
+        metrics : Dict[str, Callable]
+            A dictionary where the key is a name given to the metric. The
+            values are Callables that accept two array-likes (the first being
+            target data, the second being predicted data) and returns a scalar
+            representing the metric.
+        **kwargs :
+            Additional kwargs passed through to the `evaulator_cls`.
+
+        See Also
+        ---------
+        unified_model.evaluate : module
+            Module that houses the evaluator classes.
+        unified_model.metrics : module
+            Module that houses a lot of useful metrics.
+        """
+
+        # Do some validation
+        assert len(expr_targets) == len(time_targets)
+
+        self.evaluator_cls = evaluator_cls
+        self.expr_targets = expr_targets
+        self.time_targets = time_targets
+        self.metrics = metrics
+        self.evaluator_kwargs = kwargs
+
+    def make(self) -> np.ndarray:
+        """Return an array of Evaluator objects."""
+        evaluator_list = []
+        for expr_target, time_target in zip(self.expr_targets, self.time_targets):  # noqa
+            evaluator = self.evaluator_cls(expr_target,
+                                           time_target,
+                                           self.metrics,
+                                           **self.evaluator_kwargs)
+            evaluator_list.append(evaluator)
+        return np.array(evaluator_list)
 
 class MechanicalGroundtruth(NamedTuple):
     y_diff: Any
@@ -416,7 +469,7 @@ def _chunk(array_like: Union[List, np.ndarray],
 def run_cell(unified_model_factory: UnifiedModelFactory,
              input_excitation: AccelerometerInput,
              curve_expressions: Dict[str, str] = None,
-             score_metrics: Dict[str, Evaluator] = None,
+             score_metrics: Dict[str, Any] = None,
              calc_metrics: Dict[str, Callable] = None) -> Tuple[Dict, Dict, Dict]:  # noqa
     """Execute a single cell of a grid search.
 
@@ -501,16 +554,6 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
     return curves, metric_scores, metric_calcs
 
 
-def _get_clip_indices(y, clip_threshold):
-    start_index, end_index = find_signal_limits(y,
-                                                1,
-                                                clip_threshold)
-
-    start_index = int(start_index)
-    end_index = int(end_index)
-    return (start_index, end_index)
-
-
 class GridsearchBatchExecutor:
     """Execute a batch grid search using Ray.
 
@@ -523,7 +566,7 @@ class GridsearchBatchExecutor:
     curve_expressions : Dict[str, str]
         The curves to capture from the simulated unified model. Keys are a
         prediction expression, and values are the name given to the curve.
-    score_metrics : Dict[str, Evaluator]
+    score_metrics : Dict[str, Any]
         Metrics used to score the unified model's predictions. Keys are the
         prediction expressions to be evaluated. Values are the instantiated
         Evaluator objects that will score the prediction expression at its key.
@@ -542,7 +585,7 @@ class GridsearchBatchExecutor:
                  abstract_unified_model_factory: AbstractUnifiedModelFactory,
                  input_excitations: List[AccelerometerInput],  # TODO: Docstring
                  curve_expressions: Dict[str, str] = None,
-                 score_metrics: Dict[str, List[Evaluator]] = None,
+                 score_metrics: Dict[str, List[Any]] = None,
                  calc_metrics: Dict[str, Callable] = None,
                  parameters_to_track: List[str] = None,
                  **ray_kwargs) -> None:

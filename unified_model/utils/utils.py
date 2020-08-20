@@ -14,7 +14,8 @@ from fastdtw import fastdtw
 from scipy import signal
 from scipy.spatial.distance import euclidean
 from scipy.interpolate import UnivariateSpline
-from numba import jitclass, float64, int32
+from numba import float64, int32
+from numba.experimental import jitclass
 
 
 @jitclass([('x', float64[:]), ('y', float64[:]), ('length', int32)])  # noaq

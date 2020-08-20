@@ -57,9 +57,11 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
 
     try:
         mechanical_spring_force = mechanical_spring.get_force(x3-x1, x4-x2)
-    except AttributeError:
+    except AttributeError as e:
         mechanical_spring_force = 0
+        raise e
     except TypeError:
+        print('Type Error')
         mechanical_spring_force = 0
 
     magnetic_spring_force = magnetic_spring.get_force(x3 - x1)

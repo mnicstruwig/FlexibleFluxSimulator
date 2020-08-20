@@ -379,10 +379,11 @@ class UnifiedModel:
         # Scoring
         mechanical_evaluator = MechanicalSystemEvaluator(y_target,
                                                          time_target,
+                                                         metrics=metrics_dict,
                                                          clip=kwargs.get('clip', True),
                                                          warp=warp)
         mechanical_evaluator.fit(y_predict, time_predict)
-        mechanical_scores = mechanical_evaluator.score(**metrics_dict)
+        mechanical_scores = mechanical_evaluator.score()
 
         if kwargs.pop('return_evaluator', None):
             return mechanical_scores, mechanical_evaluator
@@ -471,22 +472,17 @@ class UnifiedModel:
         emf_predict = df_result['prediction'].values
         time_predict = df_result['time'].values
 
-        if kwargs.get('closed_circuit', False):
-            R_coil = self.electrical_model.coil_resistance
-            R_load = self.electrical_model.load_model.R
-            emf_predict = emf_predict*(R_load/(R_load+R_coil))  # Load voltage
 
         # Scoring
-        clip_threshold = kwargs.get('clip_threshold', 0.05)
         electrical_evaluator = ElectricalSystemEvaluator(emf_target,
                                                          time_target,
-                                                         warp,
-                                                         clip_threshold)
+                                                         metrics_dict,
+                                                         warp)
 
         electrical_evaluator.fit(emf_predict,
                                  time_predict)
 
-        electrical_scores = electrical_evaluator.score(**metrics_dict)
+        electrical_scores = electrical_evaluator.score()
 
         if kwargs.get('return_evaluator', None):
             return electrical_scores, electrical_evaluator

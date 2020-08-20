@@ -99,24 +99,6 @@ class AdcProcessor:
         return voltage_readings, groundtruth_dataframe[time_col].values / 1000
 
 
-class Evaluator(ABC):
-    def __init__(self,
-                 target: np.ndarray,
-                 time: np.ndarray,
-                 metrics: Dict[str, Callable]) -> None:
-        self.target = target
-        self.time = time
-        self.metrics = metrics
-
-    @abstractmethod
-    def fit(self, time: np.ndarray, prediction: np.ndarray) -> None:
-        pass
-
-    @abstractmethod
-    def score(self) -> float:
-        pass
-
-
 class MechanicalSystemEvaluator:
     """Evaluate the accuracy of a mechanical system model's output
 
