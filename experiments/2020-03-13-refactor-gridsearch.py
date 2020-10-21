@@ -1,5 +1,3 @@
-import numba
-
 from typing import List, Any, Dict, Callable
 
 import numpy as np
@@ -135,7 +133,7 @@ samples['C'] = collect_samples(base_path=base_groundtruth_path,
                                adc_pattern='C/*adc*.csv',
                                video_label_pattern='C/*labels*.csv')
 
-which_device = 'C'
+which_device = 'B'
 which_input = np.array(range(len(samples[which_device])))
 
 
@@ -243,10 +241,10 @@ grid_executor = gridsearch.GridsearchBatchExecutor(abstract_model_factory,
                                                    score_metrics,
                                                    calc_metrics=calc_metrics,  # noqa <-- use this for optimization, not scoring
                                                    parameters_to_track=parameters_to_track,
-                                                   num_cpus=4)  # noqa
+                                                   num_cpus=6)  # noqa
 
 grid_executor.preview()
-grid_executor.run(f'./{which_device}_testing.parquet')  # Execute
+grid_executor.run(f'./{which_device}.parquet')  # Execute
 
 # import pyarrow.parquet as pq
 # table = pq.read_table('./out_test.parquet').to_pandas()

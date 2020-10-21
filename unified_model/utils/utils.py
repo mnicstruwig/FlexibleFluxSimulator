@@ -18,7 +18,7 @@ from numba import float64, int32
 from numba.experimental import jitclass
 
 
-@jitclass([('x', float64[:]), ('y', float64[:]), ('length', int32)])  # noaq
+#@jitclass([('x', float64[:]), ('y', float64[:]), ('length', int32)])  # noaq
 class FastInterpolator:
     def __init__(self, x, y):
         self.x = x
@@ -27,6 +27,7 @@ class FastInterpolator:
 
     def get(self, x):
         return np.interp(x, self.x, self.y)
+
 
 def rms(x):
     """Calculate the RMS of a signal."""
@@ -58,7 +59,7 @@ def fetch_key_from_dictionary(dictionary, key, error_message):
 
 
 def get_sample_delay(x, y):
-    """Calculate the delay (in samples) between two signals using correlation.
+    """Calculate the delay (in samples) between two signals.
     """
     corr_1 = signal.correlate(x, y)
     corr_2 = signal.correlate(y, x)

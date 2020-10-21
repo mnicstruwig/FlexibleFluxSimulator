@@ -1,8 +1,10 @@
 """
-Contains the unified model architecture that encapsulates the mechanical
-system, electrical system, the coupling between them and the master system
-model that describes their interaction.
+Contains the unified model architecture that encapsulates the mechanical system,
+electrical system, the coupling between them and the master system model that
+describes their interaction.
 """
+
+
 import os
 from glob import glob
 
@@ -76,7 +78,7 @@ class UnifiedModel:
     @classmethod
     def load_from_disk(cls, path):
         """Load a unified model from disk."""
-        unified_model = UnifiedModel(name=None)
+        unified_model = UnifiedModel()
 
         try:
             assert os.path.isdir(path)
@@ -196,7 +198,7 @@ class UnifiedModel:
             # raw solution has dimensions d, n rather than n, d
             self.raw_solution = np.array([pipeline(y) for y in self.raw_solution.T]).T
 
-    def solve(self, t_start, t_end, y0, t_eval, t_max_step=1e-5, method='RK45'):
+    def solve(self, t_start, t_end, y0, t_eval, t_max_step=1e-5):
         """Solve the unified model.
 
         Parameters
@@ -213,10 +215,6 @@ class UnifiedModel:
         t_max_step : float, optional
             The maximum time step (in seconds) to be used when solving the
             unified model. Default value is 1e-5.
-        method : str
-            Numerical method to use when solving the unified model. For a
-            selection of valid choices, see the `scipy.integrate.solve_ivp`
-            method.
 
         See Also
         --------
@@ -234,6 +232,8 @@ class UnifiedModel:
                                     t_span=[t_start, t_end],
                                     y0=y0,
                                     t_eval=t_eval,
+                                    method='RK45',
+                                    rtol=1e-4,
                                     max_step=t_max_step)
 
         self.time = psoln.t

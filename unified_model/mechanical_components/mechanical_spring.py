@@ -9,7 +9,7 @@ class MechanicalSpring:
     def __init__(self,
                  position: float,
                  magnet_length: float,
-                 strength: float = 1e9,
+                 strength: float = 1e7,
                  damping_coefficient: float = 0) -> None:
         """Constructor.
 

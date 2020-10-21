@@ -468,7 +468,27 @@ class ElectricalSystemEvaluator:
         self.emf_target_ = resampled_emf_target
         self.emf_predict_ = resampled_emf_predict
         self.time_ = resampled_time
-        self._clip_signals(self.clip_threshold)
+
+        emf_predict_start, emf_predict_end = find_signal_limits(resampled_emf_predict)
+        emf_target_start, emf_target_end = find_signal_limits(resampled_emf_target, 0.075)
+
+        emf_predict_clipped_ = self.emf_predict_[emf_predict_start:emf_predict_end]
+        emf_target_clipped_ = self.emf_target_[emf_target_start:emf_target_end]
+
+        length_difference = len(emf_predict_clipped_) - len(emf_target_clipped_)
+        if length_difference < 0:  # right-pad emf_predict_clipped_
+            emf_predict_clipped_ = np.pad(emf_predict_clipped_, (0, abs(length_difference)), 'constant')
+        else:
+            emf_target_clipped_ = np.pad(emf_target_clipped_, (0, length_difference), 'constant')
+
+
+        self.emf_predict_clipped_ = emf_predict_clipped_
+        self.emf_target_clipped_ = emf_target_clipped_
+
+        self._clip_indexes = {
+            'predict': (emf_predict_start, emf_predict_end),
+            'target': (emf_target_start, emf_target_end)
+        }
 
     def _calc_dtw(self):
         """Perform dynamic time warping on prediction and targets."""
@@ -479,27 +499,6 @@ class ElectricalSystemEvaluator:
             self.emf_target_
         )
 
-    def _clip_signals(self, clip_threshold):
-        """Clip the target and predicted signals to only the active parts."""
-
-        if clip_threshold == 0.:
-            self.clipped_indexes = (None, None)
-            self.time_clipped_ = self.time_
-            self.emf_predict_clipped_ = self.emf_predict_
-            self.emf_target_clipped_ = self.emf_target_
-            return
-
-        # We find the limits on the predicted curve, since it's a lot less
-        # noisy than the target curve.
-        start_index, end_index = find_signal_limits(
-            target=self.emf_predict_,
-            threshold=clip_threshold
-        )
-
-        self.clipped_indexes = (start_index, end_index)
-        self.time_clipped_ = self.time_[start_index:end_index]
-        self.emf_predict_clipped_ = self.emf_predict_[start_index:end_index]
-        self.emf_target_clipped_ = self.emf_target_[start_index:end_index]
 
     def score(self) -> Dict[str, Any]:
         """Evaluate the electrical model using a selection of metrics.
@@ -554,10 +553,6 @@ class ElectricalSystemEvaluator:
 
         Parameters
         ----------
-        clipped : bool, optional
-            Set to `False` to plot the entire length of the signals.
-            Set to `True` to plot the portion of the signals used for scoring.
-            Default value is True.
         include_dtw : bool, optional
             Set to `True` to also plot the dynamic-time-warped signals.
             Default value is False.
@@ -569,17 +564,19 @@ class ElectricalSystemEvaluator:
         target = self.emf_target_
         predict = self.emf_predict_
 
-        clipped_x_begin = [self.clipped_indexes[0]]*2
-        clipped_x_end = [self.clipped_indexes[1]]*2
-        clipped_y = [0, np.max([target, predict])]
+        max_y = np.max([target, predict])
 
         plt.figure(**kwargs)
-        plt.plot(time, target, label='Target')
-        plt.plot(time, predict, label='Predictions')
+        plt.plot(time, target, 'k', label='Target')
+        plt.plot(time, predict, 'r', label='Predictions')
 
         # Show the clip marks
-        plt.plot(time[clipped_x_begin], clipped_y, 'k--')
-        plt.plot(time[clipped_x_end], clipped_y, 'k--')
+
+        plt.vlines(time[self._clip_indexes['target'][0]], 0, max_y, color='k', linestyle='--')
+        plt.vlines(time[self._clip_indexes['target'][1]], 0, max_y, color='k', linestyle='--')
+
+        plt.vlines(time[self._clip_indexes['predict'][0]], 0, max_y, color='r', linestyle='--')
+        plt.vlines(time[self._clip_indexes['predict'][1]], 0, max_y, color='r', linestyle='--')
 
         plt.legend()
 

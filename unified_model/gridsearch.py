@@ -518,6 +518,7 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
     model.solve(t_start=0,
                 t_end=8,
                 t_max_step=1e-3,
+                t_eval=np.arange(0, 8, 1e-3),
                 y0=[0.0, 0.0, 0.04, 0.0, 0.0])
 
     curves: Dict[str, Any] = {}
@@ -529,7 +530,7 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
         # interface
         swapped = {v: k for k, v in curve_expressions.items()}
         df_result = model.get_result(**swapped)
-        curves = df_result.to_dict(orient='list')
+        curves = df_result.to_dict(orient='list')  # type: ignore
 
     if score_metrics:
         expression_kwargs = {}

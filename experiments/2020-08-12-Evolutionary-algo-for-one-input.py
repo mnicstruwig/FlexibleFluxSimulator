@@ -127,9 +127,9 @@ def run_simulation(unified_model: UnifiedModel) -> UnifiedModel:
 
     unified_model.solve(  # This can take a little while...
         t_start=0,
-        t_end=7,
+        t_end=8,
         y0=y0,  # Initial conditions we defined above
-        t_eval=np.linspace(0, 7, 1000),
+        t_eval=np.linspace(0, 8, 1000),
         t_max_step=1e-3
     )
 
@@ -236,13 +236,16 @@ def calc_loss(model_package: ModelPackage,
         score = evaluator.score()
         scores.update(score)
 
-    best_mech_score = 9.5753
-    best_elec_score = 84.888
-    best_abs_rms_score = 1
+    best_mech_score = 9.602
+    worst_mech_score = 72.17
+    best_elec_score = 80.203
+    worst_elec_score = 1600.
+    best_abs_rms_score = 11.822
+    worst_abs_rms_score = 1816.
     return (
-        + 0*scores['y_diff_dtw_distance']/best_mech_score
-        + 0*scores['emf_dtw_distance']/best_elec_score
-        + 1*np.abs(scores['rms_perc_diff'])/best_abs_rms_score
+        + (scores['y_diff_dtw_distance'] - best_mech_score)/(worst_mech_score - best_mech_score)
+        + (scores['emf_dtw_distance'] - best_elec_score)/(worst_elec_score - best_elec_score)
+        + (np.abs(scores['rms_perc_diff']) - best_abs_rms_score)/(worst_abs_rms_score - best_abs_rms_score)
     )
 
 
@@ -298,12 +301,14 @@ def build_model_components(which_device):
         r_coil=ABC_CONFIG.coil_resistance[which_device]
     )
 
+to_keep_A = [0, 1, 3, 5, 6]
+to_keep_B = [0, 1, 3, 4, 5]
+to_keep_C = [0, 1, 3, 4, 5]
+model_package_list_A = build_model_packages(samples['A'][to_keep_A], build_model_components('A'))
+model_package_list_B = build_model_packages(samples['B'][to_keep_B], build_model_components('B'))
+model_package_list_C = build_model_packages(samples['C'][to_keep_C], build_model_components('C'))
 
-model_package_list_A = build_model_packages(samples['A'], build_model_components('A'))
-model_package_list_B = build_model_packages(samples['B'], build_model_components('B'))
-model_package_list_C = build_model_packages(samples['C'], build_model_components('C'))
-
-model_package_list = model_package_list_A + model_package_list_B + model_package_list_C  # noqa
+model_package_list = model_package_list_A + model_package_list_B + model_package_list_C  # noq a
 
 instrumentation = ng.p.Instrumentation(
     fric_damp=ng.p.Scalar(0.0406837, lower=0, upper=0.1),
@@ -319,7 +324,9 @@ def callback(optimizer, candidate, value):
     print(f'Values: {output_values} :: Loss: {np.round(value, 5)}')
 
 
-optimizer = ng.optimizers.TwoPointsDE(parametrization=instrumentation, budget=200, num_workers=4)
+optimizer = ng.optimizers.TwoPointsDE(parametrization=instrumentation,
+                                      budget=400,
+                                      num_workers=6)
 optimizer.register_callback('tell', callback)
 
 
@@ -345,3 +352,15 @@ loss = recommendation.loss
 # {'fric_damp': 0.03747113788977376,
 #  'mech_spring_damp': 6.820248958164491,
 #  'coupling_damp': 2.1510305735759934}
+
+# xx = {'fric_damp': 0.036747482860699524,
+#  'mech_spring_damp': 4.1432129936518525,
+#  'coupling_damp': 4.546582837470835}
+
+# {'fric_damp': 0.04265442509291445,
+#  'mech_spring_damp': 0.32579322477822065,
+#  'coupling_damp': 4.684172325591134}
+
+# {'fric_damp': 0.04353437886806377,
+#  'mech_spring_damp': 2.681576544244487,
+#  'coupling_damp': 4.404587039069816}

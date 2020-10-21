@@ -6,9 +6,9 @@ from functools import reduce
 from unified_model.utils.utils import grad, FastInterpolator
 
 
-# TODO: Document this class
+# TODO: Documentation
 class FluxModelInterp:
-    def __init__(self, c, m, c_c, l_ccd=0, l_mcd=0):
+    def __init__(self, c, m, c_c, l_ccd=0, l_mcd=0, **kwargs):
         self.c = c
         self.m = m
         self.c_c = c_c
@@ -55,17 +55,17 @@ class FluxModelInterp:
         dflux_interp_list = []
         for i in range(self.c):  # For each coil
             for j in range(self.m):  # For each magnet
-                # Generate the interpolator for the individualized curve
+                # Generate a interpolator for each individual flux curve
                 flux_interp, dflux_interp = flux_interpolate(
                     z_arr,
-                    (-1) ** (i+j) * phi_arr,  # Remember to alternate the polarity
-                    coil_center=self.c_c + j * self.l_mcd + i * self.l_ccd  # Shift the center
+                    (-1) ** (i+j) * phi_arr,  # Remembering to alternate the polarity...
+                    coil_center=self.c_c + j * self.l_mcd + i * self.l_ccd  # ... and shift the center (peak)
                 )
                 flux_interp_list.append(flux_interp)
                 dflux_interp_list.append(dflux_interp)
 
         # Scale the z range to compensate for the number of coils and magnets
-        # TODO: Add a resolution arg for finer sampling?
+        # TODO: Add a resolution argument for finer sampling?
         z_arr_width = max(z_arr) - min(z_arr)
         new_z_start = self.c_c - z_arr_width/2
         new_z_end = (self.c_c
@@ -76,6 +76,8 @@ class FluxModelInterp:
         new_z_arr = np.linspace(new_z_start,
                                 new_z_end,
                                 len(z_arr)*(self.c + self.m))
+
+        # Sum to build the superposition of all the individual flux curves
         phi_super = []
         for z in new_z_arr:
             phi = sum(flux_interp(z) for flux_interp in flux_interp_list)
@@ -83,6 +85,8 @@ class FluxModelInterp:
 
         # Now, generate a new interpolator with the superposition curve
         # TODO: Consider turning this into a helper
+        # TODO: Use the `flux_interpolate` function, since it uses the
+        # `FastInterpolator` class which is JIT-compiled!
         phi_super_interpolator = interp1d(new_z_arr,
                                           phi_super,
                                           kind='cubic',
@@ -152,11 +156,11 @@ def flux_interpolate(z_arr, phi_arr, coil_center):
     z_arr_fine = z_arr_fine - (z_when_phi_peak - coil_center)
     # Reinterpolate with new z values to update our flux linkage model
     phi_interpolator = interp1d(z_arr_fine, new_phi_arr, bounds_error=False, fill_value=0)
-    fast_phi_interpolator = FastInterpolator(z_arr_fine, new_phi_arr)
+    fast_phi_interpolator = FastInterpolator(z_arr_fine, new_phi_arr)  # type: ignore
     # Get an interpolator for the gradient
     # We ignore start/end values of z to prevent gradient errors
     dphi_dz = np.array([grad(phi_interpolator, z) for z in z_arr_fine[1:-1]], dtype=np.float64)
-    fast_dphi_interpolator = FastInterpolator(z_arr_fine[1:-1], dphi_dz)
+    fast_dphi_interpolator = FastInterpolator(z_arr_fine[1:-1], dphi_dz)  # type: ignore
 
     return fast_phi_interpolator, fast_dphi_interpolator
 
