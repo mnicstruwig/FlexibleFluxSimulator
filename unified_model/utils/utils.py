@@ -14,11 +14,14 @@ from fastdtw import fastdtw
 from scipy import signal
 from scipy.spatial.distance import euclidean
 from scipy.interpolate import UnivariateSpline
-from numba import float64, int32
-from numba.experimental import jitclass
+from numba import jit
 
 
-#@jitclass([('x', float64[:]), ('y', float64[:]), ('length', int32)])  # noaq
+@jit(nopython=True)  # type: ignore
+def fast_interpolator(x, y, eval_at):
+    return np.interp(eval_at, x, y)  # type: ignore
+
+
 class FastInterpolator:
     def __init__(self, x, y):
         self.x = x
@@ -26,7 +29,7 @@ class FastInterpolator:
         self.length = len(x)
 
     def get(self, x):
-        return np.interp(x, self.x, self.y)
+        return fast_interpolator(self.x, self.y, x)
 
 
 def rms(x):
@@ -44,13 +47,7 @@ def pretty_str(dict_, level=0):
 
 
 def fetch_key_from_dictionary(dictionary, key, error_message):
-    """Fetch a value from a dictionary
-
-    :param dictionary: The dictionary to search
-    :param key: The key to look-up
-    :param error_message: The error message to print when the key is not found and an exception is raised.
-    :return: The value corresponding to the key
-    """
+    """Fetch a value from a dictionary."""
 
     try:
         return dictionary[key]
@@ -59,8 +56,7 @@ def fetch_key_from_dictionary(dictionary, key, error_message):
 
 
 def get_sample_delay(x, y):
-    """Calculate the delay (in samples) between two signals.
-    """
+    """Calculate the delay (in samples) between two signals."""
     corr_1 = signal.correlate(x, y)
     corr_2 = signal.correlate(y, x)
     sample_delay = int((np.abs(np.argmax(corr_1) -

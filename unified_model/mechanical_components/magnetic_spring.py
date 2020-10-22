@@ -1,9 +1,8 @@
-from typing import Callable, Optional, Any
+from typing import Any, Callable, Optional
 
 import numpy as np
 import pandas as pd
-from scipy import optimize
-from scipy import interpolate
+from scipy import interpolate, optimize
 from scipy.signal import savgol_filter
 
 from unified_model.utils.utils import FastInterpolator
