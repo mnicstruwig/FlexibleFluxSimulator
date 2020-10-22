@@ -26,7 +26,7 @@ class FluxModelInterp:
         if self.l_mcd < 0:
             raise ValueError('l_mcd must be > 0')
 
-        if self.l_ccd != self.l_mcd and (self.l_ccd != 0 or self.l_mcd != 0) and m != 1:
+        if self.l_ccd != self.l_mcd and (self.l_ccd != 0 or self.l_mcd != 0) and self.m != 1:
             warnings.warn('l_ccd != l_mcd, this is unusual.', RuntimeWarning)
 
         if self.l_ccd == 0 and self.c > 1:
@@ -80,26 +80,22 @@ class FluxModelInterp:
         # Sum to build the superposition of all the individual flux curves
         phi_super = []
         for z in new_z_arr:
-            phi = sum(flux_interp(z) for flux_interp in flux_interp_list)
+            phi_separate =  [flux_interp.get(z) for flux_interp in flux_interp_list]
+            phi = sum(phi_separate)
             phi_super.append(phi)
 
         # Now, generate a new interpolator with the superposition curve
         # TODO: Consider turning this into a helper
         # TODO: Use the `flux_interpolate` function, since it uses the
         # `FastInterpolator` class which is JIT-compiled!
-        phi_super_interpolator = interp1d(new_z_arr,
-                                          phi_super,
-                                          kind='cubic',
-                                          bounds_error=False,
-                                          fill_value=0)
+        phi_super_interpolator = FastInterpolator(new_z_arr, phi_super)
 
         # Do the same for the gradient
-        dphi_dz_super = [grad(phi_super_interpolator, z) for z in new_z_arr]
-        dphi_super_interpolator = interp1d(new_z_arr,
-                                           dphi_dz_super,
-                                           kind='cubic',
-                                           bounds_error=False,
-                                           fill_value=0)
+        dphi_super = []
+        for z in new_z_arr:
+            pass
+
+        dphi_super_interpolator = None # FastInterpolator(new_z_arr[1:-1], dphi_dz_super)
 
         return phi_super_interpolator, dphi_super_interpolator
 
@@ -145,22 +141,23 @@ def flux_interpolate(z_arr, phi_arr, coil_center):
     phi_interpolator = interp1d(z_arr, phi_arr, 'cubic', bounds_error=False, fill_value=0)
 
     z_arr_fine = np.linspace(z_arr.min(), z_arr.max(), 10*len(z_arr))
-    new_phi_arr = np.array([phi_interpolator(z) for z in z_arr_fine])  # Get smooth fit before shifting
+    # Get smooth fit before shifting
+    new_phi_arr = np.array([phi_interpolator(z) for z in z_arr_fine])  # type: ignore
 
     # Find the value of z when the flux linkage is maximum (i.e. center of
     # magnet in center of coil)
-    operator = np.argmax if max(phi_arr) > 0 else np.argmin
-    z_when_phi_peak = z_arr_fine[operator(new_phi_arr)]
+    peak_idx = np.argmax(np.abs(new_phi_arr))
+    z_when_phi_peak = z_arr_fine[peak_idx]
     # Shift the array so that the maximum flux linkage occurs at the specified
     # coil center
     z_arr_fine = z_arr_fine - (z_when_phi_peak - coil_center)
     # Reinterpolate with new z values to update our flux linkage model
     phi_interpolator = interp1d(z_arr_fine, new_phi_arr, bounds_error=False, fill_value=0)
-    fast_phi_interpolator = FastInterpolator(z_arr_fine, new_phi_arr)  # type: ignore
+    fast_phi_interpolator = FastInterpolator(z_arr_fine, new_phi_arr)
     # Get an interpolator for the gradient
     # We ignore start/end values of z to prevent gradient errors
     dphi_dz = np.array([grad(phi_interpolator, z) for z in z_arr_fine[1:-1]], dtype=np.float64)
-    fast_dphi_interpolator = FastInterpolator(z_arr_fine[1:-1], dphi_dz)  # type: ignore
+    fast_dphi_interpolator = FastInterpolator(z_arr_fine[1:-1], dphi_dz)
 
     return fast_phi_interpolator, fast_dphi_interpolator
 
