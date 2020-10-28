@@ -79,23 +79,19 @@ class FluxModelInterp:
 
         # Sum to build the superposition of all the individual flux curves
         phi_super = []
+        dphi_super = []
         for z in new_z_arr:
-            phi_separate =  [flux_interp.get(z) for flux_interp in flux_interp_list]
+            phi_separate = [flux_interp.get(z) for flux_interp in flux_interp_list]
+            dphi_separate = [dflux_interp.get(z) for dflux_interp in dflux_interp_list]
             phi = sum(phi_separate)
+            dphi = sum(dphi_separate)
             phi_super.append(phi)
+            dphi_super.append(dphi)
 
         # Now, generate a new interpolator with the superposition curve
         # TODO: Consider turning this into a helper
-        # TODO: Use the `flux_interpolate` function, since it uses the
-        # `FastInterpolator` class which is JIT-compiled!
         phi_super_interpolator = FastInterpolator(new_z_arr, phi_super)
-
-        # Do the same for the gradient
-        dphi_super = []
-        for z in new_z_arr:
-            pass
-
-        dphi_super_interpolator = None # FastInterpolator(new_z_arr[1:-1], dphi_dz_super)
+        dphi_super_interpolator = FastInterpolator(new_z_arr, dphi_super)
 
         return phi_super_interpolator, dphi_super_interpolator
 
@@ -108,7 +104,7 @@ class FluxModelInterp:
 
 def _find_min_max_arg_gradient(arr):
     """Find the arguments that give the min/max gradient of `arr`."""
-    grad_arr = np.gradient(arr)
+    grad_arr = np.gradient(arr)  # type:ignore
     return np.argmin(grad_arr), np.argmax(grad_arr)
 
 

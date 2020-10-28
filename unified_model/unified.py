@@ -7,6 +7,8 @@ describes their interaction.
 
 import os
 from glob import glob
+import warnings
+from typing import Union
 
 import cloudpickle
 import numpy as np
@@ -240,7 +242,13 @@ class UnifiedModel:
         self.raw_solution = psoln.y
         self._apply_pipeline()
 
-    def get_result(self, **kwargs) -> pd.DataFrame:
+    def reset(self):
+        """Clear all computed results from the unified model."""
+
+        self.time = None
+        self.raw_solution = None
+
+    def get_result(self, **kwargs) -> Union[pd.DataFrame, None]:
         """Get a dataframe of the results using expressions.
 
         *Any* reasonable expression is possible. You can refer to each of the
@@ -284,7 +292,10 @@ class UnifiedModel:
         4        5            -4           5
 
         """
-        return parse_output_expression(self.time, self.raw_solution, **kwargs)
+        try:
+            return parse_output_expression(self.time, self.raw_solution, **kwargs)
+        except AssertionError:
+            warnings.warn('Raw solution is not found. Did you run .solve?')
 
     def score_mechanical_model(self,
                                time_target,

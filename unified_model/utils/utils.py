@@ -24,8 +24,8 @@ def fast_interpolator(x, y, eval_at):
 
 class FastInterpolator:
     def __init__(self, x, y):
-        self.x = x
-        self.y = y
+        self.x = np.array(x)
+        self.y = np.array(y)
         self.length = len(x)
 
     def get(self, x):
@@ -143,13 +143,7 @@ def parse_output_expression(t, raw_output, **kwargs):
     timesteps in the simulation, and d is the number of outputs.
 
     """
-
-# def g(x, y):
-#     delta_y = [i-j for i,j in zip(y[1:], y)]
-#     delta_x = [i-j for i,j in zip(x[1:], x)]
-
-#     # Fake last element so that length remains the same as inputs.
-#     return [y/x for x, y in zip(delta_x, delta_y)] + [delta_y[-1]/delta_x[-1]]
+    assert raw_output is not None
 
     df_out = pd.DataFrame()
 
