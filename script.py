@@ -6,7 +6,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import ray
-from flux_curve_modelling.model import CurveModel
+from flux_modeller.model import CurveModel
 from scipy.signal import savgol_filter
 
 from unified_model import \
