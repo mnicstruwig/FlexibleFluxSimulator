@@ -21,7 +21,7 @@ def _get_new_flux_curve(
         coil_model_params: Dict
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Get new z and phi values  from coil parameters and a `CurveModel`."""
-
+    coil_model_params = copy(coil_model_params)
     n_z = coil_model_params['n_z']
     n_w = coil_model_params['n_w']
 
@@ -107,6 +107,9 @@ def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
 def calc_rms(x):
     return np.sqrt(np.sum(x**2)/len(x))
 
+def calc_p_load_avg(x, r_load):
+    v_rms = calc_rms(x)
+    return v_rms*v_rms/r_load
 
 @ray.remote
 def _calc_constant_velocity_rms(curve_model, coil_model_params):
@@ -160,9 +163,10 @@ def precompute_best_spacing(n_z_arr: np.ndarray,
     # due to version incompatibilities that can arise
     df.to_csv(output_path)
 
+
 def lookup_best_spacing(path, n_z, n_w):
     df = pd.read_csv(path)
-    result = df.query(f'n_z == {n_z} and n_w == {n_w}')['optimal_spacing'].values
+    result = df.query(f'n_z == {n_z} and n_w == {n_w}')['optimal_spacing_mm'].values
 
     if not result:
         raise ValueError(f'Coil parameters not found in {path}')
@@ -171,7 +175,7 @@ def lookup_best_spacing(path, n_z, n_w):
 
 
 @ray.remote
-def simulate_unified_model(unified_model, **solve_kwargs):
+def simulate_unified_model(unified_model: UnifiedModel, **solve_kwargs):
     unified_model.reset()  # Make sure we're starting from a clean slate
 
     if not solve_kwargs:
@@ -186,7 +190,7 @@ def simulate_unified_model(unified_model, **solve_kwargs):
     unified_model.solve(**solve_kwargs)
 
     results = unified_model.calculate_metrics('g(t, x5)', {
-        'rms': calc_rms
+        'p_load_avg': lambda x: calc_p_load_avg(x, unified_model.electrical_model.load_model.R)
     })
 
     return results
