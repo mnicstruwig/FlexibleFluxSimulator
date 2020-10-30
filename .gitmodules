@@ -1,0 +1,3 @@
+[submodule "flux_modeller"]
+	path = flux_modeller
+	url = git@github.com:mnicstruwig/flux_modeller.git

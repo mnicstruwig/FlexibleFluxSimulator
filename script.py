@@ -1,29 +1,23 @@
-import pandas as pd
-import numpy as np
-from tqdm import tqdm
-import ray
-import pyarrow.parquet as pq
-import pyarrow as pa
-from itertools import product
 from copy import copy
+from itertools import product
+
+import numpy as np
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+import ray
+from flux_curve_modelling.model import CurveModel
 from scipy.signal import savgol_filter
 
-from unified_model import MechanicalModel
-from unified_model import ElectricalModel
-from unified_model import mechanical_components
-from unified_model import electrical_components
-from unified_model import CouplingModel
-from unified_model import governing_equations
-from unified_model import gridsearch  # <-- The new set of tools we'll be using exist in the `gridsearch` module
-from unified_model import optimize
-
-from flux_curve_modelling.model import CurveModel
-from unified_model.electrical_components.flux.model import FluxModelInterp
-
+from unified_model import \
+    gridsearch  # <-- The new set of tools we'll be using exist in the `gridsearch` module
+from unified_model import (CouplingModel, electrical_components,
+                           governing_equations, mechanical_components,
+                           optimize)
 
 # Mechanical components
 magnetic_spring = mechanical_components.MagneticSpringInterp(
-    fea_data_file='./experiments/data/magnetic-spring/10x10alt.csv',
+    fea_data_file='./data/magnetic-spring/10x10alt.csv',
     magnet_length=10/1000,
     filter_callable=lambda x: savgol_filter(x, window_length=27, polyorder=5)
 )
@@ -63,7 +57,7 @@ coil_params = {
 }
 
 
-curve_model = CurveModel.load('./experiments/flux_curve_model.model')
+curve_model = CurveModel.load('./data/flux_curve_model.model')
 
 # Build our first "template" factory
 unified_model_factory = gridsearch.UnifiedModelFactory(
@@ -83,8 +77,9 @@ unified_model_factory = gridsearch.UnifiedModelFactory(
 
 # Choose our input excitations
 from glob import glob
+
 acc_inputs = []
-for log_file in glob('./experiments/data/2019-05-23_D/A/log*_acc.csv'):
+for log_file in glob('./data/2019-05-23_D/A/log*_acc.csv'):
     acc_input = mechanical_components.AccelerometerInput(
         raw_accelerometer_input=log_file,
         accel_column='z_G',
@@ -103,7 +98,7 @@ def batchify(x, batch_size):
     indexes = np.arange(0, total_size, batch_size)
 
     if indexes[-1] < total_size:
-        indexes = np.append(indexes, [total_size])
+        indexes = np.append(indexes, [total_size])  # type: ignore
 
     return [x[indexes[i]:indexes[i+1]] for i in range(len(indexes)-1)]
 
@@ -140,7 +135,7 @@ for batch_num, batch in enumerate(batches):
 
         if coil_params_copy['c'] > 1:
             coil_params_copy['l_ccd'] = optimize.lookup_best_spacing(
-                path='./experiments/optimal_l_ccd_0_200_5.csv',
+                path='./data/optimal_l_ccd_0_200_5.csv',
                 n_z=n_z,
                 n_w=n_w
             )
@@ -171,7 +166,7 @@ for batch_num, batch in enumerate(batches):
         'p_load_avg': [r['p_load_avg'] for r in results]
     })
     table = pa.Table.from_pandas(df)
-    pq.write_to_dataset(table, 'test_run.parquet')
+    pq.write_to_dataset(table, '/output/test_run.parquet')
 
     # Clear
     del results
