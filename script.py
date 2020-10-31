@@ -91,7 +91,6 @@ for log_file in glob('./data/2019-05-23_D/A/log*_acc.csv'):
     )
     acc_inputs.append(acc_input)
 
-print(len(acc_inputs))
 
 def batchify(x, batch_size):
     total_size = len(x)
@@ -116,10 +115,11 @@ n_w_list = []
 input_ids = []
 submitted = []
 
-print(f'Pending simulations: {len(nz_nw_product)}')
+print(f'Executing {len(nz_nw_product)} device simulations.')
+print(f'There are {len(acc_inputs)} per simulation.')
 batches = batchify(nz_nw_product, batch_size)
 for batch_num, batch in enumerate(batches):
-    print(f'Executing batch {batch_num+1} out of {len(batches)}')
+    print(f'Executing batch {batch_num+1} out of {len(batches)}...')
     for n_z, n_w in batch:
         coil_params_copy = copy(coil_params)
         coil_params_copy['n_z'] = n_z
