@@ -10,7 +10,7 @@ import pandas as pd
 import ray
 from tqdm import tqdm
 
-from flux_curve_modelling.model import CurveModel
+from flux_modeller.model import CurveModel
 from unified_model.electrical_components.flux.model import FluxModelInterp
 from unified_model.gridsearch import UnifiedModelFactory
 from unified_model.unified import UnifiedModel

@@ -104,7 +104,6 @@ def batchify(x, batch_size):
 
 
 # Actual experiment
-
 ray.init(ignore_reinit_error=True)
 
 n_z_arr = np.arange(2, 201, 40)
