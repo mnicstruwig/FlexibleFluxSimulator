@@ -1,0 +1,7 @@
+version: "3.8"
+services:
+  simulation:
+    build: .
+    volumes:
+      - /root/output:/output
+    shm_size: 8g
