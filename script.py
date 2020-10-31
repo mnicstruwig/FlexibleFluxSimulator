@@ -105,8 +105,8 @@ def batchify(x, batch_size):
 # Actual experiment
 ray.init(ignore_reinit_error=True)
 
-n_z_arr = np.arange(2, 201, 40)
-n_w_arr = np.arange(2, 201, 40)
+n_z_arr = np.arange(5, 201, 5)
+n_w_arr = np.arange(5, 201, 5)
 
 batch_size = 256
 nz_nw_product = np.array(list(product(n_z_arr, n_w_arr)))  # type: ignore
@@ -116,7 +116,7 @@ input_ids = []
 submitted = []
 
 print(f'Executing {len(nz_nw_product)} device simulations.')
-print(f'There are {len(acc_inputs)} per simulation.')
+print(f'There are {len(acc_inputs)} inputs per simulation.')
 batches = batchify(nz_nw_product, batch_size)
 for batch_num, batch in enumerate(batches):
     print(f'Executing batch {batch_num+1} out of {len(batches)}...')
@@ -165,7 +165,7 @@ for batch_num, batch in enumerate(batches):
         'p_load_avg': [r['p_load_avg'] for r in results]
     })
     table = pa.Table.from_pandas(df)
-    pq.write_to_dataset(table, '/output/test_run.parquet')
+    pq.write_to_dataset(table, '/output/2c1m_a.parquet')
 
     # Clear
     del results
@@ -175,5 +175,6 @@ for batch_num, batch in enumerate(batches):
     submitted = []
     n_z_list = []
     n_w_list = []
+    input_ids = []
 
 ray.shutdown()

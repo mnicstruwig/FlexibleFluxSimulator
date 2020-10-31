@@ -17,4 +17,5 @@ RUN pip install .
 
 COPY script.py .
 
-CMD ["python", "./script.py"]
+# -u flag flushes buffers so print statements showup
+CMD ["python", "-u", "./script.py"]  
