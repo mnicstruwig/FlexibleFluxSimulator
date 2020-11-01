@@ -105,8 +105,8 @@ def batchify(x, batch_size):
 # Actual experiment
 ray.init(ignore_reinit_error=True)
 
-n_z_arr = np.arange(5, 201, 5)
-n_w_arr = np.arange(5, 201, 5)
+n_z_arr = np.arange(2, 201, 2)
+n_w_arr = np.arange(2, 201, 2)
 
 batch_size = 256
 nz_nw_product = np.array(list(product(n_z_arr, n_w_arr)))  # type: ignore
@@ -134,7 +134,7 @@ for batch_num, batch in enumerate(batches):
 
         if coil_params_copy['c'] > 1:
             coil_params_copy['l_ccd'] = optimize.lookup_best_spacing(
-                path='./data/optimal_l_ccd_0_200_5.csv',
+                path='./data/optimal_l_ccd_0_200_2.csv',
                 n_z=n_z,
                 n_w=n_w
             )
