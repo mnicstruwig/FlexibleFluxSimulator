@@ -4,7 +4,7 @@ from collections import defaultdict
 from copy import copy
 from itertools import product
 from typing import (Any, Dict, Generator, List, NamedTuple,
-                    Union, Tuple, Callable)
+                    Union, Tuple, Callable, Optional)
 
 import numpy as np
 import pandas as pd
@@ -157,24 +157,24 @@ class UnifiedModelFactory:
     """
 
     def __init__(self,
-                 damper: Any = None,
-                 magnet_assembly: Any = None,
-                 magnetic_spring: Any = None,
-                 mechanical_spring: Any = None,
-                 coil_resistance: Any = None,
-                 rectification_drop: Any = None,
-                 load_model: Any = None,
-                 flux_model: Any = None,
-                 dflux_model: Any = None,
-                 coupling_model: Any = None,
-                 governing_equations: Any = None,
+                 damper: Any,
+                 magnet_assembly: Any,
+                 magnetic_spring: Any,
+                 mechanical_spring: Any,
+                 coil_model: Any,
+                 rectification_drop: float,
+                 load_model: Any,
+                 flux_model: Any,
+                 dflux_model: Any,
+                 coupling_model: Any,
+                 governing_equations: Any,
                  model_id: int = None) -> None:
         """Constructor"""
         self.damper = damper
         self.magnet_assembly = magnet_assembly
         self.magnetic_spring = magnetic_spring
         self.mechanical_spring = mechanical_spring
-        self.coil_resistance = coil_resistance
+        self.coil_model = coil_model
         self.rectification_drop = rectification_drop
         self.load_model = load_model
         self.flux_model = flux_model
@@ -222,8 +222,8 @@ class UnifiedModelFactory:
         )
         electrical_model = (
             ElectricalModel()
-            .set_coil_resistance(self.coil_resistance)
             .set_rectification_drop(self.rectification_drop)
+            .set_coil_model(self.coil_model)
             .set_load_model(self.load_model)
             .set_flux_model(self.flux_model, self.dflux_model)
         )
@@ -608,7 +608,6 @@ class GridsearchBatchExecutor:
         ray_kwargs.setdefault('ignore_reinit_error', True)
         self.ray_kwargs = ray_kwargs
         self.raw_grid_results = None
-        self.result = None
 
     def _start_ray(self, ray_init_kwargs: Dict = None) -> None:
         """Initialize Ray"""
@@ -813,7 +812,7 @@ class GridsearchBatchExecutor:
         print(f'Total # simulations --> {num_models*len(self.input_excitations)}')  # noqa
         print('==================')
 
-    def run(self, output_file, batch_size: int = 8) -> pd.DataFrame:
+    def run(self, output_file, batch_size: int = 8) -> None:
         """Run the grid search and returns the results.
 
         Parameters
@@ -835,18 +834,3 @@ class GridsearchBatchExecutor:
         self._execute_grid_search(output_file, batch_size=batch_size)
         logging.info('Gridsearch complete. Shutting down Ray...')
         self._kill_ray()
-
-    def save(self, path: str) -> None:
-        """Save the result to disk in parquet format.
-
-        Parameters
-        ----------
-        path : str
-            The file path to save the results to.
-
-        """
-        if self.result is None:
-            raise ValueError('Nothing to save. Have you called `run` yet?')
-        logging.info(f'Saving to result to file {path}')
-        self.result.to_parquet(path, engine='pyarrow', compression='brotli')
-        logging.info('Save complete!')

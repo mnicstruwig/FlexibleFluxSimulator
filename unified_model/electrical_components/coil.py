@@ -7,7 +7,7 @@ class CoilModel:
                  c: int,
                  n_z: int,
                  n_w: int,
-                 l_ccd: float,
+                 l_ccd_mm: float,
                  ohm_per_mm: float,
                  tube_wall_thickness_mm: float,
                  coil_wire_radius_mm: float,
@@ -17,7 +17,7 @@ class CoilModel:
         self.c = c
         self.n_z = n_z
         self.n_w = n_w
-        self.l_ccd = l_ccd
+        self.l_ccd_mm = l_ccd_mm
         self.ohm_per_mm = ohm_per_mm
         self.tube_wall_thickness_mm = tube_wall_thickness_mm
         self.coil_wire_radius_mm = coil_wire_radius_mm
@@ -30,15 +30,15 @@ class CoilModel:
 
     def __repr__(self):
         to_print = ', '.join([f'{k}={v}' for k, v in self.__dict__.items()])
-        return f'CoilModel({to_print})'
+        return f'FluxModelInterp({to_print})'
 
     def _validate(self) -> None:
         """Do some basic validation of parameters."""
-        if self.l_ccd < 0:
-            raise ValueError('l_ccd must be > 0')
+        if self.l_ccd_mm < 0:
+            raise ValueError('l_ccd_mm must be > 0')
 
-        if self.l_ccd == 0 and self.c > 1:
-            raise ValueError('l_ccd = 0, but c > 1')
+        if self.l_ccd_mm == 0 and self.c > 1:
+            raise ValueError('l_ccd_mm = 0, but c > 1')
 
     def _calculate_coil_resistance(self) -> float:
         return (

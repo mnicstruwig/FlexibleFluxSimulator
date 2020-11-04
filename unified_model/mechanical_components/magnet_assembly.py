@@ -27,9 +27,9 @@ class MagnetAssembly:
         ----------
         n_magnet : int
             Number of magnets.
-        l_m : float
+        l_m_mm : float
             Height of the magnets in mm.
-        l_mcd : float
+        l_mcd_mm : float
             Distance between the centers of each magnet, in mm.
         dia_magnet: float
             Diameter of magnets in mm.
@@ -45,8 +45,8 @@ class MagnetAssembly:
     def __init__(
             self,
             m: int,
-            l_m: float,
-            l_mcd: float,
+            l_m_mm: float,
+            l_mcd_mm: float,
             dia_magnet: float,
             dia_spacer: float,
             mat_magnet='NdFeB',
@@ -54,8 +54,8 @@ class MagnetAssembly:
         """Constructor"""
 
         self.m = m
-        self.l_m = l_m
-        self.l_mcd = l_mcd
+        self.l_m_mm = l_m_mm
+        self.l_mcd_mm = l_mcd_mm
         self.dia_magnet = dia_magnet
         self.dia_spacer = dia_spacer
         self.weight = None
@@ -66,22 +66,23 @@ class MagnetAssembly:
 
     def __repr__(self):
         to_print_dict = {
-            'n_magnet': self.n_magnet,
-            'l_m': self.l_m,
-            'l_mcd': self.l_mcd,
+            'n_magnet': self.m,
+            'l_m_mm': self.l_m_mm,
+            'l_mcd_mm': self.l_mcd_mm,
             'dia_magnet': self.dia_magnet,
             'dia_spacer': self.dia_spacer
         }
         to_print = ', '.join([f'{k}={v}' for k, v in to_print_dict.items()])
         return f'MagnetAssembly({to_print})'
 
-    def _calc_volume_cylinder(self, diameter, length):
+    @staticmethod
+    def _calc_volume_cylinder(diameter, length):
         return np.pi*(diameter/2)**2*length
 
     def _calculate_weight(self):
         """Calculate the weight of the magnet assembly."""
-        volume_magnet = self._calc_volume_cylinder(self.dia_magnet, self.l_m)
-        volume_spacer = self._calc_volume_cylinder(self.dia_spacer, self.l_mcd)
+        volume_magnet = self._calc_volume_cylinder(self.dia_magnet, self.l_m_mm)
+        volume_spacer = self._calc_volume_cylinder(self.dia_spacer, self.l_mcd_mm)
 
         weight_magnet = volume_magnet * self.density_magnet * 9.81
         weight_spacer = volume_spacer * self.density_spacer * 9.81
@@ -109,6 +110,6 @@ class MagnetAssembly:
         """Get the height of the magnet assembly in m."""
         return (
             self.m
-            * self.l_m
-            + (self.m - 1) * self.l_mcd / 1000
+            * self.l_m_mm
+            + (self.m - 1) * self.l_mcd_mm / 1000
     )

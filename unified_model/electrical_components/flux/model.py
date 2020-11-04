@@ -1,11 +1,9 @@
 import numpy as np
 from scipy.interpolate import interp1d, UnivariateSpline
 import warnings
-from functools import reduce
 from unified_model.utils.utils import grad, FastInterpolator
 from unified_model.electrical_components.coil import CoilModel
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
-
 
 
 # TODO: Documentation
@@ -14,11 +12,11 @@ class FluxModelInterp:
                  coil_model: CoilModel,
                  magnet_assembly: MagnetAssembly) -> None:
         self.c = coil_model.c
-        self.c_c = coil_model.coil_center_mm
-        self.l_ccd = coil_model.l_ccd
+        self.c_c = coil_model.coil_center_mm/1000
+        self.l_ccd = coil_model.l_ccd_mm/1000
 
         self.m = magnet_assembly.m
-        self.l_mcd = magnet_assembly.l_mcd
+        self.l_mcd = magnet_assembly.l_mcd_mm/1000
 
         self.flux_model = None
         self.dflux_model = None
