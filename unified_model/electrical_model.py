@@ -1,14 +1,8 @@
+from __future__ import annotations
+
 import numpy as np
 from unified_model.utils.utils import pretty_str
-
-
-# TODO: Move to utils
-def _gradient(f, x, delta_x=1e-3):
-    """Compute the gradient of function `f` at point `y` relative to `x`"""
-    gradient = (f(x + delta_x) - f(x - delta_x))/(2*delta_x)
-    if np.isinf(gradient):
-        return 0.0
-    return gradient
+from unified_model.electrical_components.coil import CoilModel
 
 
 class ElectricalModel:
@@ -37,7 +31,7 @@ class ElectricalModel:
         """Constructor."""
         self.flux_model = None
         self.dflux_model = None
-        self.coil_resistance = np.inf
+        self.coil_model = None
         self.rectification_drop = None
         self.load_model = None
 
@@ -63,12 +57,12 @@ class ElectricalModel:
         self.dflux_model = dflux_model
         return self
 
-    def set_coil_resistance(self, R):
-        """Set the resistance of the coil"""
-        self.coil_resistance = R
+    def set_coil_model(self, coil_model: CoilModel) -> ElectricalModel:
+        """Set the coil model"""
+        self.coil_model = coil_model
         return self
 
-    def set_rectification_drop(self, v):
+    def set_rectification_drop(self, v: float) -> ElectricalModel:
         """Set the open-circuit voltage drop due to rectification."""
         self.rectification_drop = v
         return self
@@ -78,7 +72,7 @@ class ElectricalModel:
 
         Parameters
         ----------
-        load_model : obj
+        load_model : SimpleLoad
             The load model to set.
 
         """
@@ -88,7 +82,7 @@ class ElectricalModel:
     def get_load_voltage(self, mag_pos, mag_vel):
         emf = self.get_emf(mag_pos, mag_vel)
         v_load = emf*self.load_model.R / (self.load_model.R
-                                          + self.coil_resistance)
+                                          + self.coil_model.coil_resistance)
 
         return v_load
 
@@ -146,6 +140,6 @@ class ElectricalModel:
             return 0
 
         r_load = self.load_model.R
-        r_coil = self.coil_resistance
+        r_coil = self.coil_model.coil_resistance
         # V = I/R -> I = V/R
         return emf_oc / (r_load + r_coil)
