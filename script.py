@@ -22,14 +22,6 @@ magnetic_spring = mechanical_components.MagneticSpringInterp(
     filter_callable=lambda x: savgol_filter(x, window_length=27, polyorder=5)
 )
 
-# NB: This will need to be update for the multi-magnet case!
-magnet_assembly = mechanical_components.MagnetAssembly(
-    n_magnet=1,
-    l_m=10,
-    l_mcd=0,
-    dia_magnet=10,
-    dia_spacer=10
-)
 mech_spring = mechanical_components.MechanicalSpring(
     position=110/1000,
     damping_coefficient=7.778,
@@ -38,34 +30,38 @@ mech_spring = mechanical_components.MechanicalSpring(
 damper = mechanical_components.ConstantDamper(0.0433)
 
 # Electrical Components
-R_coil = None  # Need to get from `optimize` module
 load = electrical_components.SimpleLoad(R=30)
 v_rect_drop = 0.1
 coupling_model = CouplingModel().set_coupling_constant(4.444)
 
-# Initial flux model
-coil_params = {
-   'beta': 1361/1000/1000,
-    'n_z': 20,
-    'n_w': 20,
-    'l_th': 2,
-    'r_c': 0.143/2,
-    'c': 1,
-    'm': 1,
-    'c_c': 0.059,
-    'r_t': 5.5,
+coil_model_params = {
+    'c': None,
+    'n_z': None,
+    'n_w': None,
+    'l_ccd_mm': None,
+    'ohm_per_mm': 1361/1000/1000,
+    'tube_wall_thickness_mm': 2,
+    'coil_wire_radius_mm': 0.143/2,
+    'coil_center_mm': 59,
+    'outer_tube_radius_mm': 5.5
 }
 
+magnet_assembly_params = {
+    'm': None,
+    'l_mcd_mm': None,
+    'dia_magnet_mm': 10,
+    'dia_spacer_mm': 10
+}
 
 curve_model = CurveModel.load('./data/flux_curve_model.model')
 
 # Build our first "template" factory
 unified_model_factory = gridsearch.UnifiedModelFactory(
     damper=damper,
-    magnet_assembly=magnet_assembly,
+    magnet_assembly=None,
     mechanical_spring=mech_spring,
     magnetic_spring=magnetic_spring,
-    coil_resistance=None,
+    coil_model=None,
     rectification_drop=v_rect_drop,
     load_model=load,
     flux_model=None,
