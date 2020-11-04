@@ -21,7 +21,9 @@ def _get_material_density(material_dict, material_key):
 
 class MagnetAssembly:
     """
-    The magnet assembly class
+    The magnet assembly class.
+
+    Note: Only used for weight-based calculations.
 
         Parameters
         ----------

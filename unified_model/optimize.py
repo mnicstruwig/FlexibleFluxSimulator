@@ -10,8 +10,9 @@ import pandas as pd
 import ray
 from tqdm import tqdm
 
-from flux_curve_modelling.model import CurveModel
+from flux_modeller.model import CurveModel
 from unified_model.electrical_components.flux.model import FluxModelInterp
+from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.gridsearch import UnifiedModelFactory
 from unified_model.unified import UnifiedModel
 
@@ -74,7 +75,8 @@ def get_new_flux_and_dflux_model(curve_model, coil_model_params):
 def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
                           input_excitations: List[Any],
                           curve_model: Any,
-                          coil_model_params: Dict) -> List[UnifiedModel]:
+                          coil_model_params: Dict,
+                          magnet_assembly_params: Dict) -> List[UnifiedModel]:
     """Update the simulation set with new flux and coil resistance models."""
 
     new_flux_model, new_dflux_model = get_new_flux_and_dflux_model(
@@ -84,9 +86,11 @@ def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
 
     new_coil_resistance = _get_coil_resistance(**coil_model_params)
 
+    new_magnet_assembly = MagnetAssembly(**magnet_assembly_params)
+
     new_factory = UnifiedModelFactory(
         damper=unified_model_factory.damper,
-        magnet_assembly=unified_model_factory.magnet_assembly,
+        magnet_assembly=new_magnet_assembly,  # New
         magnetic_spring=unified_model_factory.magnetic_spring,
         mechanical_spring=unified_model_factory.mechanical_spring,
         coil_resistance=new_coil_resistance,  # New
