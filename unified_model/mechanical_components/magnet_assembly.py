@@ -44,7 +44,7 @@ class MagnetAssembly:
 
     def __init__(
             self,
-            n_magnet: int,
+            m: int,
             l_m: float,
             l_mcd: float,
             dia_magnet: float,
@@ -53,7 +53,7 @@ class MagnetAssembly:
             mat_spacer='iron'):
         """Constructor"""
 
-        self.n_magnet = n_magnet
+        self.m = m
         self.l_m = l_m
         self.l_mcd = l_mcd
         self.dia_magnet = dia_magnet
@@ -87,9 +87,9 @@ class MagnetAssembly:
         weight_spacer = volume_spacer * self.density_spacer * 9.81
 
         return (
-            self.n_magnet
+            self.m
             * weight_magnet
-            + (self.n_magnet - 1) * weight_spacer
+            + (self.m - 1) * weight_spacer
         )
 
     def get_mass(self):
@@ -108,7 +108,7 @@ class MagnetAssembly:
     def get_height(self):
         """Get the height of the magnet assembly in m."""
         return (
-            self.n_magnet
+            self.m
             * self.l_m
-            + (self.n_magnet - 1) * self.l_mcd / 1000
+            + (self.m - 1) * self.l_mcd / 1000
     )

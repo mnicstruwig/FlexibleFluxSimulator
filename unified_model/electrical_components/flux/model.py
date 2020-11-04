@@ -1,19 +1,25 @@
-from numba import jitclass, int32, float64
 import numpy as np
 from scipy.interpolate import interp1d, UnivariateSpline
 import warnings
 from functools import reduce
 from unified_model.utils.utils import grad, FastInterpolator
+from unified_model.electrical_components.coil import CoilModel
+from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
+
 
 
 # TODO: Documentation
 class FluxModelInterp:
-    def __init__(self, c, m, c_c, l_ccd=0, l_mcd=0, **kwargs):
-        self.c = c
-        self.m = m
-        self.c_c = c_c
-        self.l_ccd = l_ccd
-        self.l_mcd = l_mcd
+    def __init__(self,
+                 coil_model: CoilModel,
+                 magnet_assembly: MagnetAssembly) -> None:
+        self.c = coil_model.c
+        self.c_c = coil_model.coil_center_mm
+        self.l_ccd = coil_model.l_ccd
+
+        self.m = magnet_assembly.m
+        self.l_mcd = magnet_assembly.l_mcd
+
         self.flux_model = None
         self.dflux_model = None
 
