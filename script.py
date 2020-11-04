@@ -121,13 +121,13 @@ batches = batchify(nz_nw_product, batch_size)
 for batch_num, batch in enumerate(batches):
     print(f'Executing batch {batch_num+1} out of {len(batches)}...')
     for n_z, n_w in batch:
-        coil_params_copy = copy(coil_params)
-        coil_params_copy['n_z'] = n_z
-        coil_params_copy['n_w'] = n_w
-        coil_params_copy['c'] = c
-        coil_params_copy['m'] = m
+        coil_model_params_copy = copy(coil_model_params)
+        coil_model_params_copy['n_z'] = n_z
+        coil_model_params_copy['n_w'] = n_w
+        coil_model_params_copy['c'] = c
 
-
+        magnet_assembly_params_copy = copy(magnet_assembly_params)
+        magnet_assembly_params_copy['m'] = m
 
         # To make sure our arrays are the same length at the end
         n_z_values = [n_z]*len(acc_inputs)
@@ -135,32 +135,32 @@ for batch_num, batch in enumerate(batches):
         n_z_list = n_z_list + n_z_values
         n_w_list = n_w_list + n_w_values
 
-        if coil_params_copy['c'] > 1 or coil_params_copy['m'] > 1:
+        # Start with default values. Calculate optimal spacing if necessary.
+        coil_model_params_copy['l_ccd'] = 0
+        magnet_assembly_params['l_mcd'] = 0
+
+        optimal_spacing = None
+        if coil_model_params_copy['c'] > 1:
             optimal_spacing = optimize.lookup_best_spacing(
                 path='./data/optimal_l_ccd_0_200_2.csv',
                 n_z=n_z,
                 n_w=n_w
             )
-            coil_params_copy['l_ccd'] = optimal_spacing
-            coil_params_copy['l_mcd'] = optimal_spacing
-        else:
-            coil_params_copy['l_ccd'] = 0
-            coil_params_copy['l_mcd'] = 0
+            coil_model_params_copy['l_ccd'] = optimal_spacing
 
-        # Create a new magnet assembly as well
-        magnet_assembly_params = {
-            'n_magnet': coil_params_copy['m'],
-            'l_m': 10,
-            'l_mcd': coil_params_copy['l_mcd'],
-            'dia_magnet': 10,
-            'dia_spacer': 10
-        }
+        if magnet_assembly_params_copy['m'] > 1:
+            if not optimal_spacing:  # Just in case it's been computed already
+                optimal_spacing = optimize.lookup_best_spacing(
+                    path='./data/optimal_l_ccd_0_200_2.csv',
+                    n_z=n_z,
+                    n_w=n_w
+                )
 
         simulation_models = optimize.evolve_simulation_set(
             unified_model_factory=unified_model_factory,
             input_excitations=acc_inputs,
             curve_model=curve_model,
-            coil_model_params=coil_params_copy,
+            coil_model_params=coil_model_params_copy,
             magnet_assembly_params=magnet_assembly_params
         )
         for i, um in enumerate(simulation_models):

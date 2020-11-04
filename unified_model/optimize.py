@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from flux_modeller.model import CurveModel
 from unified_model.electrical_components.flux.model import FluxModelInterp
+from unified_model.electrical_components.coil import CoilModel
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.gridsearch import UnifiedModelFactory
 from unified_model.unified import UnifiedModel
@@ -78,6 +79,8 @@ def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
                           coil_model_params: Dict,
                           magnet_assembly_params: Dict) -> List[UnifiedModel]:
     """Update the simulation set with new flux and coil resistance models."""
+
+    coil_model = CoilModel(**coil_model_params)
 
     new_flux_model, new_dflux_model = get_new_flux_and_dflux_model(
         curve_model=curve_model,
