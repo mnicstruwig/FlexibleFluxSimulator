@@ -33,7 +33,7 @@ def _get_new_flux_curve(
 
 def get_new_flux_and_dflux_model(curve_model: CurveModel,
                                  coil_model: CoilModel,
-                                 magnet_assembly: MagnetAssembly):
+                                 magnet_assembly: MagnetAssembly) -> Tuple[Any, Any]:
     flux_interp_model = FluxModelInterp(coil_model, magnet_assembly)
 
     z_arr, phi = _get_new_flux_curve(curve_model=curve_model,
@@ -104,7 +104,7 @@ def _calc_constant_velocity_rms(curve_model: CurveModel,
     return calc_rms(emf)
 
 
-def find_optimal_spacing(curve_model, coil_model_params):
+def find_optimal_spacing(curve_model: CurveModel, coil_model_params: Dict) -> float:
     """Find spacing between each coil / magnet that produces the largest RMS"""
     cmp = copy(coil_model_params)  # Dicts are mutable
     cmp['c'] = 2
@@ -140,7 +140,7 @@ def precompute_best_spacing(n_z_arr: np.ndarray,
     df.to_csv(output_path)
 
 
-def lookup_best_spacing(path, n_z, n_w):
+def lookup_best_spacing(path: str, n_z: int, n_w: int) -> float:
     df = pd.read_csv(path)
     result = df.query(f'n_z == {n_z} and n_w == {n_w}')['optimal_spacing_mm'].values
 
@@ -151,7 +151,7 @@ def lookup_best_spacing(path, n_z, n_w):
 
 
 @ray.remote
-def simulate_unified_model(unified_model: UnifiedModel, **solve_kwargs):
+def simulate_unified_model(unified_model: UnifiedModel, **solve_kwargs) -> Dict:
     unified_model.reset()  # Make sure we're starting from a clean slate
 
     if not solve_kwargs:

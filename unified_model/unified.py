@@ -8,7 +8,7 @@ describes their interaction.
 import os
 from glob import glob
 import warnings
-from typing import Union
+from typing import Union, Dict, Any
 
 import cloudpickle
 import numpy as np
@@ -401,12 +401,12 @@ class UnifiedModel:
         return mechanical_scores
 
     def score_electrical_model(self,
-                               time_target,
-                               emf_target,
-                               metrics_dict,
-                               prediction_expr,
-                               warp=False,
-                               **kwargs):
+                               time_target: np.ndarray,
+                               emf_target: np.ndarray,
+                               metrics_dict: Dict,
+                               prediction_expr: str,
+                               warp: bool = False,
+                               **kwargs) -> Union[Dict, Union[Dict, Any]]:
         """Evaluate the electrical model using a selection of metrics.
 
         This is simply a useful helper function that makes use of the various
@@ -416,6 +416,10 @@ class UnifiedModel:
 
         Parameters
         ----------
+        time_target : np.ndarray
+            The groundtruth time values.
+        emf_target: np.ndarray
+            The groundtruth load power values.
         metrics_dict: dict
             Metrics to compute on the predicted and target electrical data.
             Keys will be used to set the attributes of the Score object.
@@ -434,10 +438,6 @@ class UnifiedModel:
             functions can also be applied to the differential equations. These
             are referenced in the "See Also" section below.
         **kwargs
-            closed_circuit : bool
-                If True, consider the voltage across the *load*, and not the
-                open-circuit voltage across the whole system.
-                Default value is False.
             return_evaluator : bool
                 Whether to return the evaluator used to score the electrical
                 system.
@@ -448,19 +448,10 @@ class UnifiedModel:
 
         Returns
         -------
-
-
-        See Also
-        --------
-        unified_model.evaluate.AdcProcessor : class
-            Class used to preprocess `adc_df`
-        unified_model.evaluate.ElectricalSystemEvaluator.score : method
-            Method that implements the scoring mechanism.
-        unified_model.unified.UnifiedModel.get_result : method
-            Method used to evaluate `prediction_expr`.
-        unified_model.utils.utils.parse_output_expression : function
-            Function that details additional functions that can be applied
-            using `prediction_expr`.
+        Dict
+            A dictionary where the keys match the keys of `metrics_dict`, and
+            the values contain the corresponding computed function specified in
+            `metrics_dict`.
 
         Example
         -------
@@ -499,7 +490,7 @@ class UnifiedModel:
             return electrical_scores, electrical_evaluator
         return electrical_scores
 
-    def calculate_metrics(self, prediction_expr, metric_dict):
+    def calculate_metrics(self, prediction_expr: str, metric_dict: Dict) -> Dict:
         """Calculate metrics on a prediction expressions."""
 
         df_result = self.get_result(expr=prediction_expr)
