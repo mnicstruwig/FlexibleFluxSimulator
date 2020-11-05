@@ -3,5 +3,9 @@
 *.ipynb_checkpoints
 *.directory
 .idea/
-*.parq
+*.parquet
+*.projectile
+*.el
+*.pdf
+*.egg*
 
