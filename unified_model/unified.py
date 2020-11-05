@@ -5,18 +5,23 @@ describes their interaction.
 """
 
 
+from __future__ import annotations
+
 import os
-from glob import glob
 import warnings
-from typing import Union, Dict, Any
+from glob import glob
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 import cloudpickle
 import numpy as np
 import pandas as pd
 from scipy import integrate
 
+from unified_model.coupling import CouplingModel
+from unified_model.electrical_model import ElectricalModel
 from unified_model.evaluate import (ElectricalSystemEvaluator,
                                     MechanicalSystemEvaluator)
+from unified_model.mechanical_model import MechanicalModel
 from unified_model.utils.utils import parse_output_expression, pretty_str
 
 
@@ -64,7 +69,7 @@ class UnifiedModel:
         """Return string representation of the UnifiedModel"""
         return f'Unified Model: {pretty_str(self.__dict__)}'
 
-    def save_to_disk(self, path):
+    def save_to_disk(self, path: str) -> None:
         """Persists a unified model to disk"""
 
         if not os.path.exists(path):
@@ -77,8 +82,8 @@ class UnifiedModel:
             with open(component_path, 'wb') as f:
                 cloudpickle.dump(val, f)
 
-    @classmethod
-    def load_from_disk(cls, path):
+    @staticmethod
+    def load_from_disk(path: str) -> UnifiedModel:
         """Load a unified model from disk."""
         unified_model = UnifiedModel()
 
@@ -96,7 +101,8 @@ class UnifiedModel:
 
         return unified_model
 
-    def set_mechanical_model(self, mechanical_model):
+    def set_mechanical_model(self,
+                             mechanical_model: MechanicalModel) -> UnifiedModel:
         """Add a mechanical model to the unified model
 
         Parameters
@@ -110,7 +116,8 @@ class UnifiedModel:
         self.mechanical_model = mechanical_model
         return self
 
-    def set_electrical_model(self, electrical_model):
+    def set_electrical_model(self,
+                             electrical_model: ElectricalModel) -> UnifiedModel:
         """Add an electrical model to the unified model
 
         Parameters
@@ -124,12 +131,13 @@ class UnifiedModel:
         self.electrical_model = electrical_model
         return self
 
-    def set_coupling_model(self, coupling_model):
+    def set_coupling_model(self,
+                           coupling_model: CouplingModel) -> UnifiedModel:
         """Add the electro-mechanical coupling to the unified model.
 
         Parameters
         ----------
-        coupling_model : instance of `CouplingModel`
+        coupling_model : CouplingModel
             The coupling model to add to the unified model.
             Is passed to `governing_equations` function when the `solve`
             method is called.
@@ -138,7 +146,8 @@ class UnifiedModel:
         self.coupling_model = coupling_model
         return self
 
-    def set_governing_equations(self, governing_equations):
+    def set_governing_equations(self,
+                                governing_equations: Callable) -> UnifiedModel:
         """Add a set of governing equations to the unified model.
 
         The governing equations describe the behaviour of the entire system,
@@ -152,7 +161,7 @@ class UnifiedModel:
 
         Parameters
         ----------
-        governing_equations : func
+        governing_equations : Callable
             Set of governing equations that controls the unified model's
             behaviour.
 
@@ -166,7 +175,9 @@ class UnifiedModel:
         self.governing_equations = governing_equations
         return self
 
-    def set_post_processing_pipeline(self, pipeline, name):
+    def set_post_processing_pipeline(self,
+                                     pipeline: Callable,
+                                     name: str) -> UnifiedModel:
         """Add a post-processing pipeline to the unified model
 
         After solving the unified model, optional post-processing pipelines can
@@ -177,7 +188,7 @@ class UnifiedModel:
 
         Parameters
         ----------
-        pipeline : func
+        pipeline : Callable
             Function that accepts an ndarray of dimensions (N, d), where
             N is the number of time points for which a solution has been
             computed, and d is the dimension of the solution vector `y`
@@ -200,7 +211,12 @@ class UnifiedModel:
             # raw solution has dimensions d, n rather than n, d
             self.raw_solution = np.array([pipeline(y) for y in self.raw_solution.T]).T
 
-    def solve(self, t_start, t_end, y0, t_eval, t_max_step=1e-5):
+    def solve(self,
+              t_start: float,
+              t_end: float,
+              y0: List[float],
+              t_eval: List[float],
+              t_max_step: float = 1e-5) -> None:
         """Solve the unified model.
 
         Parameters
@@ -242,7 +258,7 @@ class UnifiedModel:
         self.raw_solution = psoln.y
         self._apply_pipeline()
 
-    def reset(self):
+    def reset(self) -> None:
         """Clear all computed results from the unified model."""
 
         self.time = None
@@ -298,12 +314,12 @@ class UnifiedModel:
             warnings.warn('Raw solution is not found. Did you run .solve?')
 
     def score_mechanical_model(self,
-                               time_target,
-                               y_target,
-                               metrics_dict,
-                               prediction_expr,
-                               warp=False,
-                               **kwargs):
+                               time_target: np.ndarray,
+                               y_target: np.ndarray,
+                               metrics_dict: Dict,
+                               prediction_expr: str,
+                               warp: bool = False,
+                               **kwargs) -> Union[Dict, Tuple[Dict, Any]]:
         """Evaluate the mechanical model using a selection of metrics.
 
         This is a useful helper function that makes use of the various
@@ -313,9 +329,9 @@ class UnifiedModel:
 
         Parameters
         ----------
-        time_target : numpy array
+        time_target : np.ndarray
             The corresponding target time values.
-        y_target : numpy array
+        y_target : np.ndarray
             The target mechanical values.
         metrics_dict: dict
             Metrics to compute on the predicted and target mechanical data.
@@ -340,6 +356,13 @@ class UnifiedModel:
             return_evaluator : bool
                 Whether to return the evaluator used to score the electrical
                 system.
+
+        Returns
+        -------
+        Dict
+            A dictionary where the keys match the keys of `metrics_dict`, and
+            the values contain the corresponding computed function specified in
+            `metrics_dict`.
 
         See Also
         --------
@@ -406,7 +429,7 @@ class UnifiedModel:
                                metrics_dict: Dict,
                                prediction_expr: str,
                                warp: bool = False,
-                               **kwargs) -> Union[Dict, Union[Dict, Any]]:
+                               **kwargs) -> Union[Dict, Tuple[Dict, Any]]:
         """Evaluate the electrical model using a selection of metrics.
 
         This is simply a useful helper function that makes use of the various
@@ -441,10 +464,6 @@ class UnifiedModel:
             return_evaluator : bool
                 Whether to return the evaluator used to score the electrical
                 system.
-            clip_threshold : float
-                If greater than 0., clip the leading and trailing emf target
-                samples that don't include signal information.
-                Default value is 0.05.
 
         Returns
         -------
