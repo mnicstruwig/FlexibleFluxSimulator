@@ -20,54 +20,24 @@ from unified_model.unified import UnifiedModel
 
 def _get_new_flux_curve(
         curve_model: CurveModel,
-        coil_model_params: Dict
+        coil_model: CoilModel
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Get new z and phi values  from coil parameters and a `CurveModel`."""
-    coil_model_params = copy(coil_model_params)
-    n_z = coil_model_params['n_z']
-    n_w = coil_model_params['n_w']
+    n_z = coil_model.n_z
+    n_w = coil_model.n_w
 
     coil_params = np.array([[n_z, n_w]])  # type: ignore
     X = coil_params.reshape(1, -1)  # type: ignore
     return curve_model.predict_curve(X)
 
 
-def _get_coil_resistance(beta: float,
-                         n_z: int,
-                         n_w: int,
-                         l_th: float,
-                         r_c: float,
-                         r_t: float,
-                         c: int,
-                         **kwargs):
-    """Get the resistance of the coil based on its parameters
-
-    Parameters:
-    ----------
-    beta : float
-        Wire resistance per unit length in Ohm per mm.
-    n_z : int
-        The number of windings in the z-direction per coil.
-    n_w : int
-        The number of windings in the radial direction per coil.
-    l_th : float
-        The thickness of the tube wall in mm.
-    r_c : float
-        The radius of the wire in mm.
-    r_t : float
-        The inner radius of the tube in mm.
-    num_coils : int
-        The number of coils that make up the winding configuration.
-
-    """
-    return 2*np.pi*beta*n_w*n_z*(l_th+r_t+r_c+2*r_c*(n_w+1)/2)*c
-
-
-def get_new_flux_and_dflux_model(curve_model, coil_model_params):
-    flux_interp_model = FluxModelInterp(**coil_model_params)
+def get_new_flux_and_dflux_model(curve_model: CurveModel,
+                                 coil_model: CoilModel,
+                                 magnet_assembly: MagnetAssembly):
+    flux_interp_model = FluxModelInterp(coil_model, magnet_assembly)
 
     z_arr, phi = _get_new_flux_curve(curve_model=curve_model,
-                                     coil_model_params=coil_model_params)
+                                     coil_model=coil_model)
 
     flux_interp_model.fit(z_arr, phi.flatten())
     return flux_interp_model.flux_model, flux_interp_model.dflux_model
@@ -81,24 +51,22 @@ def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
     """Update the simulation set with new flux and coil resistance models."""
 
     coil_model = CoilModel(**coil_model_params)
+    magnet_assembly = MagnetAssembly(**magnet_assembly_params)
 
     new_flux_model, new_dflux_model = get_new_flux_and_dflux_model(
         curve_model=curve_model,
-        coil_model_params=coil_model_params
+        coil_model=coil_model,
+        magnet_assembly=magnet_assembly
     )
-
-    new_coil_resistance = _get_coil_resistance(**coil_model_params)
-
-    new_magnet_assembly = MagnetAssembly(**magnet_assembly_params)
 
     new_factory = UnifiedModelFactory(
         damper=unified_model_factory.damper,
-        magnet_assembly=new_magnet_assembly,  # New
+        magnet_assembly=magnet_assembly,  # New
         magnetic_spring=unified_model_factory.magnetic_spring,
         mechanical_spring=unified_model_factory.mechanical_spring,
-        coil_resistance=new_coil_resistance,  # New
         rectification_drop=unified_model_factory.rectification_drop,
         load_model=unified_model_factory.load_model,
+        coil_model=coil_model,  # New
         flux_model=new_flux_model,  # New
         dflux_model=new_dflux_model,  # New
         coupling_model=unified_model_factory.coupling_model,
@@ -119,13 +87,14 @@ def calc_p_load_avg(x, r_load):
     return v_rms*v_rms/r_load
 
 @ray.remote
-def _calc_constant_velocity_rms(curve_model, coil_model_params):
+def _calc_constant_velocity_rms(curve_model: CurveModel,
+                                coil_model: CoilModel,
+                                magnet_assembly: MagnetAssembly) -> float:
     """Calculate the open-circuit RMS for a simple emf curve."""
-    flux_interp_model = FluxModelInterp(**coil_model_params)
+    flux_interp_model = FluxModelInterp(coil_model, magnet_assembly)
     z_arr, phi = _get_new_flux_curve(curve_model=curve_model,
-                                     coil_model_params=coil_model_params)
+                                     coil_model=coil_model)
     flux_interp_model.fit(z_arr, phi.flatten())
-
 
     # Use constant velocity case
     dflux_curve = flux_interp_model.dflux_model
