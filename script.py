@@ -16,10 +16,10 @@ from unified_model import (CouplingModel, electrical_components,
                            optimize)
 
 # PARAMETERS
-n_z_arr = np.arange(2, 201, 2)
-n_w_arr = np.arange(2, 201, 2)
+n_z_arr = np.arange(2, 201, 40)
+n_w_arr = np.arange(2, 201, 40)
 c = 1
-m = 2
+m = 1
 
 # Mechanical components
 magnetic_spring = mechanical_components.MagneticSpringInterp(
@@ -54,6 +54,7 @@ coil_model_params = {
 
 magnet_assembly_params = {
     'm': None,
+    'l_m_mm': 10,
     'l_mcd_mm': None,
     'dia_magnet_mm': 10,
     'dia_spacer_mm': 10
@@ -136,8 +137,8 @@ for batch_num, batch in enumerate(batches):
         n_w_list = n_w_list + n_w_values
 
         # Start with default values. Calculate optimal spacing if necessary.
-        coil_model_params_copy['l_ccd'] = 0
-        magnet_assembly_params['l_mcd'] = 0
+        coil_model_params_copy['l_ccd_mm'] = 0
+        magnet_assembly_params_copy['l_mcd_mm'] = 0
 
         optimal_spacing = None
         if coil_model_params_copy['c'] > 1:
@@ -161,7 +162,7 @@ for batch_num, batch in enumerate(batches):
             input_excitations=acc_inputs,
             curve_model=curve_model,
             coil_model_params=coil_model_params_copy,
-            magnet_assembly_params=magnet_assembly_params
+            magnet_assembly_params=magnet_assembly_params_copy
         )
         for i, um in enumerate(simulation_models):
             submitted.append(optimize.simulate_unified_model.remote(um))
@@ -183,7 +184,7 @@ for batch_num, batch in enumerate(batches):
         'p_load_avg': [r['p_load_avg'] for r in results]
     })
     table = pa.Table.from_pandas(df)
-    pq.write_to_dataset(table, f'/output/{c}c{m}m.parquet')
+    pq.write_to_dataset(table, f'./{c}c{m}m_debug.parquet')
 
     # Clear
     del results

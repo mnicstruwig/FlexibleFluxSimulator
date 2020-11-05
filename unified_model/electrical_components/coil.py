@@ -30,7 +30,7 @@ class CoilModel:
 
     def __repr__(self):
         to_print = ', '.join([f'{k}={v}' for k, v in self.__dict__.items()])
-        return f'FluxModelInterp({to_print})'
+        return f'CoilModel({to_print})'
 
     def _validate(self) -> None:
         """Do some basic validation of parameters."""

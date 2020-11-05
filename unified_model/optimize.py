@@ -45,7 +45,7 @@ def get_new_flux_and_dflux_model(curve_model: CurveModel,
 
 def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
                           input_excitations: List[Any],
-                          curve_model: Any,
+                          curve_model: CurveModel,
                           coil_model_params: Dict,
                           magnet_assembly_params: Dict) -> List[UnifiedModel]:
     """Update the simulation set with new flux and coil resistance models."""
