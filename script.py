@@ -16,8 +16,8 @@ from unified_model import (CouplingModel, electrical_components,
                            optimize)
 
 # PARAMETERS
-n_z_arr = np.arange(2, 201, 40)
-n_w_arr = np.arange(2, 201, 40)
+n_z_arr = np.arange(6, 201, 2)
+n_w_arr = np.arange(6, 201, 2)
 c = 1
 m = 1
 
@@ -147,7 +147,7 @@ for batch_num, batch in enumerate(batches):
                 n_z=n_z,
                 n_w=n_w
             )
-            coil_model_params_copy['l_ccd'] = optimal_spacing
+            coil_model_params_copy['l_ccd_mm'] = optimal_spacing
 
         if magnet_assembly_params_copy['m'] > 1:
             if not optimal_spacing:  # Just in case it's been computed already
@@ -184,7 +184,7 @@ for batch_num, batch in enumerate(batches):
         'p_load_avg': [r['p_load_avg'] for r in results]
     })
     table = pa.Table.from_pandas(df)
-    pq.write_to_dataset(table, f'./{c}c{m}m_debug.parquet')
+    pq.write_to_dataset(table, f'./{c}c{m}m.parquet')
 
     # Clear
     del results
