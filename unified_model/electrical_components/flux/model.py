@@ -29,9 +29,9 @@ class FluxModelInterp:
             raise ValueError('l_ccd must be > 0')
         if self.l_mcd < 0:
             raise ValueError('l_mcd must be > 0')
-
-        if self.l_ccd != self.l_mcd and (self.l_ccd != 0 or self.l_mcd != 0) and self.m != 1:
-            warnings.warn('l_ccd != l_mcd, this is unusual.', RuntimeWarning)
+        if self.c > 1 and self.m > 1:
+            if self.l_ccd != self.l_mcd:
+                warnings.warn('l_ccd != l_mcd, this is unusual.', RuntimeWarning)
 
         if self.l_ccd == 0 and self.c > 1:
             raise ValueError('l_ccd = 0, but c > 1')

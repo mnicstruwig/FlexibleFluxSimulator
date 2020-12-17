@@ -19,7 +19,7 @@ from unified_model import (CouplingModel, electrical_components,
 n_z_arr = np.arange(6, 201, 2)
 n_w_arr = np.arange(6, 201, 2)
 c = 1
-m = 1
+m = 2
 
 # Mechanical components
 magnetic_spring = mechanical_components.MagneticSpringInterp(
@@ -136,7 +136,7 @@ for batch_num, batch in enumerate(batches):
         n_z_list = n_z_list + n_z_values
         n_w_list = n_w_list + n_w_values
 
-        # Start with default values. Calculate optimal spacing if necessary.
+        # Start with default values. Lookup optimal spacing if necessary.
         coil_model_params_copy['l_ccd_mm'] = 0
         magnet_assembly_params_copy['l_mcd_mm'] = 0
 
@@ -150,12 +150,12 @@ for batch_num, batch in enumerate(batches):
             coil_model_params_copy['l_ccd_mm'] = optimal_spacing
 
         if magnet_assembly_params_copy['m'] > 1:
-            if not optimal_spacing:  # Just in case it's been computed already
-                optimal_spacing = optimize.lookup_best_spacing(
-                    path='./data/optimal_l_ccd_0_200_2.csv',
-                    n_z=n_z,
-                    n_w=n_w
-                )
+            optimal_spacing = optimize.lookup_best_spacing(
+                path='./data/optimal_l_ccd_0_200_2.csv',
+                n_z=n_z,
+                n_w=n_w
+            )
+            magnet_assembly_params_copy['l_mcd_mm'] = optimal_spacing
 
         simulation_models = optimize.evolve_simulation_set(
             unified_model_factory=unified_model_factory,
