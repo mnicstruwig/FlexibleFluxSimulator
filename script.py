@@ -19,7 +19,7 @@ from unified_model import (CouplingModel, electrical_components,
 n_z_arr = np.arange(6, 201, 2)
 n_w_arr = np.arange(6, 201, 2)
 c = 1
-m = 2
+m = 3
 
 # Mechanical components
 magnetic_spring = mechanical_components.MagneticSpringInterp(
@@ -33,7 +33,7 @@ mech_spring = mechanical_components.MechanicalSpring(
     damping_coefficient=7.778,
     magnet_length=10/1000
 )
-damper = mechanical_components.ConstantDamper(0.0433)
+damper = mechanical_components.ConstantDamper(0.0433*(m + (m-1)))
 
 # Electrical Components
 load = electrical_components.SimpleLoad(R=30)
@@ -55,7 +55,7 @@ coil_model_params = {
 magnet_assembly_params = {
     'm': None,
     'l_m_mm': 10,
-    'l_mcd_mm': None,
+    'l_mcd_mm': 0,
     'dia_magnet_mm': 10,
     'dia_spacer_mm': 10
 }
@@ -95,6 +95,69 @@ for log_file in glob('./data/2019-05-23_D/A/log*_acc.csv'):
     acc_inputs.append(acc_input)
 
 
+# Some debugging
+n_z = 20
+n_w = 20
+coil_model_params['c'] = c
+coil_model_params['n_z'] = n_z
+coil_model_params['n_w'] = n_w
+if coil_model_params['c'] > 1:
+    coil_model_params['l_ccd_mm'] = optimize.lookup_best_spacing(
+        path='./data/optimal_l_ccd_0_200_2.csv',
+        n_z=n_z,
+        n_w=n_w
+    )
+else:
+    coil_model_params['l_ccd_mm'] = 0
+
+magnet_assembly_params['m'] = m
+if magnet_assembly_params['m'] > 1:
+    magnet_assembly_params['l_mcd_mm'] = optimize.lookup_best_spacing(
+        path='./data/optimal_l_ccd_0_200_2.csv',
+        n_z=n_z,
+        n_w=n_w
+    )
+else:
+    magnet_assembly_params['l_mcd_mm'] = 0
+
+simulation_models = optimize.evolve_simulation_set(
+    unified_model_factory=unified_model_factory,
+    input_excitations=acc_inputs,
+    curve_model=curve_model,
+    coil_model_params=coil_model_params,
+    magnet_assembly_params=magnet_assembly_params
+)
+
+um = simulation_models[0]
+
+# Delete when done
+def simulate_unified_model(unified_model, **solve_kwargs):
+    unified_model.reset()  # Make sure we're starting from a clean slate
+
+    if not solve_kwargs:
+        solve_kwargs = {}
+
+    solve_kwargs.setdefault('t_start', 0)
+    solve_kwargs.setdefault('t_end', 8)
+    solve_kwargs.setdefault('y0', [0., 0., 0.04, 0., 0.])
+    solve_kwargs.setdefault('t_max_step', 1e-3)
+    solve_kwargs.setdefault('t_eval', np.arange(0, 8, 1e-3))  # type: ignore
+
+    unified_model.solve(**solve_kwargs)
+
+    results = unified_model.calculate_metrics('g(t, x5)', {
+        'p_load_avg': lambda x: optimize.calc_p_load_avg(x, unified_model.electrical_model.load_model.R)
+    })
+
+    results = unified_model.get_result(time='t', y_diff='x3-x1', flux='x5', emf='g(t, x5)')
+
+    return results
+
+res = simulate_unified_model(um)
+import matplotlib.pyplot as plt
+res.plot(x='time', y='y_diff')
+plt.show()
+
 def batchify(x, batch_size):
     total_size = len(x)
     indexes = np.arange(0, total_size, batch_size)
@@ -103,6 +166,7 @@ def batchify(x, batch_size):
         indexes = np.append(indexes, [total_size])  # type: ignore
 
     return [x[indexes[i]:indexes[i+1]] for i in range(len(indexes)-1)]
+
 
 
 # Actual experiment

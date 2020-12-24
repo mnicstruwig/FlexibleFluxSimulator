@@ -6,17 +6,26 @@ from unified_model.electrical_components.coil import CoilModel
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 
 
-# TODO: Documentation
 class FluxModelInterp:
     def __init__(self,
                  coil_model: CoilModel,
                  magnet_assembly: MagnetAssembly) -> None:
+        """A flux model that relies on interpolation.
+
+        Parameters
+        ----------
+        coil_model: CoilModel
+            The coil model to use when creating the interpolated flux model.
+        magnet_assembly: MagnetAssembly
+            The magnet assembly model to use when creating the interpolated flux model.
+
+        """
         self.c = coil_model.c
-        self.c_c = coil_model.coil_center_mm/1000
-        self.l_ccd = coil_model.l_ccd_mm/1000
+        self.c_c = coil_model.coil_center_mm/1000  # `flux_inteprolate` requires measurements in SI units.
+        self.l_ccd = coil_model.l_ccd_mm/1000  # `flux_inteprolate` requires measurements in SI units.
 
         self.m = magnet_assembly.m
-        self.l_mcd = magnet_assembly.l_mcd_mm/1000
+        self.l_mcd = magnet_assembly.l_mcd_mm/1000  # `flux_inteprolate` requires measurements in SI units.
 
         self.flux_model = None
         self.dflux_model = None
@@ -44,6 +53,24 @@ class FluxModelInterp:
         return f'FluxModelInterp({to_print})'
 
     def fit(self, z_arr, phi_arr):
+        """Fit the interpolated model to data.
+
+        Note that `z_arr` and `phi_arr` must correspond to a single magnet
+        moving through a single coil. The superposition flux curve will be
+        constructed using this primitive for the case when c > 1 and/or m > 1.
+
+        Also, note that the values of `z_arr` should correspond to the relative position between the
+        *centers* of the magnet and coil.
+
+        Parameters
+        ----------
+        z_arr : array-like
+            The z-values of the magnet position's center relative to the coil position center.
+            In metres.
+        phi_arr : array-like
+            The corresponding flux values at `z_arr`.
+
+        """
         self.flux_model, self.dflux_model = self._make_superposition_curve(
             z_arr,
             phi_arr
@@ -53,14 +80,14 @@ class FluxModelInterp:
         """Make the superposition flux curve"""
 
         if self.c == 1 and self.m == 1:  # Simplest case
-            return flux_interpolate(z_arr, phi_arr, coil_center=self.c_c)
+            return interpolate_flux(z_arr, phi_arr, coil_center=self.c_c)
 
         flux_interp_list = []
         dflux_interp_list = []
         for i in range(self.c):  # For each coil
             for j in range(self.m):  # For each magnet
                 # Generate a interpolator for each individual flux curve
-                flux_interp, dflux_interp = flux_interpolate(
+                flux_interp, dflux_interp = interpolate_flux(
                     z_arr,
                     (-1) ** (i+j) * phi_arr,  # Remembering to alternate the polarity...
                     coil_center=self.c_c + j * self.l_mcd + i * self.l_ccd  # ... and shift the center (peak)
@@ -81,7 +108,7 @@ class FluxModelInterp:
                                 new_z_end,
                                 len(z_arr)*(self.c + self.m))
 
-        # Sum to build the superposition of all the individual flux curves
+        # Sum across each interpolator to build the superposition flux curve
         phi_super = []
         dphi_super = []
         for z in new_z_arr:
@@ -93,7 +120,6 @@ class FluxModelInterp:
             dphi_super.append(dphi)
 
         # Now, generate a new interpolator with the superposition curve
-        # TODO: Consider turning this into a helper
         phi_super_interpolator = FastInterpolator(new_z_arr, phi_super)
         dphi_super_interpolator = FastInterpolator(new_z_arr, dphi_super)
 
@@ -112,26 +138,26 @@ def _find_min_max_arg_gradient(arr):
     return np.argmin(grad_arr), np.argmax(grad_arr)
 
 
-def flux_interpolate(z_arr, phi_arr, coil_center):
+def interpolate_flux(z_arr, phi_arr, coil_center):
     """Model the flux by interpolating between values
 
     Parameters
     ----------
-    z_arr : array
+    z_arr : array-like
         The z position of the *center* of the uppermost magnet in the magnet
         assembly. Must be the same length as `phi_arr`. In metres.
-    phi_arr : array
+    phi_arr : array-like
         The flux captured by the coil, corresponding with the magnet assembly
         position given by `z_arr`. Must be the same length as `z_arr`.
     coil_center : float
-        The position (in metres) of the center of the coil of the
-        microgenerator, relative to the *top* of the fixed magnet.
-    custom_interpolator : class
+        The position of the center of the coil of the microgenerator, relative
+        to the *top* of the fixed magnet. In metres.
+    custom_interpolator : Class
         A custom interpolator class
 
     Returns
     -------
-    `interp1d` object
+    interpolator object
         The interpolator that can be called with `z` values to return the flux
         linkage.
 
@@ -151,11 +177,13 @@ def flux_interpolate(z_arr, phi_arr, coil_center):
     # Shift the array so that the maximum flux linkage occurs at the specified
     # coil center
     z_arr_fine = z_arr_fine - (z_when_phi_peak - coil_center)
+
     # Reinterpolate with new z values to update our flux linkage model
     phi_interpolator = interp1d(z_arr_fine, new_phi_arr, bounds_error=False, fill_value=0)
     fast_phi_interpolator = FastInterpolator(z_arr_fine, new_phi_arr)
+
     # Get an interpolator for the gradient
-    # We ignore start/end values of z to prevent gradient errors
+    # We ignore start/end values of z to prevent gradient anomalies
     dphi_dz = np.array([grad(phi_interpolator, z) for z in z_arr_fine[1:-1]], dtype=np.float64)
     fast_dphi_interpolator = FastInterpolator(z_arr_fine[1:-1], dphi_dz)
 

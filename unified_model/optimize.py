@@ -141,7 +141,12 @@ def precompute_best_spacing(n_z_arr: np.ndarray,
 
 
 def lookup_best_spacing(path: str, n_z: int, n_w: int) -> float:
+    """Return the optimal spacing between coils / magnet centers in mm."""
     df = pd.read_csv(path)
+    # TODO: Fix underlying data file
+    # For now, we use a loose heuristic to make sure we return in mm.
+    if df['optimal_spacing_mm'].max() < 1:
+        df['optimal_spacing_mm'] = df['optimal_spacing_mm'] * 1000
     result = df.query(f'n_z == {n_z} and n_w == {n_w}')['optimal_spacing_mm'].values
 
     if not result:

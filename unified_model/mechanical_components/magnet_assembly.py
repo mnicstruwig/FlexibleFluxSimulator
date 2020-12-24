@@ -81,10 +81,21 @@ class MagnetAssembly:
     def _calc_volume_cylinder(diameter, length):
         return np.pi*(diameter/2)**2*length
 
+    def _calc_volume_magnet(self):
+        return self._calc_volume_cylinder(self.dia_magnet_mm, self.l_m_mm)
+
+    def _calc_volume_spacer(self):
+        spacer_length = self.l_mcd_mm - self.l_m_mm
+        return self._calc_volume_cylinder(self.dia_spacer_mm, spacer_length)
+
     def _calculate_weight(self):
         """Calculate the weight of the magnet assembly."""
-        volume_magnet = self._calc_volume_cylinder(self.dia_magnet_mm, self.l_m_mm)
-        volume_spacer = self._calc_volume_cylinder(self.dia_spacer_mm, self.l_mcd_mm)
+        volume_magnet = self._calc_volume_magnet()
+
+        if self.m > 1:
+            volume_spacer = self._calc_volume_spacer()
+        else:
+            volume_spacer = 0
 
         weight_magnet = volume_magnet * self.density_magnet * 9.81
         weight_spacer = volume_spacer * self.density_spacer * 9.81

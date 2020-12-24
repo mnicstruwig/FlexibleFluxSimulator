@@ -1,5 +1,4 @@
 import numpy as np
-import warnings
 
 
 def unified_ode_mechanical_only(t,

@@ -1,5 +1,6 @@
 import numpy as np
 
+# TODO: Documentation
 class CoilModel:
     """A coil model."""
 
