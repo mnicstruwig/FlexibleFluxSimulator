@@ -15,10 +15,6 @@ class ElectricalModel:
         magnet assembly's bottom edge is passed to it.
     dflux_model : fun
         The gradient of `flux_model`.
-    coil_resistance : float
-        The resistance of the coil in Ohms.
-        Default value is `np.inf`, which is equivalent to an open-circuit
-        system.
     rectification_drop : float
         The voltage drop (from open-circuit voltage) due to rectification
         by a full-wave bridge rectifier.

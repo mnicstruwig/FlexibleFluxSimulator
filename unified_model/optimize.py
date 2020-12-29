@@ -14,6 +14,7 @@ from flux_modeller.model import CurveModel
 from unified_model.electrical_components.flux.model import FluxModelInterp
 from unified_model.electrical_components.coil import CoilModel
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
+from unified_model.mechanical_components.mechanical_spring import MechanicalSpring
 from unified_model.gridsearch import UnifiedModelFactory
 from unified_model.unified import UnifiedModel
 
@@ -47,12 +48,14 @@ def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
                           input_excitations: List[Any],
                           curve_model: CurveModel,
                           coil_model_params: Dict,
-                          magnet_assembly_params: Dict) -> List[UnifiedModel]:
+                          magnet_assembly_params: Dict,
+                          mech_spring_params: Dict) -> List[UnifiedModel]:
     """Update the simulation set with new flux and coil resistance models."""
 
     coil_model = CoilModel(**coil_model_params)
     magnet_assembly = MagnetAssembly(**magnet_assembly_params)
-
+    mech_spring_params['magnet_assembly'] = magnet_assembly
+    new_mech_spring = MechanicalSpring(**mech_spring_params)
     new_flux_model, new_dflux_model = get_new_flux_and_dflux_model(
         curve_model=curve_model,
         coil_model=coil_model,
@@ -63,7 +66,7 @@ def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
         damper=unified_model_factory.damper,
         magnet_assembly=magnet_assembly,  # New
         magnetic_spring=unified_model_factory.magnetic_spring,
-        mechanical_spring=unified_model_factory.mechanical_spring,
+        mechanical_spring=new_mech_spring,  # New
         rectification_drop=unified_model_factory.rectification_drop,
         load_model=unified_model_factory.load_model,
         coil_model=coil_model,  # New

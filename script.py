@@ -1,25 +1,25 @@
-from copy import copy
+# from copy import copy
+from glob import glob
 from itertools import product
+from typing import List, Dict, Any
 
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import ray
-from flux_modeller.model import CurveModel
 from scipy.signal import savgol_filter
 
-from unified_model import \
-    gridsearch  # <-- The new set of tools we'll be using exist in the `gridsearch` module
+from flux_modeller.model import CurveModel
 from unified_model import (CouplingModel, electrical_components,
-                           governing_equations, mechanical_components,
-                           optimize)
+                           governing_equations, gridsearch,
+                           mechanical_components, optimize)
 
 # PARAMETERS
 n_z_arr = np.arange(6, 201, 2)
 n_w_arr = np.arange(6, 201, 2)
 c = 1
-m = 3
+m = 2
 
 # Mechanical components
 magnetic_spring = mechanical_components.MagneticSpringInterp(
@@ -27,20 +27,14 @@ magnetic_spring = mechanical_components.MagneticSpringInterp(
     magnet_length=10/1000,
     filter_callable=lambda x: savgol_filter(x, window_length=27, polyorder=5)
 )
-
-mech_spring = mechanical_components.MechanicalSpring(
-    position=110/1000,
-    damping_coefficient=7.778,
-    magnet_length=10/1000
-)
-damper = mechanical_components.ConstantDamper(0.0433*(m + (m-1)))
+damper = mechanical_components.ConstantDamper(8.7857)
 
 # Electrical Components
 load = electrical_components.SimpleLoad(R=30)
 v_rect_drop = 0.1
-coupling_model = CouplingModel().set_coupling_constant(4.444)
+coupling_model = CouplingModel().set_coupling_constant(5.0)
 
-coil_model_params = {
+coil_model_params: Dict[str, Any] = {
     'c': None,
     'n_z': None,
     'n_w': None,
@@ -48,16 +42,23 @@ coil_model_params = {
     'ohm_per_mm': 1361/1000/1000,
     'tube_wall_thickness_mm': 2,
     'coil_wire_radius_mm': 0.143/2,
-    'coil_center_mm': 59,
+    'coil_center_mm': 60,
     'outer_tube_radius_mm': 5.5
 }
 
-magnet_assembly_params = {
+magnet_assembly_params: Dict[str, Any] = {
     'm': None,
     'l_m_mm': 10,
     'l_mcd_mm': 0,
     'dia_magnet_mm': 10,
     'dia_spacer_mm': 10
+}
+
+mech_spring_params: Dict[str, Any] = {
+    'magnet_assembly': None,
+    'position': 1000 / 1000,
+    'strength': 1e7,
+    'damping_coefficient': 10.0,
 }
 
 curve_model = CurveModel.load('./data/flux_curve_model.model')
@@ -66,7 +67,7 @@ curve_model = CurveModel.load('./data/flux_curve_model.model')
 unified_model_factory = gridsearch.UnifiedModelFactory(
     damper=damper,
     magnet_assembly=None,
-    mechanical_spring=mech_spring,
+    mechanical_spring=None,
     magnetic_spring=magnetic_spring,
     coil_model=None,
     rectification_drop=v_rect_drop,
@@ -79,7 +80,6 @@ unified_model_factory = gridsearch.UnifiedModelFactory(
 )
 
 # Choose our input excitations
-from glob import glob
 
 acc_inputs = []
 for log_file in glob('./data/2019-05-23_D/A/log*_acc.csv'):
@@ -95,43 +95,37 @@ for log_file in glob('./data/2019-05-23_D/A/log*_acc.csv'):
     acc_inputs.append(acc_input)
 
 
-# Some debugging
-n_z = 20
-n_w = 20
+# DEBUG
+n_z = 54
+n_w = 28
 coil_model_params['c'] = c
 coil_model_params['n_z'] = n_z
 coil_model_params['n_w'] = n_w
-if coil_model_params['c'] > 1:
-    coil_model_params['l_ccd_mm'] = optimize.lookup_best_spacing(
-        path='./data/optimal_l_ccd_0_200_2.csv',
-        n_z=n_z,
-        n_w=n_w
-    )
-else:
-    coil_model_params['l_ccd_mm'] = 0
+coil_model_params['l_ccd_mm'] = 0
 
 magnet_assembly_params['m'] = m
-if magnet_assembly_params['m'] > 1:
-    magnet_assembly_params['l_mcd_mm'] = optimize.lookup_best_spacing(
-        path='./data/optimal_l_ccd_0_200_2.csv',
-        n_z=n_z,
-        n_w=n_w
-    )
-else:
-    magnet_assembly_params['l_mcd_mm'] = 0
+magnet_assembly_params['l_mcd_mm'] = optimize.lookup_best_spacing(
+                path='./data/optimal_l_ccd_0_200_2.csv',
+                n_z=n_z,
+                n_w=n_w
+)
+
 
 simulation_models = optimize.evolve_simulation_set(
     unified_model_factory=unified_model_factory,
     input_excitations=acc_inputs,
     curve_model=curve_model,
     coil_model_params=coil_model_params,
-    magnet_assembly_params=magnet_assembly_params
+    magnet_assembly_params=magnet_assembly_params,
+    mech_spring_params=mech_spring_params
 )
 
 um = simulation_models[0]
 
-# Delete when done
+
+# DELETE AFTER DEBUGGING
 def simulate_unified_model(unified_model, **solve_kwargs):
+    """Simulate a unified model."""
     unified_model.reset()  # Make sure we're starting from a clean slate
 
     if not solve_kwargs:
@@ -139,26 +133,26 @@ def simulate_unified_model(unified_model, **solve_kwargs):
 
     solve_kwargs.setdefault('t_start', 0)
     solve_kwargs.setdefault('t_end', 8)
-    solve_kwargs.setdefault('y0', [0., 0., 0.04, 0., 0.])
+    solve_kwargs.setdefault('y0', [0., 0., 0.11, 0., 0.])
     solve_kwargs.setdefault('t_max_step', 1e-3)
     solve_kwargs.setdefault('t_eval', np.arange(0, 8, 1e-3))  # type: ignore
 
     unified_model.solve(**solve_kwargs)
 
-    results = unified_model.calculate_metrics('g(t, x5)', {
-        'p_load_avg': lambda x: optimize.calc_p_load_avg(x, unified_model.electrical_model.load_model.R)
-    })
-
-    results = unified_model.get_result(time='t', y_diff='x3-x1', flux='x5', emf='g(t, x5)')
+    results = unified_model.get_result(time='t', y_diff='x3-x1', phi='x5', emf='g(t, x5)')
 
     return results
 
 res = simulate_unified_model(um)
 import matplotlib.pyplot as plt
-res.plot(x='time', y='y_diff')
+plt.plot(res['y_diff'])
+plt.figure()
+plt.plot(res['emf'])
 plt.show()
 
+
 def batchify(x, batch_size):
+    """Batch a list `x` into batches of size `batch_size`."""
     total_size = len(x)
     indexes = np.arange(0, total_size, batch_size)
 
@@ -168,21 +162,20 @@ def batchify(x, batch_size):
     return [x[indexes[i]:indexes[i+1]] for i in range(len(indexes)-1)]
 
 
-
 # Actual experiment
-ray.init(ignore_reinit_error=True)
+ray.init(ignore_reinit_error=True, num_cpus=16)
 
 
-batch_size = 256
+BATCH_SIZE = 256
 nz_nw_product = np.array(list(product(n_z_arr, n_w_arr)))  # type: ignore
-n_z_list = []
-n_w_list = []
+n_z_list: List[float] = []
+n_w_list: List[float] = []
 input_ids = []
 submitted = []
 
 print(f'Executing {len(nz_nw_product)} device simulations.')
 print(f'There are {len(acc_inputs)} inputs per simulation.')
-batches = batchify(nz_nw_product, batch_size)
+batches = batchify(nz_nw_product, BATCH_SIZE)
 for batch_num, batch in enumerate(batches):
     print(f'Executing batch {batch_num+1} out of {len(batches)}...')
     for n_z, n_w in batch:
@@ -233,11 +226,11 @@ for batch_num, batch in enumerate(batches):
             input_ids.append(i)
 
     print(f'Submitted {len(submitted)} tasks...')
-    ready = []
+    ready: List[Any] = []
     while len(ready) < len(submitted):  # Wait for batch to complete
         ready, waiting = ray.wait(submitted, num_returns=len(submitted), timeout=30)
         print(f'Completed {len(ready)} out of {len(submitted)} tasks...')
-    print(f'Finished batch!')
+    print('Finished batch!')
 
     # Export results
     results = ray.get(ready)

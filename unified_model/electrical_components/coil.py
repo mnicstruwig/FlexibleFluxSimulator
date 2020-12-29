@@ -13,7 +13,8 @@ class CoilModel:
                  tube_wall_thickness_mm: float,
                  coil_wire_radius_mm: float,
                  coil_center_mm: float,
-                 outer_tube_radius_mm: float) -> None:
+                 outer_tube_radius_mm: float,
+                 coil_resistance: float = None) -> None:
 
         self.c = c
         self.n_z = n_z
@@ -26,8 +27,11 @@ class CoilModel:
         self.outer_tube_radius_mm = outer_tube_radius_mm
 
         self._validate()
-        self.coil_resistance = self._calculate_coil_resistance()
 
+        if not coil_resistance:
+            self.coil_resistance = self._calculate_coil_resistance()
+        else:  # Override
+            self.coil_resistance = coil_resistance
 
     def __repr__(self):
         to_print = ', '.join([f'{k}={v}' for k, v in self.__dict__.items()])

@@ -21,8 +21,8 @@ class FluxModelInterp:
 
         """
         self.c = coil_model.c
-        self.c_c = coil_model.coil_center_mm/1000  # `flux_inteprolate` requires measurements in SI units.
-        self.l_ccd = coil_model.l_ccd_mm/1000  # `flux_inteprolate` requires measurements in SI units.
+        self.c_c = coil_model.coil_center_mm / 1000  # `flux_inteprolate` requires measurements in SI units.
+        self.l_ccd = coil_model.l_ccd_mm / 1000  # `flux_inteprolate` requires measurements in SI units.
 
         self.m = magnet_assembly.m
         self.l_mcd = magnet_assembly.l_mcd_mm/1000  # `flux_inteprolate` requires measurements in SI units.
@@ -40,7 +40,7 @@ class FluxModelInterp:
             raise ValueError('l_mcd must be > 0')
         if self.c > 1 and self.m > 1:
             if self.l_ccd != self.l_mcd:
-                warnings.warn('l_ccd != l_mcd, this is unusual.', RuntimeWarning)
+                warnings.warn('l_ccd != l_mcd, this is unusual.', RuntimeWarning)  # noqa
 
         if self.l_ccd == 0 and self.c > 1:
             raise ValueError('l_ccd = 0, but c > 1')

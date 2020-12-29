@@ -75,6 +75,7 @@ class EvaluatorFactory:
             evaluator_list.append(evaluator)
         return np.array(evaluator_list)
 
+
 class MechanicalGroundtruth(NamedTuple):
     y_diff: Any
     time: Any
@@ -143,8 +144,8 @@ class AbstractUnifiedModelFactory:
 
         """
         param_product = product(*[v for v in self.combined.values()])
-        for i, pp in enumerate(param_product):
-            new_kwargs = {k: v for k, v in zip(self.combined.keys(), pp)}
+        for i, p_p in enumerate(param_product):
+            new_kwargs = {k: v for k, v in zip(self.combined.keys(), p_p)}
             new_kwargs['model_id'] = i
             yield UnifiedModelFactory(**new_kwargs)
 
@@ -622,7 +623,7 @@ class GridsearchBatchExecutor:
     def _execute_grid_search(
             self,
             output_file: str,
-            batch_size: int = 8
+            batch_size: int
     ):
         """Execute the gridsearch."""
 
@@ -652,8 +653,8 @@ class GridsearchBatchExecutor:
                 grid_params: List[Dict] = []
                 model_ids: List[int] = []
                 input_numbers: List[int] = []
+                task_queue: List[Any] = []
 
-                task_queue = []
                 for model_factory in model_factory_batch:
                     # Get the model id
                     model_ids.append(model_factory.model_id)
@@ -673,9 +674,9 @@ class GridsearchBatchExecutor:
 
                 ready: List[Any] = []
                 while len(ready) < len(task_queue):
-                    ready, remaining = ray.wait(task_queue,
+                    ready, _ = ray.wait(task_queue,
                                                 num_returns=len(task_queue),
-                                                timeout=1.)
+                                                timeout=2.)
                     # Log output
                     log_base = 'Progress: '
                     input_log = f':: Input: {input_number+1}/{len(self.input_excitations)} '  # noqa
@@ -706,6 +707,7 @@ class GridsearchBatchExecutor:
                 logging.info(f'Writing chunk to :: {output_file} ...')
                 self._write_out_results(df_results, output_file, ['input_excitation'])
                 del results  # Remove reference so Ray can free memory as needed
+                del df_results
                 ray.internal.free(task_queue)
 
     def _write_out_results(self,
@@ -812,7 +814,7 @@ class GridsearchBatchExecutor:
         print(f'Total # simulations --> {num_models*len(self.input_excitations)}')  # noqa
         print('==================')
 
-    def run(self, output_file, batch_size: int = 8) -> None:
+    def run(self, output_file, batch_size: int = 24) -> None:
         """Run the grid search and returns the results.
 
         Parameters

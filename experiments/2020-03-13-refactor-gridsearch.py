@@ -1,5 +1,4 @@
 from typing import List, Any, Dict, Callable
-
 import numpy as np
 from scipy.signal import savgol_filter
 
@@ -16,10 +15,12 @@ from local_config import ABC_CONFIG
 
 
 class ConstantDamperFactory:
+    """A factory that returns ConstantDamper objects."""
     def __init__(self, c_list):
         self.c_list = c_list
 
     def make(self):
+        """Make the ConstantDamper objects."""
         return [mechanical_components.ConstantDamper(c) for c in self.c_list]
 
 
@@ -76,7 +77,6 @@ class AccelerometerInputsFactory:
         return np.array(accelerometer_inputs)
 
 
-# TODO: Major rework to get rid of all of these weird in-between namedtuples
 class GroundTruthFactory:
     def __init__(self, samples_list, lvp_kwargs, adc_kwargs):
         self.samples_list = samples_list
@@ -118,23 +118,23 @@ class GroundTruthFactory:
 
 
 # Prepare data
-base_groundtruth_path = './data/2019-05-23_D/'
+BASE_GROUNDTRUTH_PATH = '../data/2019-05-23_D/'
 samples = {}
-samples['A'] = collect_samples(base_path=base_groundtruth_path,
+samples['A'] = collect_samples(base_path=BASE_GROUNDTRUTH_PATH,
                                acc_pattern='A/*acc*.csv',
                                adc_pattern='A/*adc*.csv',
                                video_label_pattern='A/*labels*.csv')
-samples['B'] = collect_samples(base_path=base_groundtruth_path,
+samples['B'] = collect_samples(base_path=BASE_GROUNDTRUTH_PATH,
                                acc_pattern='B/*acc*.csv',
                                adc_pattern='B/*adc*.csv',
                                video_label_pattern='B/*labels*.csv')
-samples['C'] = collect_samples(base_path=base_groundtruth_path,
+samples['C'] = collect_samples(base_path=BASE_GROUNDTRUTH_PATH,
                                acc_pattern='C/*acc*.csv',
                                adc_pattern='C/*adc*.csv',
                                video_label_pattern='C/*labels*.csv')
 
-which_device = 'B'
-which_input = np.array(range(len(samples[which_device])))
+which_device = 'C'
+which_input = np.array(range(len(samples[which_device])))  # type:ignore
 
 
 # Groundtruth
@@ -157,34 +157,30 @@ elec_time_targets = [gt.elec.time for gt in groundtruth]
 input_excitation_factories = {device: AccelerometerInputsFactory(samples[device])  # noqa
                               for device in ['A', 'B', 'C']}
 magnetic_spring = mechanical_components.MagneticSpringInterp(
-    fea_data_file='./data/magnetic-spring/10x10alt.csv',
+    fea_data_file='../data/magnetic-spring/10x10alt.csv',
     magnet_length=10/1000,
     filter_callable=lambda x: savgol_filter(x, 27, 5)
 )
-magnet_assembly = mechanical_components.MagnetAssembly(
-    n_magnet=1,
-    l_m=10,
-    l_mcd=0,
-    dia_magnet=10,
-    dia_spacer=10
-)
+magnet_assembly = ABC_CONFIG.magnet_assembly
+
 mech_components = {
     'magnetic_spring': [magnetic_spring],
     'magnet_assembly': [magnet_assembly],
-    'damper': ConstantDamperFactory(np.linspace(0.01, 0.07, 10)).make(),
+    'damper': ConstantDamperFactory(np.linspace(0.5, 15, 15)).make(),
     'mechanical_spring':  MechanicalSpringFactory(110/1000,
                                                   10/1000,
                                                   np.linspace(0, 10, 10)).make()
 }
+
 elec_components = {
-    'coil_resistance': [ABC_CONFIG.coil_resistance[which_device]],
     'rectification_drop': [0.1],
     'load_model': [electrical_components.SimpleLoad(R=30)],
+    'coil_model': [ABC_CONFIG.coil_models[which_device]],
     'flux_model': [ABC_CONFIG.flux_models[which_device]],
     'dflux_model': [ABC_CONFIG.dflux_models[which_device]],
 
 }
-coupling_models = CouplingModelFactory(np.linspace(0, 10, 10)).make()
+coupling_models = CouplingModelFactory(np.linspace(0, 10, 15)).make()
 governing_equations = [governing_equations.unified_ode]
 
 
@@ -229,7 +225,7 @@ parameters_to_track = [
     'damper.damping_coefficient',
     'coupling_model.coupling_constant',
     'mechanical_spring.damping_coefficient',
-    'coil_resistance',
+    'coil_model.coil_resistance',
     'load_model.R'
 ]
 
@@ -240,11 +236,12 @@ grid_executor = gridsearch.GridsearchBatchExecutor(abstract_model_factory,
                                                    curve_expressions,
                                                    score_metrics,
                                                    calc_metrics=calc_metrics,  # noqa <-- use this for optimization, not scoring
-                                                   parameters_to_track=parameters_to_track,
-                                                   num_cpus=6)  # noqa
+                                                   parameters_to_track=parameters_to_track)  # noqa
 
 grid_executor.preview()
-grid_executor.run(f'./{which_device}.parquet')  # Execute
+#grid_executor.run(f'./{which_device}.parquet', batch_size=24)  # Execute
 
+# DEBUG
 # import pyarrow.parquet as pq
-# table = pq.read_table('./out_test.parquet').to_pandas()
+# df = pq.read_table('A.parquet').to_pandas()
+# print(df.groupby('model_id').mean().sort_values(by='y_diff_dtw_distance').reset_index()[['model_id', 'y_diff_dtw_distance', 'damper.damping_coefficient']])

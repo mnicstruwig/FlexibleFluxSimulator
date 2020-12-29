@@ -106,6 +106,11 @@ class MagnetAssembly:
             + (self.m - 1) * weight_spacer
         )
 
+    def get_length(self) -> float:
+        """Get the length of the assembly in mm."""
+        l_spacer = self.l_mcd_mm - self.l_m_mm
+        return self.l_m_mm * self.m + l_spacer * (self.m - 1)
+
     def get_mass(self):
         """Get the mass of the magnet assembly."""
         return self.weight / 9.81
@@ -117,12 +122,3 @@ class MagnetAssembly:
     def get_contact_surface_area(self):
         """Get the contact surface area of the magnet assembly in mm^2."""
         return self.surface_area
-
-    # TODO: Add test
-    def get_height(self):
-        """Get the height of the magnet assembly in m."""
-        return (
-            self.m
-            * self.l_m_mm
-            + (self.m - 1) * self.l_mcd_mm / 1000
-    )

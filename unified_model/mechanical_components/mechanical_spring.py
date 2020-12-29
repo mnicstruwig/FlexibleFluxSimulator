@@ -2,24 +2,25 @@
 
 import numpy as np
 
+from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
+
 
 class MechanicalSpring:
     """Mechanical, non-attached, spring."""
 
     def __init__(self,
+                 magnet_assembly: MagnetAssembly,
                  position: float,
-                 magnet_length: float,
                  strength: float = 1e7,
                  damping_coefficient: float = 0) -> None:
         """Constructor.
 
         Parameters
         ----------
+        magnet_assembly: MagnetAssembly
+            The magnet assembly that will be moving in the microgenerator.
         position : float
             The height at which the mechanical spring acts. In metres.
-        magnet_length : float
-            The length of the magnet in *metres*. This is used to properly
-            offset when the mechanical spring is supposed to begin acting.
         strength : float
             The "strength" of the mechanical spring. It is recommended to use a
             large value, or to leave this at the default value. Default value
@@ -30,18 +31,19 @@ class MechanicalSpring:
 
         """
         self.position = position
-        self.magnet_length = magnet_length
+        self.magnet_length = magnet_assembly.l_m_mm / 1000  # Must be in metres
+        self.magnet_assembly_length = magnet_assembly.get_length() / 1000
         self.strength = strength
         self.damping_coefficient = damping_coefficient
 
     def __repr__(self):
-        return f'MechanicalSpring(position={self.position}, magnet_length={self.magnet_length}, strength={self.strength}, damping_coefficient={self.damping_coefficient})'  # noqa
+        return f'MechanicalSpring(position={self.position}, magnet_length={self.magnet_length}, magnet_assembly_length={self.magnet_assembly_length}, strength={self.strength}, damping_coefficient={self.damping_coefficient})'  # noqa
 
     def _heaviside_step_function(self, x, boundary):
         """Compute the output of a Heaviside step function"""
         return 0.5 * (np.sign(x - boundary) + 1)
 
-    def get_force(self, x, x_dot):
+    def get_force(self, x: float, x_dot: float) -> float:
         """Get the force exerted by the spring.
 
         Parameters
@@ -57,11 +59,11 @@ class MechanicalSpring:
             The force exerted by the mechanical spring. In Newtons.
 
         """
-        offset = self.magnet_length / 2
+        offset = self.magnet_assembly_length - (self.magnet_length / 2)
         force = (
             self._heaviside_step_function(x + offset, self.position)
             * (self.strength * (x - self.position + offset)
                + self.damping_coefficient * x_dot)
-            )
+        )
 
         return force

@@ -1,34 +1,6 @@
 import numpy as np
 
 
-def unified_ode_mechanical_only(t,
-                                y,
-                                mechanical_model,
-                                electrical_model,
-                                coupling_model):
-    spring = mechanical_model.spring
-    damper = mechanical_model.damper
-    input_ = mechanical_model.input_
-    magnet_assembly = mechanical_model.magnet_assembly
-
-    # tube displacement, tube velocity, magnet displacement, magnet velocity
-    x1, x2, x3, x4 = y
-
-    # prevent tube from going through floor.
-    if x1 <= 0 and x2 <= 0:
-        x1 = 0.
-        x2 = 0.
-
-    x1_dot = x2
-    x2_dot = input_.get_acceleration(t)
-    x3_dot = x4
-
-    x4_dot = (spring.get_force(x3 - x1) - magnet_assembly.get_weight() -
-              damper.get_force(x4 - x2)) / magnet_assembly.get_mass()
-
-    return [x1_dot, x2_dot, x3_dot, x4_dot]
-
-
 def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     magnetic_spring = mechanical_model.magnetic_spring
     mechanical_spring = mechanical_model.mechanical_spring
@@ -64,9 +36,9 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
         mechanical_spring_force = 0
 
     magnetic_spring_force = magnetic_spring.get_force(x3 - x1)
-    damper_force = damper.get_force(x4-x2)
     assembly_mass = magnet_assembly.get_mass()
     assembly_weight = magnet_assembly.get_weight()
+    damper_force = damper.get_force(x4-x2)*assembly_mass
 
     x4_dot = (+ magnetic_spring_force
               - mechanical_spring_force
