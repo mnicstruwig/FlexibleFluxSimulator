@@ -27,7 +27,7 @@ class MagnetAssembly:
 
         Parameters
         ----------
-        n_magnet : int
+        m : int
             Number of magnets.
         l_m_mm : float
             Height of the magnets in mm.
@@ -89,7 +89,7 @@ class MagnetAssembly:
         return self._calc_volume_cylinder(self.dia_spacer_mm, spacer_length)
 
     def _calculate_weight(self):
-        """Calculate the weight of the magnet assembly."""
+        """Calculate the weight of the magnet assembly (in Newtons)."""
         volume_magnet = self._calc_volume_magnet()
 
         if self.m > 1:

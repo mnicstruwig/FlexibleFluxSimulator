@@ -144,11 +144,25 @@ def precompute_best_spacing(n_z_arr: np.ndarray,
 
 
 def lookup_best_spacing(path: str, n_z: int, n_w: int) -> float:
-    """Return the optimal spacing between coils / magnet centers in mm."""
+    """Return the optimal spacing between coils / magnet centers in mm.
+
+    Parameters
+    ----------
+    path : str
+        Path to a .csv file that contains optimal spacing for each value of
+        `n_z` and `n_c`. Must have an `optimal_spacing_mm`, `n_z` and `n_w`
+        column.
+    n_z : int
+        The value of `n_z` (number of coil windings in the axial direction) to
+        lookup the optimal spacing for.
+    n_w : int
+        The value of `n_w` (number of coil windings in the radial direction) to
+        lookup the optimal spacing for.
+    """
     df = pd.read_csv(path)
-    # TODO: Fix underlying data file
+    # TODO: Fix underlying data file so that optimal distances values are in mm.
     # For now, we use a loose heuristic to make sure we return in mm.
-    if df['optimal_spacing_mm'].max() < 1:
+    if df['optimal_spacing_mm'].max() < 1:  # Hack to check if we should return in mm.
         df['optimal_spacing_mm'] = df['optimal_spacing_mm'] * 1000
     result = df.query(f'n_z == {n_z} and n_w == {n_w}')['optimal_spacing_mm'].values
 

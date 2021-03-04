@@ -38,7 +38,7 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     magnetic_spring_force = magnetic_spring.get_force(x3 - x1)
     assembly_mass = magnet_assembly.get_mass()
     assembly_weight = magnet_assembly.get_weight()
-    damper_force = damper.get_force(x4-x2)*assembly_mass
+    damper_force = damper.get_force(x4 - x2) * assembly_mass
 
     x4_dot = (+ magnetic_spring_force
               - mechanical_spring_force

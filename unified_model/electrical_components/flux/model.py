@@ -90,7 +90,7 @@ class FluxModelInterp:
                 flux_interp, dflux_interp = interpolate_flux(
                     z_arr,
                     (-1) ** (i+j) * phi_arr,  # Remembering to alternate the polarity...
-                    coil_center=self.c_c + j * self.l_mcd + i * self.l_ccd  # ... and shift the center (peak)
+                    coil_center=self.c_c - j * self.l_mcd + i * self.l_ccd  # ... and shift the center (peak)
                 )
                 flux_interp_list.append(flux_interp)
                 dflux_interp_list.append(dflux_interp)

@@ -176,3 +176,8 @@ class MagnetSpringAnalytic:
 
         """
         return self._model(z, *self._model_params)
+
+    # TODO: Implement
+    def get_distance(self, f):
+        """Get the distance at which the spring exerts a force of `f`N."""
+        pass
