@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict
 
 import matplotlib.pyplot as plt
@@ -499,7 +498,6 @@ class ElectricalSystemEvaluator:
             self.emf_target_
         )
 
-
     def score(self) -> Dict[str, Any]:
         """Evaluate the electrical model using a selection of metrics.
 
@@ -590,36 +588,14 @@ class ElectricalSystemEvaluator:
 
 
 class LabeledVideoProcessor:
-    """Post-processor for labeled magnet-assembly data.
 
-    Attributes
-    ----------
-    mm : float
-        Height of the moving magnet assembly in mm.
-    seconds_per_frame : float
-        Number of seconds per frame / datapoint.
-        This is typically found in the `subsampled_seconds_per_frame` key
-        of the generated .DONE file when using the OpenCV-based CLI
-        helper script.
-    pixel_scale : float, optional
-        The pixel scale to use (in mm per pixel). This value will override
-        the recorded pixel values in the groundtruth_dataframe.
-        Default value is None.
-
-    Methods
-    -------
-    fit_transform(groundtruth_dataframe, impute_missing_values)
-        Process and transform groundtruth video measurements.
-
-    """
-
-    def __init__(self, mm, seconds_per_frame, pixel_scale=None):
-        """Constructor.
+    def __init__(self, magnet_assembly, seconds_per_frame, pixel_scale=None):
+        """Post-processor for labeled magnet-assembly data.
 
         Parameters
         ----------
-        mm : float
-            Height of the moving magnet assembly in mm.
+        magnet_assembly : MagnetAssembly
+            The magnet assembly used to execute the simulation.
         seconds_per_frame : float
             Number of seconds per frame / datapoint.
             This is typically found in the `subsampled_seconds_per_frame` key
@@ -631,7 +607,8 @@ class LabeledVideoProcessor:
             Default value is None.
 
         """
-        self.mm = mm
+
+        self.magnet_assembly = magnet_assembly
         self.spf = seconds_per_frame
         self.pixel_scale = pixel_scale
 
@@ -681,7 +658,7 @@ class LabeledVideoProcessor:
         df['y_mm'] = df['y'] * df['y_pixel_scale']  # Adjust with pixel scale
         df['y_prime_mm'] = df['y_mm']  # Get actual position
         # Adjust for top / bottom of magnet during labeling process
-        df.loc[df['top_of_magnet'] == 1, 'y_prime_mm'] = df['y_prime_mm'] - self.mm  # noqa
+        df.loc[df['top_of_magnet'] == 1, 'y_prime_mm'] = df['y_prime_mm'] - self.magnet_assembly.get_length()  # noqa
 
         # Correct calculations made with missing values, if they exist.
         if impute_missing_values:
@@ -690,7 +667,7 @@ class LabeledVideoProcessor:
 
         timestamps = np.linspace(0, (len(df)-1)*self.spf, len(df))
 
-        return (df['y_prime_mm'].values + self.mm/2) / 1000, timestamps
+        return (df['y_prime_mm'].values + self.magnet_assembly.l_m_mm / 2) / 1000, timestamps  # noqa
 
 
 def impute_missing(df_missing, indexes):
