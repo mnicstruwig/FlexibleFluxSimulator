@@ -1,5 +1,8 @@
-from unified_model.utils.utils import pretty_str
+
 import warnings
+
+from unified_model.utils.utils import pretty_str
+from unified_model.local_exceptions import ModelError
 
 
 # TODO: Add example once interface is more stable
@@ -36,6 +39,36 @@ class MechanicalModel:
     def __str__(self):
         """Return string representation of the MechanicalModel"""
         return f"""Mechanical Model: {pretty_str(self.__dict__, 1)}"""
+
+    def _validate(self):
+        """Validate the mechanical model.
+
+        Do some basic checks to make sure mandatory components have been set.
+        """
+        try:
+            assert self.magnetic_spring is not None
+        except AssertionError:
+            raise ModelError('A magnetic spring model must be specified.')  # noqa
+        try:
+            assert self.mechanical_spring is not None
+        except AssertionError:
+            warnings.warn("""A mechanical spring, simulating the impact dynamics
+                          of the magnet assembly impacting the top of the
+                          microgenerator device, has not been set. The resulting
+                          simulation will assume an infinitely-long
+                          microgenerator tube.""")
+        try:
+            assert self.damper is not None
+        except AssertionError:
+            raise ModelError('A friction damper model must be specified.')
+        try:
+            assert self.magnet_assembly is not None
+        except AssertionError:
+            raise ModelError('A magnet assembly model must be specified.')
+        try:
+            assert self.input_ is not None
+        except AssertionError:
+            raise ModelError('An input excitation must be specified.')
 
     def set_magnetic_spring(self, spring):
         """Add a magnetic spring to the mechanical system.

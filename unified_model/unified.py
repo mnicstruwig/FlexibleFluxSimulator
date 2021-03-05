@@ -23,6 +23,7 @@ from unified_model.evaluate import (ElectricalSystemEvaluator,
                                     MechanicalSystemEvaluator)
 from unified_model.mechanical_model import MechanicalModel
 from unified_model.utils.utils import parse_output_expression, pretty_str
+from unified_model.local_exceptions import ModelError
 
 
 class UnifiedModel:
@@ -68,6 +69,18 @@ class UnifiedModel:
     def __str__(self):
         """Return string representation of the UnifiedModel"""
         return f'Unified Model: {pretty_str(self.__dict__)}'
+
+    def _validate(self):
+        try:
+            assert self.mechanical_model is not None
+            self.mechanical_model._validate()
+        except AssertionError:
+            raise ModelError('A mechanical model must be specified.')
+        try:
+            assert self.electrical_model is not None
+            self.electrical_model._validate()
+        except AssertionError:
+            raise ModelError('A electrical model must be specified.')
 
     def save_to_disk(self, path: str) -> None:
         """Persists a unified model to disk"""
@@ -240,6 +253,8 @@ class UnifiedModel:
             equations of the unified model.
 
         """
+        self._validate()
+
         high_level_models = {
             'mechanical_model': self.mechanical_model,
             'electrical_model': self.electrical_model,
@@ -312,6 +327,19 @@ class UnifiedModel:
             return parse_output_expression(self.time, self.raw_solution, **kwargs)
         except AssertionError:
             warnings.warn('Raw solution is not found. Did you run .solve?')
+
+    def get_quick_results(self) -> pd.DataFrame:
+        """Get a table of commonly used results.
+
+        Return a DataFrame containing the time, relative magnet position,
+        relative magnet velocity and load voltage.
+        """
+        return self.get_result(
+            time='t',
+            rel_pos_mag='x3-x1',
+            rel_pos_vel='x4-x2',
+            v_load='g(t, x5)'
+        )
 
     def score_mechanical_model(self,
                                time_target: np.ndarray,

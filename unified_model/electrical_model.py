@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
+
 from unified_model.utils.utils import pretty_str
 from unified_model.electrical_components.coil import CoilModel
+from unified_model.local_exceptions import ModelError
 
 
 class ElectricalModel:
@@ -10,16 +14,16 @@ class ElectricalModel:
 
     Attributes
     ----------
-    flux_model : fun
+    flux_model : Callable
         Function that returns the flux linkage of a coil when the position of a
         magnet assembly's bottom edge is passed to it.
-    dflux_model : fun
+    dflux_model : Callable
         The gradient of `flux_model`.
     rectification_drop : float
         The voltage drop (from open-circuit voltage) due to rectification
         by a full-wave bridge rectifier.
-    load_model : obj
-        A load model.
+    load_model : Object
+        A load model object.
 
     """
 
@@ -34,6 +38,29 @@ class ElectricalModel:
     def __str__(self):
         """Return string representation of the ElectricalModel"""
         return f"""Electrical Model: {pretty_str(self.__dict__, 1)}"""
+
+    def _validate(self):
+        """Validate the electrical model.
+
+        Do some basic checks to make sure mandatory components have been set.
+        """
+        try:
+            assert self.flux_model is not None
+            assert self.dflux_model is not None
+        except AssertionError:
+            raise ModelError('A flux model and dflux model must be specified.')
+        try:
+            assert self.coil_model is not None
+        except AssertionError:
+            raise ModelError('A coil model must be specified.')
+        try:
+            assert self.rectification_drop is not None
+        except AssertionError:
+            warnings.warn('Rectification drop not specified. Assuming no loss due to rectification.')  # noqa
+        try:
+            assert self.load_model is not None
+        except AssertionError:
+            raise ModelError('A load model must be specified.')
 
     def set_flux_model(self, flux_model, dflux_model):
         """Assign a flux model.
@@ -77,7 +104,7 @@ class ElectricalModel:
 
     def get_load_voltage(self, mag_pos, mag_vel):
         emf = self.get_emf(mag_pos, mag_vel)
-        v_load = emf*self.load_model.R / (self.load_model.R
+        v_load = emf * self.load_model.R / (self.load_model.R
                                           + self.coil_model.coil_resistance)
 
         return v_load

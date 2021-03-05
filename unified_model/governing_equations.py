@@ -46,6 +46,6 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
               - damper_force
               - coupling_force) / assembly_mass
 
-    x5_dot = load_voltage  # NB <-- we want the EMf 'output' to be the load voltage
+    x5_dot = load_voltage  # NB <-- we want the EMF 'output' to be the load voltage
 
     return [x1_dot, x2_dot, x3_dot, x4_dot, x5_dot]
