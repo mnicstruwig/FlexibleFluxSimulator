@@ -1,2 +1,2 @@
-# Unified Model energy harvester simulation framework.
+# Unified Model: An energy harvester simulation framework.
 TODO.
