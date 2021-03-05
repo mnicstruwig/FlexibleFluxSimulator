@@ -81,6 +81,10 @@ class UnifiedModel:
             self.electrical_model._validate()
         except AssertionError:
             raise ModelError('A electrical model must be specified.')
+        try:
+            assert self.coupling_model is not None
+        except AssertionError:
+            raise ModelError('A coupling model must be specified.')
 
     def save_to_disk(self, path: str) -> None:
         """Persists a unified model to disk"""
