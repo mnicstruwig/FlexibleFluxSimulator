@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -193,15 +193,19 @@ class MechanicalSystemEvaluator:
         self.time_predict = None
 
         # Holds resampled values
-        self.y_target_: np.ndarray = None
-        self.y_predict_: np.ndarray = None
-        self.time_: np.ndarray = None
+        self.y_target_: Union[None, np.ndarray] = None
+        self.y_predict_: Union[None, np.ndarray] = None
+        self.time_: Union[None, np.ndarray] = None
 
         # Holds dynamic time-warped values
-        self.y_target_warped_ = None
-        self.y_predict_warped_ = None
+        self.y_target_warped_: Union[None, np.ndarray] = None
+        self.y_predict_warped_: Union[None, np.ndarray] = None
 
-    def fit(self, y_predict, time_predict):
+        # Clip parameters
+        self._clip_time = None
+        self._clip_index = None
+
+    def fit(self, y_predict: np.ndarray, time_predict: np.ndarray) -> None:
         """Align `y_predicted` and `y_target` in time.
 
         This allows the target and prediction to later be plotted overlaying
@@ -217,7 +221,7 @@ class MechanicalSystemEvaluator:
         """
         self._fit(y_predict, time_predict)
 
-    def _fit(self, y_predict, time_predict):
+    def _fit(self, y_predict: Any, time_predict: Any) -> None:
         """Execute routine called with by the `fit` class method."""
 
         self.y_predict = y_predict
@@ -233,14 +237,14 @@ class MechanicalSystemEvaluator:
             y_2=self.y_predict
         )
 
-        resampled_time = resampled_signals[0]
-        resampled_y_target = resampled_signals[1]
-        resampled_y_predict = resampled_signals[2]
+        resampled_time: np.ndarray = resampled_signals[0]
+        resampled_y_target: np.ndarray = resampled_signals[1]
+        resampled_y_predict: np.ndarray = resampled_signals[2]
 
         # Find where to clip the resampled signals
         if self.clip:
-            self._clip_time = np.min([self.time_target[-1], self.time_predict[-1]])  # noqa
-            self._clip_index = np.argmin(np.abs(resampled_time - self._clip_time))  # noqa
+            self._clip_time = np.min([self.time_target[-1], self.time_predict[-1]])  # type: ignore
+            self._clip_index = np.argmin(np.abs(resampled_time - self._clip_time))  # type: ignore
         else:
             self._clip_time = resampled_time[0]
             self._clip_index = len(resampled_time) - 1

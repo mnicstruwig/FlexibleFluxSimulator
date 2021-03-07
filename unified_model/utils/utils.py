@@ -4,7 +4,7 @@ import warnings
 from collections import namedtuple
 from glob import glob
 from itertools import product, zip_longest
-from typing import Tuple, List, Any
+from typing import Tuple, List, Any, Union
 from dataclasses import dataclass
 
 import numpy as np
@@ -175,7 +175,10 @@ def parse_output_expression(t, raw_output, **kwargs):
     return df_out
 
 
-def warp_signals(x1, x2, return_distance=False):
+def warp_signals(x1,
+                 x2,
+                 return_distance=False
+                 ) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, float]]:  # noqa
     """Warp and align two signals using dynamic time warping.
 
     Parameters
