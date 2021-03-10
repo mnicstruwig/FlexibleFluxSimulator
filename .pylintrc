@@ -2,5 +2,5 @@
 disable=
     invalid-name,
     too-few-public-methods,
-    too-many-local-variables,
+    too-many-locals
     W503
