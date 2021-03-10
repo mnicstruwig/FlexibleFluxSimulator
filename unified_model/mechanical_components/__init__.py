@@ -1,4 +1,4 @@
-from .damper import ConstantDamper
+from .damper import ConstantDamper, QuasiKarnoppDamper
 from .magnet_assembly import MagnetAssembly
 from .magnetic_spring import MagneticSpringInterp, MagnetSpringAnalytic
 from .mechanical_spring import MechanicalSpring
