@@ -79,7 +79,7 @@ class MagnetAssembly:
 
     @staticmethod
     def _calc_volume_cylinder(diameter, length):
-        return np.pi*(diameter/2)**2*length
+        return np.pi * (diameter / 2) ** 2 * length
 
     def _calc_volume_magnet(self):
         return self._calc_volume_cylinder(self.dia_magnet_mm, self.l_m_mm)

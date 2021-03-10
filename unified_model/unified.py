@@ -331,8 +331,9 @@ class UnifiedModel:
             return parse_output_expression(self.time, self.raw_solution, **kwargs)
         except AssertionError:
             warnings.warn('Raw solution is not found. Did you run .solve?')
+            return None
 
-    def get_quick_results(self) -> pd.DataFrame:
+    def get_quick_results(self) -> Union[pd.DataFrame, None]:
         """Get a table of commonly used results.
 
         Return a DataFrame containing the time, relative magnet position,
@@ -346,9 +347,9 @@ class UnifiedModel:
         )
 
     def score_mechanical_model(self,
-                               time_target: np.ndarray,
                                y_target: np.ndarray,
-                               metrics_dict: Dict,
+                               time_target: np.ndarray,
+                               metrics_dict: Dict[str, Callable],
                                prediction_expr: str,
                                warp: bool = False,
                                **kwargs) -> Union[Dict, Tuple[Dict, Any]]:
@@ -456,8 +457,8 @@ class UnifiedModel:
         return mechanical_scores
 
     def score_electrical_model(self,
-                               time_target: np.ndarray,
                                emf_target: np.ndarray,
+                               time_target: np.ndarray,
                                metrics_dict: Dict,
                                prediction_expr: str,
                                warp: bool = False,

@@ -1,12 +1,15 @@
-import numpy as np
-from scipy.interpolate import interp1d, UnivariateSpline
 import warnings
-from unified_model.utils.utils import grad, FastInterpolator
+
+import numpy as np
+from scipy.interpolate import UnivariateSpline, interp1d
 from unified_model.electrical_components.coil import CoilModel
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
+from unified_model.utils.utils import FastInterpolator, grad
 
 
 class FluxModelInterp:
+    """A flux model that uses interpolation."""
+
     def __init__(self,
                  coil_model: CoilModel,
                  magnet_assembly: MagnetAssembly) -> None:
@@ -21,11 +24,14 @@ class FluxModelInterp:
 
         """
         self.c = coil_model.c
-        self.c_c = coil_model.coil_center_mm / 1000  # `flux_inteprolate` requires measurements in SI units.
-        self.l_ccd = coil_model.l_ccd_mm / 1000  # `flux_inteprolate` requires measurements in SI units.
+        # `flux_inteprolate` requires measurements in SI units.
+        self.c_c = coil_model.coil_center_mm / 1000
+        # `flux_inteprolate` requires measurements in SI units.
+        self.l_ccd = coil_model.l_ccd_mm / 1000
 
         self.m = magnet_assembly.m
-        self.l_mcd = magnet_assembly.l_mcd_mm/1000  # `flux_inteprolate` requires measurements in SI units.
+        # `flux_inteprolate` requires measurements in SI units.
+        self.l_mcd = magnet_assembly.l_mcd_mm/1000
 
         self.flux_model = None
         self.dflux_model = None
@@ -59,14 +65,14 @@ class FluxModelInterp:
         moving through a single coil. The superposition flux curve will be
         constructed using this primitive for the case when c > 1 and/or m > 1.
 
-        Also, note that the values of `z_arr` should correspond to the relative position between the
-        *centers* of the magnet and coil.
+        Also, note that the values of `z_arr` should correspond to the relative
+        position between the *centers* of the magnet and coil.
 
         Parameters
         ----------
         z_arr : array-like
-            The z-values of the magnet position's center relative to the coil position center.
-            In metres.
+            The z-values of the magnet position's center relative to the coil
+            position center.  In metres.
         phi_arr : array-like
             The corresponding flux values at `z_arr`.
 
@@ -89,8 +95,8 @@ class FluxModelInterp:
                 # Generate a interpolator for each individual flux curve
                 flux_interp, dflux_interp = interpolate_flux(
                     z_arr,
-                    (-1) ** (i+j) * phi_arr,  # Remembering to alternate the polarity...
-                    coil_center=self.c_c - j * self.l_mcd + i * self.l_ccd  # ... and shift the center (peak)
+                    (-1) ** (i + j) * phi_arr,  # noqa.  Remembering to alternate the polarity...
+                    coil_center=self.c_c - j * self.l_mcd + i * self.l_ccd  # noqa ... and shift the center (peak)
                 )
                 flux_interp_list.append(flux_interp)
                 dflux_interp_list.append(dflux_interp)
@@ -98,11 +104,11 @@ class FluxModelInterp:
         # Scale the z range to compensate for the number of coils and magnets
         # TODO: Add a resolution argument for finer sampling?
         z_arr_width = max(z_arr) - min(z_arr)
-        new_z_start = self.c_c - z_arr_width/2
+        new_z_start = self.c_c - z_arr_width / 2
         new_z_end = (self.c_c
                      + self.c * self.l_ccd
                      + self.m * self.l_mcd
-                     + z_arr_width/2)
+                     + z_arr_width / 2)
 
         new_z_arr = np.linspace(new_z_start,
                                 new_z_end,

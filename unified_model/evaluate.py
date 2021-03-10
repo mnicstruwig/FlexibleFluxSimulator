@@ -169,7 +169,7 @@ class MechanicalSystemEvaluator:
     clipping of the *actual* signal.
     """
 
-    def __init__(self,
+    def __init__(self,  # pylint: disable=too-many-arguments
                  y_target: np.ndarray,
                  time_target: np.ndarray,
                  metrics: Dict[str, Callable],

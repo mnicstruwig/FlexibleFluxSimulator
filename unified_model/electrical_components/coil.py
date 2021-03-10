@@ -1,10 +1,11 @@
 import numpy as np
 
+
 # TODO: Documentation
-class CoilModel:
+class CoilModel:  # pylint: disable=too-many-instance-attributes
     """A coil model."""
 
-    def __init__(self,
+    def __init__(self,  # pylint: disable=too-many-arguments
                  c: int,
                  n_z: int,
                  n_w: int,
