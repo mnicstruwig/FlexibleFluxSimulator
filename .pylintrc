@@ -3,4 +3,5 @@ disable=
     invalid-name,
     too-few-public-methods,
     too-many-locals,
+    too-many-arguments,
     W503

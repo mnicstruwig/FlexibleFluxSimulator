@@ -1,37 +1,44 @@
 import warnings
+from typing import Optional, Tuple
 
 import numpy as np
+from flux_modeller.model import CurveModel
 from scipy.interpolate import UnivariateSpline, interp1d
-from unified_model.electrical_components.coil import CoilModel
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.utils.utils import FastInterpolator, grad
+from unified_model.electrical_components.coil import CoilConfiguration
 
 
 class FluxModelInterp:
     """A flux model that uses interpolation."""
 
     def __init__(self,
-                 coil_model: CoilModel,
-                 magnet_assembly: MagnetAssembly) -> None:
+                 coil_config: CoilConfiguration,
+                 magnet_assembly: MagnetAssembly,
+                 curve_model: Optional[CurveModel] = None) -> None:
         """A flux model that relies on interpolation.
 
         Parameters
         ----------
-        coil_model: CoilModel
+        coil_model: CoilConfiguration
             The coil model to use when creating the interpolated flux model.
         magnet_assembly: MagnetAssembly
-            The magnet assembly model to use when creating the interpolated flux model.
+            The magnet assembly model to use when creating the interpolated flux
+            model.
 
         """
-        self.c = coil_model.c
+        self.coil_config = coil_config
+        self.c = coil_config.c
         # `flux_inteprolate` requires measurements in SI units.
-        self.c_c = coil_model.coil_center_mm / 1000
+        self.c_c = coil_config.coil_center_mm / 1000
         # `flux_inteprolate` requires measurements in SI units.
-        self.l_ccd = coil_model.l_ccd_mm / 1000
+        self.l_ccd = coil_config.l_ccd_mm / 1000
 
         self.m = magnet_assembly.m
         # `flux_inteprolate` requires measurements in SI units.
-        self.l_mcd = magnet_assembly.l_mcd_mm/1000
+        self.l_mcd = magnet_assembly.l_mcd_mm / 1000
+
+        self.curve_model = curve_model
 
         self.flux_model = None
         self.dflux_model = None
@@ -40,19 +47,19 @@ class FluxModelInterp:
 
     def _validate(self):
         """Do some internal validation of the parameters"""
-        if self.l_ccd < 0:
-            raise ValueError('l_ccd must be > 0')
-        if self.l_mcd < 0:
-            raise ValueError('l_mcd must be > 0')
-        if self.c > 1 and self.m > 1:
-            if self.l_ccd != self.l_mcd:
-                warnings.warn('l_ccd != l_mcd, this is unusual.', RuntimeWarning)  # noqa
+        if self.curve_model:
+            assert self.coil_config.n_z is not None
+            assert self.coil_config.n_w is not None
+        else:
+            if self.coil_config.n_z or self.coil_config.n_w:
+                warnings.warn('n_z and n_w are set, but are not required if no `curve_model` is specified.')  # noqa
 
-        if self.l_ccd == 0 and self.c > 1:
-            raise ValueError('l_ccd = 0, but c > 1')
-
-        if self.l_mcd == 0 and self.m > 1:
-            raise ValueError('l_mcd = 0, but m > 1')
+        _validate_coil_params(
+            c=self.c,
+            m=self.m,
+            l_ccd=self.l_ccd,
+            l_mcd=self.l_mcd
+        )
 
     def __repr__(self):
         to_print = ', '.join([f'{k}={v}' for k, v in self.__dict__.items()])
@@ -77,65 +84,92 @@ class FluxModelInterp:
             The corresponding flux values at `z_arr`.
 
         """
-        self.flux_model, self.dflux_model = self._make_superposition_curve(
-            z_arr,
-            phi_arr
-        )
+        self.flux_model, self.dflux_model = _make_superposition_curve(
+            z_arr=z_arr,
+            phi_arr=phi_arr,
+            c=self.c,
+            m=self.m,
+            l_ccd=self.l_ccd,
+            l_mcd=self.l_mcd,
+            c_c=self.c_c)
 
-    def _make_superposition_curve(self, z_arr, phi_arr):
-        """Make the superposition flux curve"""
-
-        if self.c == 1 and self.m == 1:  # Simplest case
-            return interpolate_flux(z_arr, phi_arr, coil_center=self.c_c)
-
-        flux_interp_list = []
-        dflux_interp_list = []
-        for i in range(self.c):  # For each coil
-            for j in range(self.m):  # For each magnet
-                # Generate a interpolator for each individual flux curve
-                flux_interp, dflux_interp = interpolate_flux(
-                    z_arr,
-                    (-1) ** (i + j) * phi_arr,  # noqa.  Remembering to alternate the polarity...
-                    coil_center=self.c_c - j * self.l_mcd + i * self.l_ccd  # noqa ... and shift the center (peak)
-                )
-                flux_interp_list.append(flux_interp)
-                dflux_interp_list.append(dflux_interp)
-
-        # Scale the z range to compensate for the number of coils and magnets
-        # TODO: Add a resolution argument for finer sampling?
-        z_arr_width = max(z_arr) - min(z_arr)
-        new_z_start = self.c_c - z_arr_width / 2
-        new_z_end = (self.c_c
-                     + self.c * self.l_ccd
-                     + self.m * self.l_mcd
-                     + z_arr_width / 2)
-
-        new_z_arr = np.linspace(new_z_start,
-                                new_z_end,
-                                len(z_arr)*(self.c + self.m))
-
-        # Sum across each interpolator to build the superposition flux curve
-        phi_super = []
-        dphi_super = []
-        for z in new_z_arr:
-            phi_separate = [flux_interp.get(z) for flux_interp in flux_interp_list]
-            dphi_separate = [dflux_interp.get(z) for dflux_interp in dflux_interp_list]
-            phi = sum(phi_separate)
-            dphi = sum(dphi_separate)
-            phi_super.append(phi)
-            dphi_super.append(dphi)
-
-        # Now, generate a new interpolator with the superposition curve
-        phi_super_interpolator = FastInterpolator(new_z_arr, phi_super)
-        dphi_super_interpolator = FastInterpolator(new_z_arr, dphi_super)
-
-        return phi_super_interpolator, dphi_super_interpolator
-
-    def flux(self, z):
+    def get_flux(self, z):
+        """Get the flux at relative magnet position `z` (in metres)."""
         return self.flux_model.get(z)
 
-    def dflux(self, z):
+    def get_dflux(self, z):
+        """Get the flux derivative at relative magnet pos `z` (in metres)."""
         return self.dflux_model.get(z)
+
+
+def _make_superposition_curve(z_arr: np.ndarray,
+                              phi_arr: np.ndarray,
+                              c: int,
+                              m: int,
+                              l_ccd: float,
+                              l_mcd: float,
+                              c_c: float,
+                              ) -> Tuple[FastInterpolator, FastInterpolator]:
+    """Make the superposition flux curve."""
+    if c == 1 and m == 1:  # Simplest case
+        return interpolate_flux(z_arr, phi_arr, coil_center=c_c)
+
+    flux_interp_list = []
+    dflux_interp_list = []
+    for i in range(c):  # For each coil
+        for j in range(m):  # For each magnet
+            # Generate a interpolator for each individual flux curve
+            flux_interp, dflux_interp = interpolate_flux(
+                z_arr,
+                (-1) ** (i + j) * phi_arr,  # noqa.  Remembering to alternate the polarity...
+                coil_center = c_c - j *  l_mcd + i *  l_ccd  # noqa ... and shift the center (peak)
+            )
+            flux_interp_list.append(flux_interp)
+            dflux_interp_list.append(dflux_interp)
+
+    # Scale the z range to compensate for the number of coils and magnets
+    # TODO: Add a resolution argument for finer sampling?
+    z_arr_width = max(z_arr) - min(z_arr)
+    new_z_start = c_c - z_arr_width / 2
+    new_z_end = (c_c + c * l_ccd + m * l_mcd + z_arr_width / 2)
+
+    new_z_arr = np.linspace(new_z_start,
+                            new_z_end,
+                            len(z_arr) * (c + m))
+
+    # Sum across each interpolator to build the superposition flux curve
+    phi_super = []
+    dphi_super = []
+    for z in new_z_arr:
+        phi_separate = [flux_interp.get(z) for flux_interp in flux_interp_list]
+        dphi_separate = [dflux_interp.get(z) for dflux_interp in dflux_interp_list]
+        phi = sum(phi_separate)
+        dphi = sum(dphi_separate)
+        phi_super.append(phi)
+        dphi_super.append(dphi)
+
+    # Now, generate a new interpolator with the superposition curve
+    phi_super_interpolator = FastInterpolator(new_z_arr, phi_super)
+    dphi_super_interpolator = FastInterpolator(new_z_arr, dphi_super)
+
+    return phi_super_interpolator, dphi_super_interpolator
+
+
+def _validate_coil_params(c, m, l_ccd, l_mcd):
+    """Validate the coil parameters for correctness."""
+    if l_ccd < 0:
+        raise ValueError('l_ccd must be > 0')
+    if l_mcd < 0:
+        raise ValueError('l_mcd must be > 0')
+    if c > 1 and m > 1:
+        if l_ccd != l_mcd:
+            warnings.warn('l_ccd != l_mcd, this is unusual.', RuntimeWarning)  # noqa
+
+    if l_ccd == 0 and c > 1:
+        raise ValueError('l_ccd = 0, but c > 1')
+
+    if l_mcd == 0 and m > 1:
+        raise ValueError('l_mcd = 0, but m > 1')
 
 
 def _find_min_max_arg_gradient(arr):

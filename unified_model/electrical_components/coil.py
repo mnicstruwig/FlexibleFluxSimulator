@@ -1,14 +1,16 @@
+from typing import Union
+
 import numpy as np
 
 
 # TODO: Documentation
-class CoilModel:  # pylint: disable=too-many-instance-attributes
-    """A coil model."""
+class CoilConfiguration:  # pylint: disable=too-many-instance-attributes
+    """A linear coil model."""
 
     def __init__(self,  # pylint: disable=too-many-arguments
                  c: int,
-                 n_z: int,
-                 n_w: int,
+                 n_z: Union[int, None],
+                 n_w: Union[int, None],
                  l_ccd_mm: float,
                  ohm_per_mm: float,
                  tube_wall_thickness_mm: float,
@@ -24,8 +26,10 @@ class CoilModel:  # pylint: disable=too-many-instance-attributes
             Number of coils.
         n_z : int
             Number of windings, per coil, in the axial (vertical) direction.
+            Set to `None` if a flux model will be defined using measured data.
         n_w : int
             Number of windings, per coil, in the radial (horizontal) direction.
+            Set to `None` if a flux model will be defined using measured data.
         l_ccd_mm : float
             Distance between consecutive coil centers. Has no effect for c == 1.
         ohm_per_mm : float
