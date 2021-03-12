@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from flux_modeller.model import CurveModel
 from unified_model.electrical_components.flux.model import FluxModelInterp
-from unified_model.electrical_components.coil import CoilModel
+from unified_model.electrical_components.coil import CoilConfiguration
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_components.mechanical_spring import MechanicalSpring
 from unified_model.gridsearch import UnifiedModelFactory
@@ -21,7 +21,7 @@ from unified_model.unified import UnifiedModel
 
 def _get_new_flux_curve(
         curve_model: CurveModel,
-        coil_model: CoilModel
+        coil_model: CoilConfiguration
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Get new z and phi values  from coil parameters and a `CurveModel`."""
     n_z = coil_model.n_z
@@ -33,7 +33,7 @@ def _get_new_flux_curve(
 
 
 def get_new_flux_and_dflux_model(curve_model: CurveModel,
-                                 coil_model: CoilModel,
+                                 coil_model: CoilConfiguration,
                                  magnet_assembly: MagnetAssembly) -> Tuple[Any, Any]:
     flux_interp_model = FluxModelInterp(coil_model, magnet_assembly)
 
@@ -47,12 +47,12 @@ def get_new_flux_and_dflux_model(curve_model: CurveModel,
 def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
                           input_excitations: List[Any],
                           curve_model: CurveModel,
-                          coil_model_params: Dict,
+                          coil_config_params: Dict,
                           magnet_assembly_params: Dict,
                           mech_spring_params: Dict) -> List[UnifiedModel]:
     """Update the simulation set with new flux and coil resistance models."""
 
-    coil_model = CoilModel(**coil_model_params)
+    coil_model = CoilConfiguration(**coil_config_params)
     magnet_assembly = MagnetAssembly(**magnet_assembly_params)
     mech_spring_params['magnet_assembly'] = magnet_assembly
     new_mech_spring = MechanicalSpring(**mech_spring_params)
@@ -91,7 +91,7 @@ def calc_p_load_avg(x, r_load):
 
 @ray.remote
 def _calc_constant_velocity_rms(curve_model: CurveModel,
-                                coil_model: CoilModel,
+                                coil_model: CoilConfiguration,
                                 magnet_assembly: MagnetAssembly) -> float:
     """Calculate the open-circuit RMS for a simple emf curve."""
     flux_interp_model = FluxModelInterp(coil_model, magnet_assembly)

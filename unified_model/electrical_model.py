@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 
 from unified_model.utils.utils import pretty_str
-from unified_model.electrical_components.coil import CoilModel
+from unified_model.electrical_components.coil import CoilConfiguration
 from unified_model.local_exceptions import ModelError
 
 
@@ -31,7 +31,7 @@ class ElectricalModel:
         """Constructor."""
         self.flux_model = None
         self.dflux_model = None
-        self.coil_model = None
+        self.coil_config = None
         self.rectification_drop = None
         self.load_model = None
 
@@ -47,20 +47,20 @@ class ElectricalModel:
         try:
             assert self.flux_model is not None
             assert self.dflux_model is not None
-        except AssertionError:
-            raise ModelError('A flux model and dflux model must be specified.')
+        except AssertionError as e:
+            raise ModelError('A flux model and dflux model must be specified.') from e  # noqa
         try:
-            assert self.coil_model is not None
-        except AssertionError:
-            raise ModelError('A coil model must be specified.')
+            assert self.coil_config is not None
+        except AssertionError as e:
+            raise ModelError('A coil model must be specified.') from e
         try:
             assert self.rectification_drop is not None
         except AssertionError:
             warnings.warn('Rectification drop not specified. Assuming no loss due to rectification.')  # noqa
         try:
             assert self.load_model is not None
-        except AssertionError:
-            raise ModelError('A load model must be specified.')
+        except AssertionError as e:
+            raise ModelError('A load model must be specified.') from e
 
     def set_flux_model(self, flux_model, dflux_model):
         """Assign a flux model.
@@ -80,9 +80,10 @@ class ElectricalModel:
         self.dflux_model = dflux_model
         return self
 
-    def set_coil_model(self, coil_model: CoilModel) -> ElectricalModel:
+    def set_coil_configuration(self, coil_config: CoilConfiguration
+                               ) -> ElectricalModel:
         """Set the coil model"""
-        self.coil_model = coil_model
+        self.coil_config = coil_config
         return self
 
     def set_rectification_drop(self, v: float) -> ElectricalModel:
@@ -105,7 +106,7 @@ class ElectricalModel:
     def get_load_voltage(self, mag_pos, mag_vel):
         emf = self.get_emf(mag_pos, mag_vel)
         v_load = emf * self.load_model.R / (self.load_model.R
-                                          + self.coil_model.coil_resistance)
+                                            + self.coil_config.coil_resistance)
 
         return v_load
 
@@ -163,6 +164,6 @@ class ElectricalModel:
             return 0
 
         r_load = self.load_model.R
-        r_coil = self.coil_model.coil_resistance
+        r_coil = self.coil_config.coil_resistance
         # V = I/R -> I = V/R
         return emf_oc / (r_load + r_coil)

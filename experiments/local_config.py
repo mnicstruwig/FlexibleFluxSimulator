@@ -12,7 +12,7 @@ from unified_model.electrical_components.flux.utils import FluxDatabase
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
 from unified_model.electrical_components.flux.model import FluxModelInterp
-from unified_model.electrical_components.coil import CoilModel
+from unified_model.electrical_components.coil import CoilConfiguration
 
 base_dir = os.getcwd()
 
@@ -56,9 +56,9 @@ abc_flux_database = FluxDatabase(csv_database_path='../flux_modeller/data/fea-fl
 
 abc_flux_models = {}
 abc_dflux_models = {}
-abc_coil_models = {}
+abc_coil_configs = {}
 for device in ['A', 'B', 'C']:
-    coil_model = CoilModel(
+    coil_config = CoilConfiguration(
         c=1,
         n_z=int(abc_winding_num_z[device]),
         n_w=int(abc_winding_num_r[device]),
@@ -67,13 +67,13 @@ for device in ['A', 'B', 'C']:
         tube_wall_thickness_mm=2,
         coil_wire_radius_mm=0.143/2,
         coil_center_mm=abc_coil_center[device],
-        outer_tube_radius_mm=5.5,
+        inner_tube_radius_mm=5.5,
         coil_resistance=abc_coil_resistance[device]
     )
     flux_model, dflux_model = abc_flux_database.query_to_model(
         FluxModelInterp,
         {
-            'coil_model': coil_model,
+            'coil_config': coil_config,
             'magnet_assembly': abc_magnet_assembly
         },
         coil_height=abc_coil_height[device],
@@ -83,7 +83,7 @@ for device in ['A', 'B', 'C']:
 
     abc_flux_models[device] = flux_model
     abc_dflux_models[device] = dflux_model
-    abc_coil_models[device] = coil_model
+    abc_coil_configs[device] = coil_config
 
 
 config_parameters = ['coil_center',
@@ -100,7 +100,7 @@ config_parameters = ['coil_center',
 @dataclass
 class Config:
     """A configuration class"""
-    coil_models: Dict
+    coil_configs: Dict
     winding_num_z: Dict
     winding_num_r: Dict
     coil_height: Dict
@@ -111,7 +111,7 @@ class Config:
     magnet_assembly: Any
 
 
-ABC_CONFIG = Config(coil_models=abc_coil_models,
+ABC_CONFIG = Config(coil_configs=abc_coil_configs,
                     winding_num_z=abc_winding_num_z,
                     winding_num_r=abc_winding_num_r,
                     coil_height=abc_coil_height,

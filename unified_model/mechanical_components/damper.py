@@ -3,6 +3,8 @@ import numpy as np
 from unified_model.utils.utils import pretty_str
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 
+def _sigmoid(x, x0=0):
+    return 1 / (1 + np.exp(-(5*x - x0)))
 
 class QuasiKarnoppDamper:
     """A damper that is based on a modified Karnopp friction model."""
@@ -21,15 +23,11 @@ class QuasiKarnoppDamper:
         self.r_t = tube_inner_radius_mm
         self.angle_friction_factor = 2 * self.r_t / self.magnet_assembly_length
 
-    def get_force(self, velocity, velocity_threshold=0.001):
+    def get_force(self, velocity, velocity_threshold=0.01):
         """Get the force exerted by the damper."""
         coulomb_contribution = self.cdc * velocity * self.magnet_assembly_mass
-
-        if np.abs(velocity) < velocity_threshold:
-            return coulomb_contribution
-
-        motional_contribution = self.mdc * self.angle_friction_factor * np.sign(velocity)  # noqa
-        return coulomb_contribution + motional_contribution
+        shape_contribution = self.mdc * self.angle_friction_factor * _sigmoid(velocity, velocity_threshold)
+        return coulomb_contribution + shape_contribution
 
 
 class ConstantDamper:

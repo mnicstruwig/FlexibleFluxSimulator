@@ -58,12 +58,11 @@ class CoilConfiguration:  # pylint: disable=too-many-instance-attributes
         self.coil_center_mm = coil_center_mm
         self.inner_tube_radius_mm = inner_tube_radius_mm
 
-        self._validate()
-
         if not coil_resistance:
             self.coil_resistance = self._calculate_coil_resistance()
         else:  # Override
             self.coil_resistance = coil_resistance
+        self._validate()
 
     def __repr__(self):
         to_print = ', '.join([f'{k}={v}' for k, v in self.__dict__.items()])
@@ -77,17 +76,24 @@ class CoilConfiguration:  # pylint: disable=too-many-instance-attributes
         if self.l_ccd_mm == 0 and self.c > 1:
             raise ValueError('l_ccd_mm = 0, but c > 1')
 
+        if not self.coil_resistance:
+            try:
+                assert self.n_z is not None
+                assert self.n_w is not None
+            except AssertionError as e:
+                raise ValueError('`coil_resistance` must be specified if `n_z` and `n_w` are `None`') from e # noqa
+
     def _calculate_coil_resistance(self) -> float:
         return (
             2 * np.pi
             * self.ohm_per_mm
-            * self.n_w * self.n_z
+            * self.n_w * self.n_z  # type: ignore
             * (
                 self.tube_wall_thickness_mm
                 + self.inner_tube_radius_mm
                 + self.coil_wire_radius_mm
-                + 2 * self.coil_wire_radius_mm * (self.n_w + 1) / 2
+                + 2 * self.coil_wire_radius_mm
+                * (self.n_w + 1) / 2  # type: ignore
             )
             * self.c
         )
-
