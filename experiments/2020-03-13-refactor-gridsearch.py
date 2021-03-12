@@ -1,3 +1,7 @@
+from itertools import product
+from dataclasses import dataclass
+from copy import copy
+
 from typing import List, Any, Dict, Callable
 import numpy as np
 from scipy.signal import savgol_filter
@@ -11,11 +15,28 @@ from unified_model import metrics
 from unified_model import gridsearch
 
 from unified_model.utils.utils import collect_samples
-from local_config import ABC_CONFIG
+from .local_config import ABC_CONFIG
 
+class QuasiKarnoppDamperFactory:
+    """A factory that returns `QuasiKarnopDamper` objects."""
+    def __init__(self, b_m1_list, b_m2_list, magnet_assembly, tube_inner_radius_mm):
+        self.b_m1_list = b_m1_list
+        self.b_m2_list = b_m2_list
+        self.magnet_assembly = copy(magnet_assembly)
+        self.tube_inner_radius_mm = tube_inner_radius_mm
+
+        self.param_tuples = product(self.b_m1_list, self.b_m2_list)
+
+
+    def make(self):
+        return [mechanical_components.damper.QuasiKarnoppDamper(b_m1,
+                                                                b_m2,
+                                                                self.magnet_assembly,
+                                                                self.tube_inner_radius_mm)
+                for b_m1, b_m2 in self.param_tuples]
 
 class ConstantDamperFactory:
-    """A factory that returns ConstantDamper objects."""
+    """A factory that returns `ConstantDamper` objects."""
     def __init__(self, c_list):
         self.c_list = c_list
 
@@ -25,15 +46,16 @@ class ConstantDamperFactory:
 
 
 class MechanicalSpringFactory:
-    def __init__(self, position, magnet_length, damping_coefficient_list):
+    def __init__(self, magnet_assembly, position, damping_coefficient_list):
         self.position = position
-        self.magnet_length = magnet_length
+        self.magnet_assembly = copy(magnet_assembly)
         self.damping_coefficient_list = damping_coefficient_list
 
     def make(self):
-        return [mechanical_components.MechanicalSpring(self.position,
-                                                       magnet_length=self.magnet_length,  # noqa
+        return [mechanical_components.MechanicalSpring(self.magnet_assembly,
+                                                       self.position,
                                                        damping_coefficient=dc)
+
                 for dc
                 in self.damping_coefficient_list]
 
@@ -76,18 +98,39 @@ class AccelerometerInputsFactory:
             accelerometer_inputs.append(acc_input)
         return np.array(accelerometer_inputs)
 
+@dataclass
+class MechanicalGroundtruth:
+    y_diff: Any
+    time: Any
+
+@dataclass
+class ElectricalGroundtruth:
+    emf: Any
+    time: Any
+
+@dataclass
+class Groundtruth:
+    mech: MechanicalGroundtruth
+    elec: ElectricalGroundtruth
+
+samples_list = collect_samples(base_path='../data/2021-03-05/',
+                               acc_pattern='D/*acc*.csv',
+                               adc_pattern='D/*adc*.csv',
+                               video_label_pattern='D/*labels*.csv')
 
 class GroundTruthFactory:
-    def __init__(self, samples_list, lvp_kwargs, adc_kwargs):
+    def __init__(self,
+                 samples_list,
+                 lvp_kwargs,
+                 adc_kwargs):
+        """Helper Factory to get groundtruth data in a batch."""
+
         self.samples_list = samples_list
         self.lvp_kwargs = lvp_kwargs
         self.adc_kwargs = adc_kwargs
 
         self.lvp = evaluate.LabeledVideoProcessor(**lvp_kwargs)
         self.adc = evaluate.AdcProcessor(**adc_kwargs)
-        self.MechGroundtruth = gridsearch.MechanicalGroundtruth
-        self.ElecGroundtruth = gridsearch.ElectricalGroundtruth
-        self.Groundtruth = gridsearch.Groundtruth
 
     def _make_mechanical_groundtruth(self, sample):
         y_target, y_time_target = self.lvp.fit_transform(
@@ -96,23 +139,26 @@ class GroundTruthFactory:
         )
         y_target = savgol_filter(y_target, 9, 3)
 
-        return self.MechGroundtruth(y_target,
-                                    y_time_target)
+        return MechanicalGroundtruth(y_target,
+                                     y_time_target)
 
     def _make_electrical_groundtruth(self, sample):
         emf_target, emf_time_target = self.adc.fit_transform(sample.adc_df)
-        return self.ElecGroundtruth(emf_target,
-                                    emf_time_target)
+        return ElectricalGroundtruth(emf_target,
+                                     emf_time_target)
 
     def make(self):
         groundtruths = []
         for sample in self.samples_list:
-            mech_groundtruth = self._make_mechanical_groundtruth(sample)
-            elec_groundtruth = self._make_electrical_groundtruth(sample)
+            try:
+                mech_groundtruth = self._make_mechanical_groundtruth(sample)
+                elec_groundtruth = self._make_electrical_groundtruth(sample)
 
-            groundtruths.append(
-                self.Groundtruth(mech_groundtruth, elec_groundtruth)
-            )
+                groundtruths.append(
+                    Groundtruth(mech_groundtruth, elec_groundtruth)
+                )
+            except AttributeError:
+                pass
 
         return groundtruths
 
