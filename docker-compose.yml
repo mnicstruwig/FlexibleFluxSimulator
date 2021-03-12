@@ -1,7 +1,10 @@
 version: "3.7"
 services:
-  simulation:
-    build: .
+  unified_model_runner:
+    build:
+      context: .
+      args:
+        - SCRIPT
     volumes:
       - /root/output:/output
     shm_size: 8g

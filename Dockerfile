@@ -1,4 +1,5 @@
 FROM python:3.8
+ARG SCRIPT
 
 # set the working dir in the container
 WORKDIR /src
@@ -18,4 +19,4 @@ RUN pip install .
 COPY script.py .
 
 # -u flag flushes buffers so print statements showup
-CMD ["python", "-u", "./script.py"]  
+CMD ["python", "-u", ${SCRIPT}]
