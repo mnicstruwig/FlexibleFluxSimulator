@@ -15,11 +15,15 @@ from unified_model import metrics
 from unified_model import gridsearch
 
 from unified_model.utils.utils import collect_samples
-from .local_config import ABC_CONFIG
+from local_config import ABC_CONFIG
 
 class QuasiKarnoppDamperFactory:
     """A factory that returns `QuasiKarnopDamper` objects."""
-    def __init__(self, b_m1_list, b_m2_list, magnet_assembly, tube_inner_radius_mm):
+    def __init__(self,
+                 b_m1_list,
+                 b_m2_list,
+                 magnet_assembly,
+                 tube_inner_radius_mm):
         self.b_m1_list = b_m1_list
         self.b_m2_list = b_m2_list
         self.magnet_assembly = copy(magnet_assembly)
@@ -113,11 +117,6 @@ class Groundtruth:
     mech: MechanicalGroundtruth
     elec: ElectricalGroundtruth
 
-samples_list = collect_samples(base_path='../data/2021-03-05/',
-                               acc_pattern='D/*acc*.csv',
-                               adc_pattern='D/*adc*.csv',
-                               video_label_pattern='D/*labels*.csv')
-
 class GroundTruthFactory:
     def __init__(self,
                  samples_list,
@@ -179,17 +178,19 @@ samples['C'] = collect_samples(base_path=BASE_GROUNDTRUTH_PATH,
                                adc_pattern='C/*adc*.csv',
                                video_label_pattern='C/*labels*.csv')
 
-which_device = 'C'
+which_device = 'A'
 which_input = np.array(range(len(samples[which_device])))  # type:ignore
+which_input = [0]
 
+magnet_assembly = ABC_CONFIG.magnet_assembly
 
 # Groundtruth
-groundtruth_factory = GroundTruthFactory(samples_list=samples[which_device],  # noqa <-- take the first five groundtruth samples
-                                         lvp_kwargs=dict(mm=10,
-                                                         seconds_per_frame=1/60,
+groundtruth_factory = GroundTruthFactory(samples_list=samples[which_device],  # noqa
+                                         lvp_kwargs=dict(magnet_assembly=magnet_assembly,
+                                                         seconds_per_frame=1 / 60,  # noqa
                                                          pixel_scale=0.154508),
-                                         adc_kwargs=dict(voltage_division_ratio=1 / 0.342)  # noqa
-)
+                                         adc_kwargs=dict(voltage_division_ratio=1 / 0.342))  # noqa
+
 
 # TODO: Consider changing the factory to make it more user-friendly
 groundtruth = groundtruth_factory.make()
@@ -204,24 +205,28 @@ input_excitation_factories = {device: AccelerometerInputsFactory(samples[device]
                               for device in ['A', 'B', 'C']}
 magnetic_spring = mechanical_components.MagneticSpringInterp(
     fea_data_file='../data/magnetic-spring/10x10alt.csv',
-    magnet_length=10/1000,
+    magnet_length=10 / 1000,
     filter_callable=lambda x: savgol_filter(x, 27, 5)
 )
-magnet_assembly = ABC_CONFIG.magnet_assembly
 
 mech_components = {
     'magnetic_spring': [magnetic_spring],
     'magnet_assembly': [magnet_assembly],
-    'damper': ConstantDamperFactory(np.linspace(0.5, 15, 15)).make(),
-    'mechanical_spring':  MechanicalSpringFactory(110/1000,
-                                                  10/1000,
-                                                  np.linspace(0, 10, 10)).make()
+    'damper': QuasiKarnoppDamperFactory(
+        b_m1_list=np.linspace(0, 0.5, 10),
+        b_m2_list=np.linspace(-0.2, 0.2, 10),
+        magnet_assembly=magnet_assembly,
+        tube_inner_radius_mm=5.5).make(),
+    'mechanical_spring': MechanicalSpringFactory(
+        magnet_assembly=magnet_assembly,
+        position=110 / 1000,
+        damping_coefficient_list=np.linspace(0, 10, 10)).make()
 }
 
 elec_components = {
     'rectification_drop': [0.1],
     'load_model': [electrical_components.SimpleLoad(R=30)],
-    'coil_model': [ABC_CONFIG.coil_models[which_device]],
+    'coil_configuration': [ABC_CONFIG.coil_configs[which_device]],
     'flux_model': [ABC_CONFIG.flux_models[which_device]],
     'dflux_model': [ABC_CONFIG.dflux_models[which_device]],
 
@@ -268,10 +273,11 @@ calc_metrics = None
 
 # Parameters we want to track
 parameters_to_track = [
-    'damper.damping_coefficient',
+    'damper.cdc',
+    'damper.mdc',
     'coupling_model.coupling_constant',
     'mechanical_spring.damping_coefficient',
-    'coil_model.coil_resistance',
+    'coil_config.coil_resistance',
     'load_model.R'
 ]
 
@@ -285,7 +291,7 @@ grid_executor = gridsearch.GridsearchBatchExecutor(abstract_model_factory,
                                                    parameters_to_track=parameters_to_track)  # noqa
 
 grid_executor.preview()
-#grid_executor.run(f'./{which_device}.parquet', batch_size=24)  # Execute
+grid_executor.run(f'./{which_device}_single_input.parquet', batch_size=24)  # Execute
 
 # DEBUG
 # import pyarrow.parquet as pq

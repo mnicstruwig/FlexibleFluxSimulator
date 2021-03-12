@@ -162,7 +162,7 @@ class UnifiedModelFactory:
                  magnet_assembly: Any,
                  magnetic_spring: Any,
                  mechanical_spring: Any,
-                 coil_model: Any,
+                 coil_configuration: Any,
                  rectification_drop: float,
                  load_model: Any,
                  flux_model: Any,
@@ -175,7 +175,7 @@ class UnifiedModelFactory:
         self.magnet_assembly = magnet_assembly
         self.magnetic_spring = magnetic_spring
         self.mechanical_spring = mechanical_spring
-        self.coil_model = coil_model
+        self.coil_config = coil_configuration
         self.rectification_drop = rectification_drop
         self.load_model = load_model
         self.flux_model = flux_model
@@ -224,7 +224,7 @@ class UnifiedModelFactory:
         electrical_model = (
             ElectricalModel()
             .set_rectification_drop(self.rectification_drop)
-            .set_coil_model(self.coil_model)
+            .set_coil_configuration(self.coil_config)
             .set_load_model(self.load_model)
             .set_flux_model(self.flux_model, self.dflux_model)
         )
@@ -309,9 +309,13 @@ def _get_params_of_interest(param_dict: Dict[Any, Any],
         raise TypeError('params_of_interest is not a list')
 
     result: Dict[str, Any] = {}
-    for param in params_of_interest:
-        result[param] = _get_nested_param(param_dict, param)
-    return result
+    try:
+        for param in params_of_interest:
+            result[param] = _get_nested_param(param_dict, param)
+        return result
+    except KeyError as e:
+        raise KeyError(f'Attempted to lookup parameter {param} that could not be found!') from e
+
 
 
 def _scores_to_dataframe(grid_scores: List[Dict[str, Any]],
