@@ -1,5 +1,4 @@
 FROM python:3.8
-ARG SCRIPT
 
 # set the working dir in the container
 WORKDIR /src
@@ -16,7 +15,7 @@ COPY unified_model unified_model
 COPY setup.py .
 RUN pip install .
 
-COPY script.py .
+COPY *.py ./
 
 # -u flag flushes buffers so print statements showup
-CMD ["python", "-u", ${SCRIPT}]
+ENTRYPOINT ["python", "-u"]

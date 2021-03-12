@@ -1,6 +1,6 @@
 version: "3.7"
 services:
-  unified_model_runner:
+  runner:
     build:
       context: .
       args:
