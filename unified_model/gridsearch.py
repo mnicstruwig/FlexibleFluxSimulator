@@ -564,13 +564,19 @@ class GridsearchBatchExecutor:
         An abstract factory that produces unified model factories. One
         simulation will be run for each of the factories produces by
         abstract_unified_model_factory.
+    input_excitations: List[AccelerometerInput]
+        List of instantiated AccelerometerInput objects that will be used as
+        excitation.  Each set of model parameters will be simulated using each
+        input excitation.
     curve_expressions : Dict[str, str]
         The curves to capture from the simulated unified model. Keys are a
         prediction expression, and values are the name given to the curve.
-    score_metrics : Dict[str, Any]
+    score_metrics : Dict[str, List[Any]]
         Metrics used to score the unified model's predictions. Keys are the
-        prediction expressions to be evaluated. Values are the instantiated
-        Evaluator objects that will score the prediction expression at its key.
+        prediction expressions to be evaluated. Values are a list of
+        instantiated Evaluator objects that will score the prediction expression
+        at its key. These Evaluator objects will be matched with corresponding
+        inputs passed to `input_excitations`
     calc_metrics : Dict[str, Callable]
         Additional metrics to be calculated. Keys are the prediction
         expressions to be evaluated. Values are Callables that will calculate
@@ -584,7 +590,7 @@ class GridsearchBatchExecutor:
     """
     def __init__(self,
                  abstract_unified_model_factory: AbstractUnifiedModelFactory,
-                 input_excitations: List[AccelerometerInput],  # TODO: Docstring
+                 input_excitations: List[AccelerometerInput],
                  curve_expressions: Dict[str, str] = None,
                  score_metrics: Dict[str, List[Any]] = None,
                  calc_metrics: Dict[str, Callable] = None,
@@ -633,13 +639,15 @@ class GridsearchBatchExecutor:
         for input_number, input_ in enumerate(self.input_excitations):
             # Build score metric that needs to be calculated for the input
             # excitation. Remember: each groundtruth evaluator is directly
-            # linked to only one input!
-            linked_score_metric = None
+            # linked to only one input excitation!
+            score_metric_dict_for_current_input = None
             if self.score_metrics:
-                # Fetch the evaluator with the correct groundtruth data
-                linked_score_metric = {k: evaluators[input_number]
-                                       for k, evaluators
-                                       in self.score_metrics.items()}
+                # Fetch the evaluator corresponding to the current input
+                # excitation
+                score_metric_dict_for_current_input = {
+                    k: evaluators[input_number]
+                    for k, evaluators in self.score_metrics.items()
+                }
 
             total_completed = 0
             for model_factory_batch in _chunk(model_factories, batch_size):
@@ -664,7 +672,7 @@ class GridsearchBatchExecutor:
                     task_id = run_cell.remote(model_factory,
                                               input_excitation=input_,
                                               curve_expressions=self.curve_expressions,  # noqa
-                                              score_metrics=linked_score_metric,
+                                              score_metrics=score_metric_dict_for_current_input,  # noqa
                                               calc_metrics=self.calc_metrics)
 
                     task_queue.append(task_id)
@@ -672,8 +680,8 @@ class GridsearchBatchExecutor:
                 ready: List[Any] = []
                 while len(ready) < len(task_queue):
                     ready, _ = ray.wait(task_queue,
-                                                num_returns=len(task_queue),
-                                                timeout=2.)
+                                        num_returns=len(task_queue),
+                                        timeout=2.)
                     # Log output
                     log_base = 'Progress: '
                     input_log = f':: Input: {input_number+1}/{len(self.input_excitations)} '  # noqa
