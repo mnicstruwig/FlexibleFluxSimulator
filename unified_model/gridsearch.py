@@ -317,7 +317,6 @@ def _get_params_of_interest(param_dict: Dict[Any, Any],
         raise KeyError(f'Attempted to lookup parameter {param} that could not be found!') from e
 
 
-
 def _scores_to_dataframe(grid_scores: List[Dict[str, Any]],
                          model_ids: List[int]) -> pd.DataFrame:  # TODO: Docstring
     """Parse scores from a grid search into a pandas dataframe.
@@ -537,19 +536,14 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
         df_result = model.get_result(**swapped)
         curves = df_result.to_dict(orient='list')  # type: ignore
 
-    if score_metrics:  # Use the expressions, stored in the keys to get the results from the unified model
-        expression_kwargs = {}
-        for i, expression in enumerate(score_metrics.keys()):
-            # For easier calculation we index to them to their order
-            expression_kwargs[str(i)] = expression
-        df_result = model.get_result(time='t', **expression_kwargs)
-
-        # Let's calculate the score metrics
+    if score_metrics:
         metric_scores = {}
-        for i, (_, evaluator) in enumerate(score_metrics.items()):
-            evaluator.fit(df_result[str(i)].values, df_result['time'].values)
-            score: Dict[str, Any] = evaluator.score()
-            metric_scores.update(score)  # Score and update the table
+        for i, (expression, evaluator) in enumerate(score_metrics.items()):
+            df_result = model.get_result(time='t', target_value=expression)
+            evaluator.fit(df_result['target_value'].values,
+                          df_result['time'].values)
+            score = evaluator.score()
+            metric_scores.update(score)
 
     if calc_metrics:  # TODO: Convert this to helper function (DRY)
         metric_calcs = {}
