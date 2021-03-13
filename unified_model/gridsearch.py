@@ -319,403 +319,396 @@ def _get_params_of_interest(param_dict: Dict[Any, Any],
 
 def _scores_to_dataframe(grid_scores: List[Dict[str, Any]],
                          model_ids: List[int]) -> pd.DataFrame:  # TODO: Docstring
-    """Parse scores from a grid search into a pandas dataframe.
+        """Parse scores from a grid search into a pandas dataframe.
 
-    Parameters
-    ----------
-    grid_scores : List[Dict[str, Any]]
-        The grid scores, which are a list of `score_dict`s where the keys
-        indicate the score name, and the values are the calculated score.
+        Parameters
+        ----------
+        grid_scores : List[Dict[str, Any]]
+            The grid scores, which are a list of `score_dict`s where the keys
+            indicate the score name, and the values are the calculated score.
 
-    Returns
-    -------
-    pandas dataframe
-        Pandas dataframe containing the scores.
+        Returns
+        -------
+        pandas dataframe
+            Pandas dataframe containing the scores.
 
-    """
-    if len(grid_scores[0]) == 0:
-        return None
+        """
+        if len(grid_scores[0]) == 0:
+            return None
 
-    result = defaultdict(list)
-    for i, score_dict in enumerate(grid_scores):
-        for key, val in score_dict.items():
-            result[key].append(val)
+        result = defaultdict(list)
+        for i, score_dict in enumerate(grid_scores):
+            for key, val in score_dict.items():
+                result[key].append(val)
 
-        result['grid_cell_id'].append(i)
-        result['model_id'].append(model_ids[i])
-    return pd.DataFrame(result)  # type: ignore
-
-
-def _calc_metrics_to_dataframe(
-        grid_calcs: List[Dict[str, Any]],
-        model_ids: List[int]  # TODO: Docstring
-) -> pd.DataFrame:
-    """Parse calculated metrics from a grid search into a pandas dataframe.
-
-    Parameters
-    ----------
-    grid_scores : List[Dict[str, Any]]
-        The grid's calculated metrics, which are a list of dicts, where the key
-        is the name of the calculated metric and the values are the calculated
-        metric.
-
-    Returns
-    -------
-    pandas dataframe
-        Pandas dataframe containing the calculated metrics.
-
-    """
-    if len(grid_calcs[0]) == 0:
-        return None
-    result = defaultdict(list)
-    for i, calc_dict in enumerate(grid_calcs):
-        for key, val in calc_dict.items():
-            result[key].append(val)
-
-        result['grid_cell_id'].append(i)
-        result['model_id'].append(model_ids[i])
-    return pd.DataFrame(result)
+            result['model_id'].append(model_ids[i])
+        return pd.DataFrame(result)  # type: ignore
 
 
-def _curves_to_dataframe(grid_curves: List[Dict[str, Any]],
-                         sample_rate: int,
-                         model_ids: List[int]) -> pd.DataFrame:
-    """Parse the curve waveforms from a grid search into a pandas dataframe.
+    def _calc_metrics_to_dataframe(
+            grid_calcs: List[Dict[str, Any]],
+            model_ids: List[int]  # TODO: Docstring
+    ) -> pd.DataFrame:
+        """Parse calculated metrics from a grid search into a pandas dataframe.
 
-    Parameters
-    ----------
-    grid_curves : List[Dict[str, Any]]
-        The grid curves, which are a list of Dicts where the keys indicate
-        the waveform, and the values are a List that holds the values.
-    sample_rate : int
-        The rate at which to *subsample* the curves, in order to save space.
+        Parameters
+        ----------
+        grid_scores : List[Dict[str, Any]]
+            The grid's calculated metrics, which are a list of dicts, where the key
+            is the name of the calculated metric and the values are the calculated
+            metric.
 
-    Returns
-    -------
-    pandas dataframe
-        A pandas dataframe containing the curves.
+        Returns
+        -------
+        pandas dataframe
+            Pandas dataframe containing the calculated metrics.
 
-    """
-    if len(grid_curves[0]) == 0:
-        return None
+        """
+        if len(grid_calcs[0]) == 0:
+            return None
+        result = defaultdict(list)
+        for i, calc_dict in enumerate(grid_calcs):
+            for key, val in calc_dict.items():
+                result[key].append(val)
 
-    result: Dict = defaultdict(lambda: np.empty(0))
-
-    for i, curve_dict in enumerate(grid_curves):
-        for key, values in curve_dict.items():
-            subsampled_values = values[::sample_rate]
-            result[key] = np.concatenate([result[key], subsampled_values])
-            values_length = len(subsampled_values)
-
-        grid_cell_id = np.full(values_length, i, dtype=int)
-        model_id = np.full(values_length, model_ids[i], dtype=int)
-
-        result['grid_cell_id'] = np.concatenate([result['grid_cell_id'],
-                                                 grid_cell_id])
-        result['model_id'] = np.concatenate([result['model_id'], model_id])
-
-    df = pd.DataFrame(result)
-    df['model_id'] = df['model_id'].astype('int')  # Force `model_id` to be int
-    return df
+            result['model_id'].append(model_ids[i])
+        return pd.DataFrame(result)
 
 
-def _param_dict_list_to_dataframe(param_dict_list: List[Dict],
-                                  model_ids: List[int],
-                                  input_excitations: List[int]) -> pd.DataFrame:
-    """Parse the parameter list into a pandas dataframe.
+    def _curves_to_dataframe(grid_curves: List[Dict[str, Any]],
+                            sample_rate: int,
+                            model_ids: List[int]) -> pd.DataFrame:
+        """Parse the curve waveforms from a grid search into a pandas dataframe.
 
-    Useful for parsing a list of parameter values into a dataframe for later
-    analysis.
+        Parameters
+        ----------
+        grid_curves : List[Dict[str, Any]]
+            The grid curves, which are a list of Dicts where the keys indicate
+            the waveform, and the values are a List that holds the values.
+        sample_rate : int
+            The rate at which to *subsample* the curves, in order to save space.
 
-    Parameters
-    ----------
-    param_dict_list : List[Dict]
-        List of dictionaries whose keys are the name of the parameter to track
-        and whose values is the value of the parameter.
+        Returns
+        -------
+        pandas dataframe
+            A pandas dataframe containing the curves.
 
-    Returns
-    -------
-    pandas dataframe
-        A pandas dataframe containing the parameter values.
+        """
+        if len(grid_curves[0]) == 0:
+            return None
 
-    """
-    if len(param_dict_list[0]) == 0:
-        return None
+        result: Dict = defaultdict(lambda: np.empty(0))
 
-    result = defaultdict(list)
-    for i, param_dict in enumerate(param_dict_list):
-        for key, value in param_dict.items():
-            result[key].append(value)
+        for i, curve_dict in enumerate(grid_curves):
+            for key, values in curve_dict.items():
+                subsampled_values = values[::sample_rate]
+                result[key] = np.concatenate([result[key], subsampled_values])
+                values_length = len(subsampled_values)
 
-        result['grid_cell_id'].append(i)
-        result['model_id'].append(model_ids[i])
-        # TODO: A bit of a hack. Find another place to append the input excitations.
-        result['input_excitation'].append(input_excitations[i])
+            model_id = np.full(values_length, model_ids[i], dtype=int)
+            result['model_id'] = np.concatenate([result['model_id'], model_id])
 
-    return pd.DataFrame(result)
-
-
-def _chunk(array_like: Union[List, np.ndarray],
-           chunk_size: int) -> Generator:
-    """Chunk up an array-like yielded chunks."""
-    total_size = len(array_like)
-    indexes = list(range(0, total_size, chunk_size))
-
-    # Make sure we get the final _chunk:
-    if indexes[-1] < total_size:
-        indexes.append(total_size)
-
-    for start, stop in zip(indexes, indexes[1:]):
-        yield array_like[start:stop]
+        df = pd.DataFrame(result)
+        df['model_id'] = df['model_id'].astype('int')  # Force `model_id` to be int
+        return df
 
 
-@ray.remote
-def run_cell(unified_model_factory: UnifiedModelFactory,
-             input_excitation: AccelerometerInput,
-             curve_expressions: Dict[str, str] = None,
-             score_metrics: Dict[str, Any] = None,
-             calc_metrics: Dict[str, Callable] = None) -> Tuple[Dict, Dict, Dict]:  # noqa
-    """Execute a single cell of a grid search.
+    def _param_dict_list_to_dataframe(param_dict_list: List[Dict],
+                                    model_ids: List[int],
+                                    input_excitations: List[int]) -> pd.DataFrame:
+        """Parse the parameter list into a pandas dataframe.
 
-    This is designed to be executed in parallel using Ray.
+        Useful for parsing a list of parameter values into a dataframe for later
+        analysis.
 
-    Parameters
-    ----------
-    unified_model_factory : UnifiedModelFactory
-        The unified model factory that is used to make the unified model that
-        will be simulated.
-    curve_expressions : Dict[str, str]
-        The expressions of the curves to return of the unified model after
-        simulation. Each key is the string prediction expression. Each value is
-        the name given to the curve.
-    score_metrics : Dict[str, Any]
-        The metrics used to score the unified model. Keys are the expression to
-        use as the predicted values. Items are instantiated Evaluators that
-        will be used to score the expression.
-    calc_metrics : Dict[str, Dict[str, Callable]]
-       The metrics calculated on the results of the unified model. Keys are the
-       prediction expression of the result to be calculated, and the value is a
-       Dict whose key is the name given to the metric, and whose value is a
-       function that calculates the metric. This function must accept a numpy
-       array as input.
+        Parameters
+        ----------
+        param_dict_list : List[Dict]
+            List of dictionaries whose keys are the name of the parameter to track
+            and whose values is the value of the parameter.
 
-    Returns
-    -------
-    Tuple[Dict, Dict, Dict]
-        The scores and respective curves of the unified_model's simulation.
+        Returns
+        -------
+        pandas dataframe
+            A pandas dataframe containing the parameter values.
 
-    See Also
-    --------
-    Ray : library
-        The module the we use to execute.
-    unified_model.get_result : method
-        Method used to parse the curve expressions.
-    unified_model.metrics : module
-        A module containing a number of metrics that can be used to score the
-        model.
-    UnifiedModel.calculate_metrics : method
-        The method used to evaluate the `calc_metrics` parameter.
+        """
+        if len(param_dict_list[0]) == 0:
+            return None
 
-    """
+        result = defaultdict(list)
+        for i, param_dict in enumerate(param_dict_list):
+            for key, value in param_dict.items():
+                result[key].append(value)
 
-    model = unified_model_factory.make(input_excitation)
-    model.solve(t_start=0,
-                t_end=8,
-                t_max_step=1e-3,
-                t_eval=np.arange(0., 8., 1e-3),
-                y0=[0.0, 0.0, 0.04, 0.0, 0.0])
+            result['model_id'].append(model_ids[i])
+            # TODO: A bit of a hack. Find another place to append the input excitations.
+            result['input_excitation'].append(input_excitations[i])
 
-    curves: Dict[str, Any] = {}
-    metric_scores: Dict[str, Any] = {}
-    metric_calcs: Dict[str, Any] = {}
-
-    if curve_expressions:
-        # We need to do a key-value swap to match the `.get_result` method
-        # interface
-        swapped = {v: k for k, v in curve_expressions.items()}
-        df_result = model.get_result(**swapped)
-        curves = df_result.to_dict(orient='list')  # type: ignore
-
-    if score_metrics:
-        metric_scores = {}
-        for i, (expression, evaluator) in enumerate(score_metrics.items()):
-            df_result = model.get_result(time='t', target_value=expression)
-            evaluator.fit(df_result['target_value'].values,
-                          df_result['time'].values)
-            score = evaluator.score()
-            metric_scores.update(score)
-
-    if calc_metrics:  # TODO: Convert this to helper function (DRY)
-        metric_calcs = {}
-        for expression, metric_dict in calc_metrics.items():
-            # We use the model's helper function to calculate the metrics
-            result = model.calculate_metrics(expression, metric_dict)
-            metric_calcs.update(result)
-
-    return curves, metric_scores, metric_calcs
+        return pd.DataFrame(result)
 
 
-class GridsearchBatchExecutor:
-    """Execute a batch grid search using Ray.
+    def _chunk(array_like: Union[List, np.ndarray],
+            chunk_size: int) -> Generator:
+        """Chunk up an array-like yielded chunks."""
+        total_size = len(array_like)
+        indexes = list(range(0, total_size, chunk_size))
 
-    Parameters
-    ----------
-    abstract_unified_model_factory : AbstractUnifiedModelFactory
-        An abstract factory that produces unified model factories. One
-        simulation will be run for each of the factories produces by
-        abstract_unified_model_factory.
-    input_excitations: List[AccelerometerInput]
-        List of instantiated AccelerometerInput objects that will be used as
-        excitation.  Each set of model parameters will be simulated using each
-        input excitation.
-    curve_expressions : Dict[str, str]
-        The curves to capture from the simulated unified model. Keys are a
-        prediction expression, and values are the name given to the curve.
-    score_metrics : Dict[str, List[Any]]
-        Metrics used to score the unified model's predictions. Keys are the
-        prediction expressions to be evaluated. Values are a list of
-        instantiated Evaluator objects that will score the prediction expression
-        at its key. These Evaluator objects will be matched with corresponding
-        inputs passed to `input_excitations`
-    calc_metrics : Dict[str, Callable]
-        Additional metrics to be calculated. Keys are the prediction
-        expressions to be evaluated. Values are Callables that will calculate
-        the metric using the prediction expressions at its key.
-    parameters_to_track : List[str]
-        A list of "parameter paths" to be tracked for each unified model. For
-        example, `['load_model.R', 'damper.damping_coefficient]`.
-    **ray_kwargs :
-        Additional parameters to be passed to `ray.init`.
+        # Make sure we get the final _chunk:
+        if indexes[-1] < total_size:
+            indexes.append(total_size)
 
-    """
-    def __init__(self,
-                 abstract_unified_model_factory: AbstractUnifiedModelFactory,
-                 input_excitations: List[AccelerometerInput],
-                 curve_expressions: Dict[str, str] = None,
-                 score_metrics: Dict[str, List[Any]] = None,
-                 calc_metrics: Dict[str, Callable] = None,
-                 parameters_to_track: List[str] = None,
-                 **ray_kwargs) -> None:
-        """Constructor"""
+        for start, stop in zip(indexes, indexes[1:]):
+            yield array_like[start:stop]
+
+
+    @ray.remote
+    def run_cell(unified_model_factory: UnifiedModelFactory,
+                input_excitation: AccelerometerInput,
+                curve_expressions: Dict[str, str] = None,
+                score_metrics: Dict[str, Any] = None,
+                calc_metrics: Dict[str, Callable] = None) -> Tuple[Dict, Dict, Dict]:  # noqa
+        """Execute a single cell of a grid search.
+
+        This is designed to be executed in parallel using Ray.
+
+        Parameters
+        ----------
+        unified_model_factory : UnifiedModelFactory
+            The unified model factory that is used to make the unified model that
+            will be simulated.
+        curve_expressions : Dict[str, str]
+            The expressions of the curves to return of the unified model after
+            simulation. Each key is the string prediction expression. Each value is
+            the name given to the curve.
+        score_metrics : Dict[str, Any]
+            The metrics used to score the unified model. Key is the expression to
+            use as the predicted values. Items are instantiated Evaluators that
+            will be used to score the expression.
+        calc_metrics : Dict[str, Dict[str, Callable]]
+        The metrics calculated on the results of the unified model. Keys are the
+        prediction expression of the result to be calculated, and the value is a
+        Dict whose key is the name given to the metric, and whose value is a
+        function that calculates the metric. This function must accept a numpy
+        array as input.
+
+        Returns
+        -------
+        Tuple[Dict, Dict, Dict]
+            The scores and respective curves of the unified_model's simulation.
+
+        See Also
+        --------
+        Ray : library
+            The module the we use to execute.
+        unified_model.get_result : method
+            Method used to parse the curve expressions.
+        unified_model.metrics : module
+            A module containing a number of metrics that can be used to score the
+            model.
+        UnifiedModel.calculate_metrics : method
+            The method used to evaluate the `calc_metrics` parameter.
+
+        """
+
+        model = unified_model_factory.make(input_excitation)
+        model.solve(t_start=0,
+                    t_end=8,
+                    t_max_step=1e-3,
+                    t_eval=np.arange(0., 8., 1e-3),
+                    y0=[0.0, 0.0, 0.04, 0.0, 0.0])
+
+        curves: Dict[str, Any] = {}
+        metric_scores: Dict[str, Any] = {}
+        metric_calcs: Dict[str, Any] = {}
+
+        if curve_expressions:
+            # We need to do a key-value swap to match the `.get_result` method
+            # interface
+            swapped = {v: k for k, v in curve_expressions.items()}
+            df_result = model.get_result(**swapped)
+            curves = df_result.to_dict(orient='list')  # type: ignore
 
         if score_metrics:
-            try:
-                for _, v in score_metrics.items():
-                    assert len(input_excitations) == len(v)
-            except AssertionError:
-                raise AssertionError('len(input excitations) != len(score_metrics[x]) ')  # noqa
+            metric_scores = {}
+            for i, (expression, evaluator) in enumerate(score_metrics.items()):
+                df_result = model.get_result(time='t', target_value=expression)
+                evaluator.fit(df_result['target_value'].values,
+                            df_result['time'].values)
+                score = evaluator.score()
+                metric_scores.update(score)
 
-        self.input_excitations = input_excitations
-        self.curve_expressions = curve_expressions
-        self.score_metrics = score_metrics
-        self.calc_metrics = calc_metrics
-        self.abstract_unified_model_factory = abstract_unified_model_factory
-        self.parameters_to_track = parameters_to_track
-        ray_kwargs.setdefault('ignore_reinit_error', True)
-        self.ray_kwargs = ray_kwargs
-        self.raw_grid_results = None
+        if calc_metrics:  # TODO: Convert this to helper function (DRY)
+            metric_calcs = {}
+            for expression, metric_dict in calc_metrics.items():
+                # We use the model's helper function to calculate the metrics
+                result = model.calculate_metrics(expression, metric_dict)
+                metric_calcs.update(result)
 
-    def _start_ray(self, ray_init_kwargs: Dict = None) -> None:
-        """Initialize Ray"""
-        if ray_init_kwargs is None:
-            ray_init_kwargs = {}
-        ray.init(**ray_init_kwargs)
+        return curves, metric_scores, metric_calcs
 
-    def _kill_ray(self) -> None:
-        "Kill Ray."
-        ray.shutdown()
 
-    def _execute_grid_search(
-            self,
-            output_file: str,
-            batch_size: int
-    ):
-        """Execute the gridsearch."""
+    class GridsearchBatchExecutor:
+        """Execute a batch grid search using Ray.
 
-        # Convert to list since we may iterate over it multiple times
-        model_factories = list(self.abstract_unified_model_factory.generate())
-        total_tasks = len(model_factories)
+        Parameters
+        ----------
+        abstract_unified_model_factory : AbstractUnifiedModelFactory
+            An abstract factory that produces unified model factories. One
+            simulation will be run for each of the factories produces by
+            abstract_unified_model_factory.
+        input_excitations: List[AccelerometerInput]
+            List of instantiated AccelerometerInput objects that will be used as
+            excitation.  Each set of model parameters will be simulated using each
+            input excitation.
+        curve_expressions : Dict[str, str]
+            The curves to capture from the simulated unified model. Keys are a
+            prediction expression, and values are the name given to the curve.
+        score_metrics : Dict[str, List[Any]]
+            Metrics used to score the unified model's predictions. Keys are the
+            prediction expressions to be evaluated. Values are a list of
+            instantiated Evaluator objects that will score the prediction expression
+            at its key. These Evaluator objects will be matched with corresponding
+            inputs passed to `input_excitations`
+        calc_metrics : Dict[str, Callable]
+            Additional metrics to be calculated. Keys are the prediction
+            expressions to be evaluated. Values are Callables that will calculate
+            the metric using the prediction expressions at its key.
+        parameters_to_track : List[str]
+            A list of "parameter paths" to be tracked for each unified model. For
+            example, `['load_model.R', 'damper.damping_coefficient]`.
+        **ray_kwargs :
+            Additional parameters to be passed to `ray.init`.
 
-        for input_number, input_ in enumerate(self.input_excitations):
-            # Build score metric that needs to be calculated for the input
-            # excitation. Remember: each groundtruth evaluator is directly
-            # linked to only one input excitation!
-            score_metric_dict_for_current_input = None
-            if self.score_metrics:
-                # Fetch the evaluator corresponding to the current input
-                # excitation
-                score_metric_dict_for_current_input = {
-                    k: evaluators[input_number]
-                    for k, evaluators in self.score_metrics.items()
-                }
+        """
+        def __init__(self,
+                    abstract_unified_model_factory: AbstractUnifiedModelFactory,
+                    input_excitations: List[AccelerometerInput],
+                    curve_expressions: Dict[str, str] = None,
+                    score_metrics: Dict[str, List[Any]] = None,
+                    calc_metrics: Dict[str, Callable] = None,
+                    parameters_to_track: List[str] = None,
+                    **ray_kwargs) -> None:
+            """Constructor"""
 
-            total_completed = 0
-            for model_factory_batch in _chunk(model_factories, batch_size):
+            if score_metrics:
+                try:
+                    for _, v in score_metrics.items():
+                        assert len(input_excitations) == len(v)
+                except AssertionError:
+                    raise AssertionError('len(input excitations) != len(score_metrics[x]) ')  # noqa
 
-                grid_curves: List[Dict] = []
-                grid_scores: List[Dict] = []
-                grid_calcs: List[Dict] = []
-                grid_params: List[Dict] = []
-                model_ids: List[int] = []
-                input_numbers: List[int] = []
-                task_queue: List[Any] = []
+            self.input_excitations = input_excitations
+            self.curve_expressions = curve_expressions
+            self.score_metrics = score_metrics
+            self.calc_metrics = calc_metrics
+            self.abstract_unified_model_factory = abstract_unified_model_factory
+            self.parameters_to_track = parameters_to_track
+            ray_kwargs.setdefault('ignore_reinit_error', True)
+            self.ray_kwargs = ray_kwargs
+            self.raw_grid_results = None
 
-                for model_factory in model_factory_batch:
-                    # Get the model id
-                    model_ids.append(model_factory.model_id)
-                    # Record grid parameters
-                    grid_params.append(model_factory.get_args(self.parameters_to_track))  # noqa
-                    # Record which input excitation
-                    input_numbers.append(input_number)
+        def _start_ray(self, ray_init_kwargs: Dict = None) -> None:
+            """Initialize Ray"""
+            if ray_init_kwargs is None:
+                ray_init_kwargs = {}
+            ray.init(**ray_init_kwargs)
 
-                    # Queue a simulation
-                    task_id = run_cell.remote(model_factory,
-                                              input_excitation=input_,
-                                              curve_expressions=self.curve_expressions,  # noqa
-                                              score_metrics=score_metric_dict_for_current_input,  # noqa
-                                              calc_metrics=self.calc_metrics)
+        def _kill_ray(self) -> None:
+            "Kill Ray."
+            ray.shutdown()
 
-                    task_queue.append(task_id)
+        def _execute_grid_search(
+                self,
+                output_file: str,
+                batch_size: int
+        ):
+            """Execute the gridsearch."""
 
-                ready: List[Any] = []
-                while len(ready) < len(task_queue):
-                    ready, _ = ray.wait(task_queue,
-                                        num_returns=len(task_queue),
-                                        timeout=2.)
-                    # Log output
-                    log_base = 'Progress: '
-                    input_log = f':: Input: {input_number+1}/{len(self.input_excitations)} '  # noqa
-                    grid_progress_log = f':: {len(ready)+total_completed}/{total_tasks}'  # noqa
-                    logging.info(log_base + input_log + grid_progress_log)
+            # Convert to list since we may iterate over it multiple times
+            model_factories = list(self.abstract_unified_model_factory.generate())
+            total_tasks = len(model_factories)
 
-                # Once all tasks are completed...
-                total_completed += len(ready)  # noqa: increment the total completed counter
-                results = [ray.get(task_id) for task_id in task_queue]  # noqa: ... and fetch results
+            for input_number, input_ in enumerate(self.input_excitations):
+                # Build score metric that needs to be calculated for the input
+                # excitation. Remember: each groundtruth evaluator is directly
+                # linked to only one input excitation!
+                score_metric_dict_for_current_input = None
+                if self.score_metrics:
+                    # Fetch the evaluator corresponding to the current input
+                    # excitation
+                    score_metric_dict_for_current_input = {
+                        k: evaluators[input_number]
+                        for k, evaluators in self.score_metrics.items()
+                    }
 
-                # Parse the results
-                for result in results:
-                    grid_curves.append(copy(result[0]))
-                    grid_scores.append(copy(result[1]))
-                    grid_calcs.append(copy(result[2]))
+                total_completed = 0
+                for model_factory_batch in _chunk(model_factories, batch_size):
 
-                # Process results to dataframe
-                df_results = self._process_results(
-                    grid_results=(grid_curves,
-                                  grid_scores,
-                                  grid_calcs,
-                                  grid_params,
-                                  model_ids,
-                                  input_numbers)
-                )
+                    grid_curves: List[Dict] = []
+                    grid_scores: List[Dict] = []
+                    grid_calcs: List[Dict] = []
+                    grid_params: List[Dict] = []
+                    model_ids: List[int] = []
+                    input_numbers: List[int] = []
+                    task_queue: List[Any] = []
 
-                # Write out results to file
-                logging.info(f'Writing chunk to :: {output_file} ...')
-                self._write_out_results(df_results, output_file, ['input_excitation'])
-                del results  # Remove reference so Ray can free memory as needed
-                del df_results
-                ray.internal.free(task_queue)
+                    for model_factory in model_factory_batch:
+                        # Get the model id
+                        model_ids.append(model_factory.model_id)
+                        # Record grid parameters
+                        grid_params.append(model_factory.get_args(self.parameters_to_track))  # noqa
+                        # Record which input excitation
+                        input_numbers.append(input_number)
 
-    def _write_out_results(self,
+                        # Queue a simulation
+                        task_id = run_cell.remote(model_factory,
+                                                input_excitation=input_,
+                                                curve_expressions=self.curve_expressions,  # noqa
+                                                score_metrics=score_metric_dict_for_current_input,  # noqa
+                                                calc_metrics=self.calc_metrics)
+
+                        task_queue.append(task_id)
+
+                    ready: List[Any] = []
+                    while len(ready) < len(task_queue):
+                        ready, _ = ray.wait(task_queue,
+                                            num_returns=len(task_queue),
+                                            timeout=2.)
+                        # Log output
+                        log_base = 'Progress: '
+                        input_log = f':: Input: {input_number+1}/{len(self.input_excitations)} '  # noqa
+                        grid_progress_log = f':: {len(ready)+total_completed}/{total_tasks}'  # noqa
+                        logging.info(log_base + input_log + grid_progress_log)
+
+                    # Once all tasks are completed...
+                    total_completed += len(ready)  # noqa: increment the total completed counter
+                    results = [ray.get(task_id) for task_id in task_queue]  # noqa: ... and fetch results
+
+                    # Parse the results
+                    for result in results:
+                        grid_curves.append(copy(result[0]))
+                        grid_scores.append(copy(result[1]))
+                        grid_calcs.append(copy(result[2]))
+
+                    # Process results to dataframe
+                    df_results = self._process_results(
+                        grid_results=(grid_curves,
+                                      grid_scores,
+                                      grid_calcs,
+                                      grid_params,
+                                      model_ids,
+                                      input_numbers)
+                    )
+
+                    # Write out results to file
+                    logging.info(f'Writing chunk to :: {output_file} ...')
+                    self._write_out_results(df_results, output_file, ['input_excitation'])
+                    del results  # Remove reference so Ray can free memory as needed
+                    del df_results
+                    ray.internal.free(task_queue)
+
+        def _write_out_results(self,
                            df_results,
                            path,
                            partition_cols):
@@ -753,7 +746,7 @@ class GridsearchBatchExecutor:
 
             else:  # If we have our first defined dataframe ...
                 if df is not None:  # ... and the next one is defined ...
-                    result = result.merge(df, on=['grid_cell_id', 'model_id'])  # noqa ...merge
+                    result = result.merge(df, on=['model_id'])  # noqa ...merge
 
         results.append(result)
 
