@@ -1,2 +1,2 @@
-from .load import SimpleLoad
-from .flux.model import FluxModelInterp
+from unified_model.electrical_components.load import SimpleLoad
+from unified_model.electrical_components.flux.model import FluxModelInterp

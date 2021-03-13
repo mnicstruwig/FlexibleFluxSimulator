@@ -344,7 +344,7 @@ def _scores_to_dataframe(grid_scores: List[Dict[str, Any]],
 
         result['grid_cell_id'].append(i)
         result['model_id'].append(model_ids[i])
-    return pd.DataFrame(result)
+    return pd.DataFrame(result)  # type: ignore
 
 
 def _calc_metrics_to_dataframe(
@@ -489,10 +489,10 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
         The expressions of the curves to return of the unified model after
         simulation. Each key is the string prediction expression. Each value is
         the name given to the curve.
-    score_metrics : Dict[str, Dict[str, Callable]]
-        The metrics used to score the unified model. Keys are 'mechanical' and
-        `electrical`. The values are Dicts, where the key is the name of the
-        metric and the value is the function to compute.
+    score_metrics : Dict[str, Any]
+        The metrics used to score the unified model. Keys are the expression to
+        use as the predicted values. Items are instantiated Evaluators that
+        will be used to score the expression.
     calc_metrics : Dict[str, Dict[str, Callable]]
        The metrics calculated on the results of the unified model. Keys are the
        prediction expression of the result to be calculated, and the value is a
@@ -502,7 +502,7 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
 
     Returns
     -------
-    Tuple[Dict, Dict]
+    Tuple[Dict, Dict, Dict]
         The scores and respective curves of the unified_model's simulation.
 
     See Also
@@ -523,7 +523,7 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
     model.solve(t_start=0,
                 t_end=8,
                 t_max_step=1e-3,
-                t_eval=np.arange(0, 8, 1e-3),
+                t_eval=np.arange(0., 8., 1e-3),
                 y0=[0.0, 0.0, 0.04, 0.0, 0.0])
 
     curves: Dict[str, Any] = {}
@@ -537,17 +537,18 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
         df_result = model.get_result(**swapped)
         curves = df_result.to_dict(orient='list')  # type: ignore
 
-    if score_metrics:
+    if score_metrics:  # Use the expressions, stored in the keys to get the results from the unified model
         expression_kwargs = {}
         for i, expression in enumerate(score_metrics.keys()):
+            # For easier calculation we index to them to their order
             expression_kwargs[str(i)] = expression
         df_result = model.get_result(time='t', **expression_kwargs)
 
-        # Ok, let's calculate the score metrics
+        # Let's calculate the score metrics
         metric_scores = {}
         for i, (_, evaluator) in enumerate(score_metrics.items()):
             evaluator.fit(df_result[str(i)].values, df_result['time'].values)
-            score: Dict[str, Any] = evaluator.score()  # type: ignore
+            score: Dict[str, Any] = evaluator.score()
             metric_scores.update(score)  # Score and update the table
 
     if calc_metrics:  # TODO: Convert this to helper function (DRY)
@@ -636,8 +637,6 @@ class GridsearchBatchExecutor:
         total_tasks = len(model_factories)
 
         for input_number, input_ in enumerate(self.input_excitations):
-
-
             # Build score metric that needs to be calculated for the input
             # excitation. Remember: each groundtruth evaluator is directly
             # linked to only one input!

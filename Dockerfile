@@ -16,6 +16,7 @@ COPY setup.py .
 RUN pip install .
 
 COPY *.py ./
+COPY scripts scripts
 
 # -u flag flushes buffers so print statements showup
 ENTRYPOINT ["python", "-u"]
