@@ -204,14 +204,14 @@ mech_components = {
     'magnetic_spring': [magnetic_spring],
     'magnet_assembly': [magnet_assembly],
     'damper': QuasiKarnoppDamperFactory(
-        b_m1_list=np.linspace(0.01, 5, 5),
-        b_m2_list=np.linspace(-0.2, 0.2, 5),
+        b_m1_list=np.linspace(0.1, 8, 15),
+        b_m2_list=np.linspace(0, 0.015, 10),
         magnet_assembly=magnet_assembly,
         tube_inner_radius_mm=5.5).make(),
     'mechanical_spring': MechanicalSpringFactory(
         magnet_assembly=magnet_assembly,
         position=110 / 1000,
-        damping_coefficient_list=np.linspace(0, 10, 10)).make()
+        damping_coefficient_list=np.linspace(0, 10, 5)).make()
 }
 
 elec_components = {
@@ -222,7 +222,7 @@ elec_components = {
     'dflux_model': [ABC_CONFIG.dflux_models[which_device]],
 
 }
-coupling_models = CouplingModelFactory(np.linspace(0, 10, 15)).make()
+coupling_models = CouplingModelFactory(np.linspace(0, 7.5, 10)).make()
 governing_equations = [governing_equations.unified_ode]
 
 
@@ -282,7 +282,7 @@ grid_executor = gridsearch.GridsearchBatchExecutor(abstract_model_factory,
                                                    parameters_to_track=parameters_to_track)  # noqa
 
 grid_executor.preview()
-grid_executor.run(f'/output/{which_device}_single_input.parquet', batch_size=24)  # Execute
+grid_executor.run(f'/output/{which_device}.parquet', batch_size=24)  # Execute
 
 # DEBUG
 # import pyarrow.parquet as pq

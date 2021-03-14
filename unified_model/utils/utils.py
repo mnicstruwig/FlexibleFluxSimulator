@@ -401,10 +401,10 @@ class Sample:
 
 
 # TODO: Add test (might need to be a bit creative)
-def collect_samples(base_path,
-                    acc_pattern,
-                    adc_pattern,
-                    video_label_pattern) -> np.array:
+def collect_samples(base_path: str,
+                    acc_pattern: str,
+                    adc_pattern: str,
+                    video_label_pattern: str) -> np.ndarray:
     """Collect groundtruth samples from a directory with filename matching.
 
     Parameters
@@ -423,7 +423,7 @@ def collect_samples(base_path,
 
     Returns
     -------
-    ndarray
+    ndarray[Sample]
         Numpy array of `Sample` objects, with attributes containing pandas dataframes
         of the labeled video and recorded accelerometer and adc data.
 

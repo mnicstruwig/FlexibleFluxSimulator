@@ -1,15 +1,102 @@
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union, List
+from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from scipy.signal import detrend
+from scipy.signal import detrend, savgol_filter
 
 from unified_model.utils.utils import (align_signals_in_time,
                                        apply_scalar_functions,
                                        find_signal_limits, smooth_butterworth,
-                                       warp_signals)
+                                       warp_signals,
+                                       Sample)
+
+
+@dataclass
+class MechanicalGroundtruth:
+    y_diff: Any
+    time: Any
+
+
+@dataclass
+class ElectricalGroundtruth:
+    emf: Any
+    time: Any
+
+
+@dataclass
+class Groundtruth:
+    mech: MechanicalGroundtruth
+    elec: ElectricalGroundtruth
+
+
+class GroundTruthFactory:
+    """Collect groundtruth data and prepare evaluators in a batch."""
+    def __init__(self,
+                 samples_list: np.ndarray,
+                 lvp_kwargs: Dict,
+                 adc_kwargs: Dict) -> None:
+        """Constructor.
+
+        Parameters
+        ----------
+        samples_list : np.ndarray[Sample]
+            An array of `Sample` objects containing processed groundtruth data.
+            See the `unified_model.utils.utils.collect_samples` function, which
+            is intended to be used to collect and build `samples_list`.
+        lvp_kwargs : Dict
+            Kwargs used for the LabeledVideoProcessor objects to process the
+            groundtruth data.
+        adc_kwargs : Dict
+            Kwargs used for the AdcProcessor objects to process the groundtruth data.
+
+        """
+
+        self.samples_list = samples_list
+        self.lvp_kwargs = lvp_kwargs
+        self.adc_kwargs = adc_kwargs
+
+        self.lvp = LabeledVideoProcessor(**lvp_kwargs)
+        self.adc = AdcProcessor(**adc_kwargs)
+
+    def _make_mechanical_groundtruth(self, sample):
+        y_target, y_time_target = self.lvp.fit_transform(
+            sample.video_labels_df,
+            impute_missing_values=True
+        )
+        y_target = savgol_filter(y_target, 9, 3)
+
+        return MechanicalGroundtruth(y_target,
+                                     y_time_target)
+
+    def _make_electrical_groundtruth(self, sample):
+        emf_target, emf_time_target = self.adc.fit_transform(sample.adc_df)
+        return ElectricalGroundtruth(emf_target,
+                                     emf_time_target)
+
+    def make(self) -> List[Groundtruth]:
+        """Make the Groundtruth objects.
+
+        Returns
+        -------
+        List[Groundtruth]
+            List of `Groundtruth` objects for each sample in `samples_list`.
+        """
+        groundtruths = []
+        for sample in self.samples_list:
+            try:
+                mech_groundtruth = self._make_mechanical_groundtruth(sample)
+                elec_groundtruth = self._make_electrical_groundtruth(sample)
+
+                groundtruths.append(
+                    Groundtruth(mech_groundtruth, elec_groundtruth)
+                )
+            except AttributeError:
+                pass
+
+        return groundtruths
 
 
 class AdcProcessor:
