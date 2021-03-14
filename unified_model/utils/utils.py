@@ -324,20 +324,20 @@ def find_signal_limits(target: Any, threshold: float = 0.05) -> Tuple[int, int]:
     """Find the beginning and end of a signal"""
 
     def _calc_threshold_mask(arr, threshold):
-        above_threshold_mask = [1 if x > np.max(arr)*threshold else 0
+        above_threshold_mask = [1 if x > np.max(arr) * threshold else 0
                                 for x in arr]
         return np.array(above_threshold_mask)
 
     def _find_start_index(arr, threshold):
         arr_mask = _calc_threshold_mask(arr, threshold)
-        max_index = np.argmax(arr)
+        max_index = np.argmax(arr)  # This is the peak of the signal.
 
         longest = 0
         start_index_candidates = [0]
         count = 0
         for i, x in enumerate(arr_mask):
             if x == 0:
-                count+=1
+                count += 1
             if x == 1:
                 if count >= longest:
                     longest = count
@@ -345,20 +345,20 @@ def find_signal_limits(target: Any, threshold: float = 0.05) -> Tuple[int, int]:
                 count = 0
         start_index_candidates = np.array(start_index_candidates)
         mask = np.where(start_index_candidates < max_index)[0]
-        start_index = start_index_candidates[mask][-1]
-        return int(start_index-1)
+        start_index = start_index_candidates[mask][-1]  # First index *before* the peak of the signal.
+        if start_index < 0:
+            return 0
+        return int(start_index - 1)
 
     def _find_end_index(arr, threshold):
         end_index = _find_start_index(arr[::-1], threshold)
         end_index = len(arr) - end_index
-        # don't need to subtract one, since find_start_index already subtracts
-        # one --> (-(-1))
-        return int(end_index)
+        return int(end_index - 1)
 
     return (
         _find_start_index(target, threshold),
         _find_end_index(target, threshold)
-        )
+    )
 
 
 def apply_scalar_functions(x1, x2, **func):
