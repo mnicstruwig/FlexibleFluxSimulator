@@ -339,21 +339,25 @@ def find_signal_limits(target: Any, threshold: float = 0.05) -> Tuple[int, int]:
             if x == 0:
                 count += 1
             if x == 1:
+                # If it's the longest number of samples, so far, without being
+                # above the threshold
                 if count >= longest:
                     longest = count
+                    # Then we consider it a possible starting point
                     start_index_candidates.append(i)
                 count = 0
         start_index_candidates = np.array(start_index_candidates)
         mask = np.where(start_index_candidates < max_index)[0]
-        start_index = start_index_candidates[mask][-1]  # First index *before* the peak of the signal.
-        if start_index < 0:
-            return 0
-        return int(start_index - 1)
+        try:
+            start_index = start_index_candidates[mask][-1]  # First index *before* the peak of the signal.
+            return int(start_index - 1)
+        except IndexError:
+            return 0  # If we can't find the start before the maximum value, then we start at the beginning.
 
     def _find_end_index(arr, threshold):
         end_index = _find_start_index(arr[::-1], threshold)
         end_index = len(arr) - end_index
-        return int(end_index - 1)
+        return int(end_index)  # Don't need to subtract 1 since it's already subtracted in `_find_start_index`
 
     return (
         _find_start_index(target, threshold),
