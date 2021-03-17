@@ -47,12 +47,13 @@ class FluxModelInterp:
 
     def _validate(self):
         """Do some internal validation of the parameters"""
-        if self.curve_model:
-            assert self.coil_config.n_z is not None
-            assert self.coil_config.n_w is not None
-        else:
-            if self.coil_config.n_z or self.coil_config.n_w:
-                warnings.warn('n_z and n_w are set, but are not required if no `curve_model` is specified.')  # noqa
+        # TODO: Figure out a better way of warning the user that doesn't spam gridsearch.
+        # if self.curve_model:
+        #     assert self.coil_config.n_z is not None
+        #     assert self.coil_config.n_w is not None
+        # else:
+        #     if self.coil_config.n_z or self.coil_config.n_w:
+        #         warnings.warn('n_z and n_w are set, but are not required if no `curve_model` is specified.')  # noqa
 
         _validate_coil_params(
             c=self.c,

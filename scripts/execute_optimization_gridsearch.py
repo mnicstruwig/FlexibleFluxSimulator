@@ -20,7 +20,7 @@ from unified_model import (CouplingModel, electrical_components,
 # PARAMETERS
 n_z_arr = np.arange(6, 201, 2)
 n_w_arr = np.arange(6, 201, 2)
-c = 2
+c = 1
 m = 1
 
 # Mechanical components
@@ -29,12 +29,18 @@ magnetic_spring = mechanical_components.MagneticSpringInterp(
     magnet_length=10 / 1000,
     filter_callable=lambda x: savgol_filter(x, window_length=27, polyorder=5)
 )
-damper = mechanical_components.ConstantDamper(8.7857)
+
+damper_model_params: Dict[str, Any] = {
+    'coulomb_damping_coefficient': 5.742857,
+    'motional_damping_coefficient': 0.003333,
+    'magnet_assembly': None,
+    'tube_inner_radius_mm': 5.5
+}
 
 # Electrical Components
 load = electrical_components.SimpleLoad(R=30)
 v_rect_drop = 0.1
-coupling_model = CouplingModel().set_coupling_constant(5.0)
+coupling_model = CouplingModel().set_coupling_constant(4.1667)
 
 coil_model_params: Dict[str, Any] = {
     'c': None,
@@ -45,7 +51,7 @@ coil_model_params: Dict[str, Any] = {
     'tube_wall_thickness_mm': 2,
     'coil_wire_radius_mm': 0.143 / 2,
     'coil_center_mm': 60,
-    'outer_tube_radius_mm': 5.5
+    'inner_tube_radius_mm': 5.5
 }
 
 magnet_assembly_params: Dict[str, Any] = {
@@ -60,18 +66,18 @@ mech_spring_params: Dict[str, Any] = {
     'magnet_assembly': None,
     'position': 110 / 1000,
     'strength': 1e7,
-    'damping_coefficient': 10.0,
+    'damping_coefficient': 2.5,
 }
 
 curve_model = CurveModel.load('./data/flux_curve_model.model')
 
 # Build our first "template" factory
 unified_model_factory = gridsearch.UnifiedModelFactory(
-    damper=damper,
+    damper=None,
     magnet_assembly=None,
     mechanical_spring=None,
     magnetic_spring=magnetic_spring,
-    coil_model=None,
+    coil_configuration=None,
     rectification_drop=v_rect_drop,
     load_model=load,
     flux_model=None,
@@ -133,6 +139,8 @@ for batch_num, batch in enumerate(batches):
         magnet_assembly_params_copy = copy(magnet_assembly_params)
         magnet_assembly_params_copy['m'] = m
 
+        damper_model_params = copy(damper_model_params)
+
         # To make sure our arrays are the same length at the end
         n_z_values = [n_z] * len(acc_inputs)
         n_w_values = [n_w] * len(acc_inputs)
@@ -164,9 +172,10 @@ for batch_num, batch in enumerate(batches):
             unified_model_factory=unified_model_factory,
             input_excitations=acc_inputs,
             curve_model=curve_model,
-            coil_model_params=coil_model_params_copy,
+            coil_config_params=coil_model_params_copy,
             magnet_assembly_params=magnet_assembly_params_copy,
-            mech_spring_params=mech_spring_params
+            mech_spring_params=mech_spring_params,
+            damper_model_params=damper_model_params
         )
         for i, um in enumerate(simulation_models):
             submitted.append(optimize.simulate_unified_model.remote(um))
@@ -190,7 +199,7 @@ for batch_num, batch in enumerate(batches):
         'p_load_avg': [r['p_load_avg'] for r in results]
     })
     table = pa.Table.from_pandas(df)
-    pq.write_to_dataset(table, f'./{c}c{m}m.parquet')
+    pq.write_to_dataset(table, f'/output/{c}c{m}m.parquet')
 
     # Clear
     del results

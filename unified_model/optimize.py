@@ -14,31 +14,34 @@ from flux_modeller.model import CurveModel
 from unified_model.electrical_components.flux.model import FluxModelInterp
 from unified_model.electrical_components.coil import CoilConfiguration
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_components.mechanical_spring import MechanicalSpring
+from unified_model.mechanical_components.damper import QuasiKarnoppDamper
+from unified_model.mechanical_components.mechanical_spring import MechanicalSpring  # noqa
 from unified_model.gridsearch import UnifiedModelFactory
 from unified_model.unified import UnifiedModel
 
 
 def _get_new_flux_curve(
         curve_model: CurveModel,
-        coil_model: CoilConfiguration
+        coil_configuration: CoilConfiguration
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Get new z and phi values  from coil parameters and a `CurveModel`."""
-    n_z = coil_model.n_z
-    n_w = coil_model.n_w
+    n_z = coil_configuration.n_z
+    n_w = coil_configuration.n_w
 
     coil_params = np.array([[n_z, n_w]])  # type: ignore
     X = coil_params.reshape(1, -1)  # type: ignore
-    return curve_model.predict_curve(X)
+    return curve_model.predict_curves(X)
 
 
-def get_new_flux_and_dflux_model(curve_model: CurveModel,
-                                 coil_model: CoilConfiguration,
-                                 magnet_assembly: MagnetAssembly) -> Tuple[Any, Any]:
-    flux_interp_model = FluxModelInterp(coil_model, magnet_assembly)
+def get_new_flux_and_dflux_model(
+        curve_model: CurveModel,
+        coil_configuration: CoilConfiguration,
+        magnet_assembly: MagnetAssembly) -> Tuple[Any, Any]:
+    """Predict and return a new flux and dflux model from a CurveModel"""
+    flux_interp_model = FluxModelInterp(coil_configuration, magnet_assembly)
 
     z_arr, phi = _get_new_flux_curve(curve_model=curve_model,
-                                     coil_model=coil_model)
+                                     coil_configuration=coil_configuration)
 
     flux_interp_model.fit(z_arr, phi.flatten())
     return flux_interp_model.flux_model, flux_interp_model.dflux_model
@@ -49,27 +52,32 @@ def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
                           curve_model: CurveModel,
                           coil_config_params: Dict,
                           magnet_assembly_params: Dict,
-                          mech_spring_params: Dict) -> List[UnifiedModel]:
+                          mech_spring_params: Dict,
+                          damper_model_params: Dict) -> List[UnifiedModel]:
     """Update the simulation set with new flux and coil resistance models."""
 
-    coil_model = CoilConfiguration(**coil_config_params)
+    coil_configuration = CoilConfiguration(**coil_config_params)
     magnet_assembly = MagnetAssembly(**magnet_assembly_params)
+
+    damper_model_params['magnet_assembly'] = magnet_assembly
+    damper = QuasiKarnoppDamper(**damper_model_params)
+
     mech_spring_params['magnet_assembly'] = magnet_assembly
     new_mech_spring = MechanicalSpring(**mech_spring_params)
     new_flux_model, new_dflux_model = get_new_flux_and_dflux_model(
         curve_model=curve_model,
-        coil_model=coil_model,
+        coil_configuration=coil_configuration,
         magnet_assembly=magnet_assembly
     )
 
     new_factory = UnifiedModelFactory(
-        damper=unified_model_factory.damper,
+        damper=damper,  # New
         magnet_assembly=magnet_assembly,  # New
         magnetic_spring=unified_model_factory.magnetic_spring,
         mechanical_spring=new_mech_spring,  # New
         rectification_drop=unified_model_factory.rectification_drop,
         load_model=unified_model_factory.load_model,
-        coil_model=coil_model,  # New
+        coil_configuration=coil_configuration,  # New
         flux_model=new_flux_model,  # New
         dflux_model=new_dflux_model,  # New
         coupling_model=unified_model_factory.coupling_model,
@@ -83,27 +91,31 @@ def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
 
 # TODO: This should be available somewhere else
 def calc_rms(x):
-    return np.sqrt(np.sum(x**2)/len(x))
+    """Calculate the RMS of `x`."""
+    return np.sqrt(np.sum(x**2) / len(x))
+
 
 def calc_p_load_avg(x, r_load):
+    """Calculate the average power over the load."""
     v_rms = calc_rms(x)
-    return v_rms*v_rms/r_load
+    return v_rms * v_rms / r_load
+
 
 @ray.remote
 def _calc_constant_velocity_rms(curve_model: CurveModel,
-                                coil_model: CoilConfiguration,
+                                coil_configuration: CoilConfiguration,
                                 magnet_assembly: MagnetAssembly) -> float:
     """Calculate the open-circuit RMS for a simple emf curve."""
-    flux_interp_model = FluxModelInterp(coil_model, magnet_assembly)
+    flux_interp_model = FluxModelInterp(coil_configuration, magnet_assembly)
     z_arr, phi = _get_new_flux_curve(curve_model=curve_model,
-                                     coil_model=coil_model)
+                                     coil_configuration=coil_configuration)
     flux_interp_model.fit(z_arr, phi.flatten())
 
     # Use constant velocity case
     dflux_curve = flux_interp_model.dflux_model
     velocity = 0.35  # doesn't matter
     z = np.linspace(0, 0.3, 1000)
-    emf = np.array([dflux_curve.get(z)*velocity for z in z])
+    emf = np.array([dflux_curve.get(z) * velocity for z in z])  # type: ignore
     return calc_rms(emf)
 
 
