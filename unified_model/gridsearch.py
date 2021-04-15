@@ -20,6 +20,36 @@ logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s',
                     level=logging.INFO)
 
 
+class AccelerometerInputsFactory:
+    def __init__(self, sample_list, acc_input_kwargs=None):
+        self.sample_list = sample_list
+        self.acc_input_kwargs = {} if acc_input_kwargs is None else acc_input_kwargs  # noqa
+        self._set_defaults()
+
+    def _set_defaults(self):
+        self.acc_input_kwargs.setdefault('accel_column', 'z_G'),
+        self.acc_input_kwargs.setdefault('time_column', 'time(ms)'),
+        self.acc_input_kwargs.setdefault('accel_unit', 'g'),
+        self.acc_input_kwargs.setdefault('time_unit', 'ms'),
+        self.acc_input_kwargs.setdefault('smooth', True),
+        self.acc_input_kwargs.setdefault('interpolate', True)
+
+    def make(self) -> np.ndarray:
+        accelerometer_inputs = []
+        for sample in self.sample_list:
+            acc_input = mechanical_components.AccelerometerInput(
+                raw_accelerometer_input=sample.acc_df,
+                accel_column=self.acc_input_kwargs.setdefault('accel_column', 'z_G'),  # noqa
+                time_column=self.acc_input_kwargs.setdefault('time_column', 'time(ms)'),  # noqa
+                accel_unit=self.acc_input_kwargs.setdefault('accel_unit', 'g'),
+                time_unit=self.acc_input_kwargs.setdefault('time_unit', 'ms'),
+                smooth=self.acc_input_kwargs.setdefault('smooth', True),
+                interpolate=self.acc_input_kwargs.setdefault('interpolate', True)  # noqa
+            )
+            accelerometer_inputs.append(acc_input)
+        return np.array(accelerometer_inputs)
+
+
 class EvaluatorFactory:
 
     def __init__(self,
@@ -74,21 +104,6 @@ class EvaluatorFactory:
                                            **self.evaluator_kwargs)
             evaluator_list.append(evaluator)
         return np.array(evaluator_list)
-
-
-class MechanicalGroundtruth(NamedTuple):
-    y_diff: Any
-    time: Any
-
-
-class ElectricalGroundtruth(NamedTuple):
-    emf: Any
-    time: Any
-
-
-class Groundtruth(NamedTuple):
-    mech: MechanicalGroundtruth
-    elec: ElectricalGroundtruth
 
 
 class AbstractUnifiedModelFactory:
