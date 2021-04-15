@@ -4,8 +4,8 @@ from unified_model.utils.utils import pretty_str
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 
 
-def _sigmoid(x, x0=0):
-    return 1 / (1 + np.exp(-(5*x - x0)))
+def _sigmoid_shifted(x, x0=0):
+    return 1 / (1 + np.exp(-(5*x - x0))) - 0.5
 
 
 class QuasiKarnoppDamper:
@@ -45,7 +45,7 @@ class QuasiKarnoppDamper:
     def get_force(self, velocity, velocity_threshold=0.01):
         """Get the force exerted by the damper."""
         coulomb_contribution = self.cdc * velocity * self.magnet_assembly_mass
-        shape_contribution = self.mdc * self.angle_friction_factor * _sigmoid(velocity, velocity_threshold)
+        shape_contribution = self.mdc * self.angle_friction_factor * _sigmoid_shifted(velocity, velocity_threshold)
         return coulomb_contribution + shape_contribution
 
 
