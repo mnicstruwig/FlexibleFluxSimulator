@@ -585,8 +585,8 @@ class ElectricalSystemEvaluator:
 
         # Exclude trailing (i.e. steady state) portion of the predicted waveform
         self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(
-            self.emf_predict_,
-            self.emf_target_
+            self.emf_predict_clipped_,
+            self.emf_target_clipped_
         )
 
     def score(self) -> Dict[str, Any]:
@@ -670,6 +670,7 @@ class ElectricalSystemEvaluator:
         plt.legend()
 
         if include_dtw:
+            plt.figure()
             if self.emf_target_warped_ is None:
                 self._calc_dtw()
             plt.plot(self.emf_target_warped_, label='Target, time-warped')

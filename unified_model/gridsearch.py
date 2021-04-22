@@ -37,7 +37,7 @@ class AccelerometerInputsFactory:
     def make(self) -> np.ndarray:
         accelerometer_inputs = []
         for sample in self.sample_list:
-            acc_input = mechanical_components.AccelerometerInput(
+            acc_input = AccelerometerInput(
                 raw_accelerometer_input=sample.acc_df,
                 accel_column=self.acc_input_kwargs.setdefault('accel_column', 'z_G'),  # noqa
                 time_column=self.acc_input_kwargs.setdefault('time_column', 'time(ms)'),  # noqa
