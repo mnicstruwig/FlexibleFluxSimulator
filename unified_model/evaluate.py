@@ -512,6 +512,26 @@ class ElectricalSystemEvaluator:
         self.emf_target_warped_ = None
         self.emf_predict_warped_ = None
 
+    def _make_clipped_signals(self,
+                              target,
+                              predict) -> None:
+
+        emf_predict_start, emf_predict_end = find_signal_limits(predict)
+        emf_target_start, emf_target_end = find_signal_limits(target, 0.075)
+
+        start_index = np.min([emf_predict_start, emf_target_start])
+        end_index = np.max([emf_predict_end, emf_target_end])
+        emf_predict_clipped_ = self.emf_predict_[start_index:end_index]
+        emf_target_clipped_ = self.emf_target_[start_index:end_index]
+
+        self.emf_predict_clipped_ = emf_predict_clipped_
+        self.emf_target_clipped_ = emf_target_clipped_
+
+        self._clip_indexes = {
+            'predict': (emf_predict_start, emf_predict_end),
+            'target': (emf_target_start, emf_target_end)
+        }
+
     def fit(self,
             emf_predict,
             time_predict):
@@ -559,26 +579,33 @@ class ElectricalSystemEvaluator:
         self.emf_predict_ = resampled_emf_predict
         self.time_ = resampled_time
 
-        emf_predict_start, emf_predict_end = find_signal_limits(resampled_emf_predict)
-        emf_target_start, emf_target_end = find_signal_limits(resampled_emf_target, 0.075)
+        self._make_clipped_signals(target=self.emf_target_,
+                                   predict=self.emf_predict_)
 
-        emf_predict_clipped_ = self.emf_predict_[emf_predict_start:emf_predict_end]
-        emf_target_clipped_ = self.emf_target_[emf_target_start:emf_target_end]
+        # emf_predict_start, emf_predict_end = find_signal_limits(resampled_emf_predict)
+        # emf_target_start, emf_target_end = find_signal_limits(resampled_emf_target, 0.075)
 
-        length_difference = len(emf_predict_clipped_) - len(emf_target_clipped_)
-        if length_difference < 0:  # right-pad emf_predict_clipped_
-            emf_predict_clipped_ = np.pad(emf_predict_clipped_, (0, abs(length_difference)), 'constant')
-        else:
-            emf_target_clipped_ = np.pad(emf_target_clipped_, (0, length_difference), 'constant')
+        # start_index = np.min([emf_predict_start, emf_target_start])
+        # end_index = np.max([emf_predict_end, emf_target_end])
+        # emf_predict_clipped_ = self.emf_predict_[start_index:end_index]
+        # emf_target_clipped_ = self.emf_target_[start_index:end_index]
 
+        # emf_predict_clipped_ = self.emf_predict_[emf_predict_start:emf_predict_end]
+        # emf_target_clipped_ = self.emf_target_[emf_target_start:emf_target_end]
 
-        self.emf_predict_clipped_ = emf_predict_clipped_
-        self.emf_target_clipped_ = emf_target_clipped_
+        # length_difference = len(emf_predict_clipped_) - len(emf_target_clipped_)
+        # if length_difference < 0:  # right-pad emf_predict_clipped_
+        #     emf_predict_clipped_ = np.pad(emf_predict_clipped_, (0, abs(length_difference)), 'constant')
+        # else:  # right-pad the target signal
+        #     emf_target_clipped_ = np.pad(emf_target_clipped_, (0, length_difference), 'constant')
 
-        self._clip_indexes = {
-            'predict': (emf_predict_start, emf_predict_end),
-            'target': (emf_target_start, emf_target_end)
-        }
+        # self.emf_predict_clipped_ = emf_predict_clipped_
+        # self.emf_target_clipped_ = emf_target_clipped_
+
+        # self._clip_indexes = {
+        #     'predict': (emf_predict_start, emf_predict_end),
+        #     'target': (emf_target_start, emf_target_end)
+        # }
 
     def _calc_dtw(self):
         """Perform dynamic time warping on prediction and targets."""
@@ -606,7 +633,7 @@ class ElectricalSystemEvaluator:
 
         Returns
         -------
-        Instance of `Score`
+        Dict
             Score object that contains the results of the computed metrics.
             Attributes names are the keys passed to `score`, and their values
             are the outputs of the passed metric functions.

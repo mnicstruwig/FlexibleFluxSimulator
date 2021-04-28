@@ -1,6 +1,10 @@
+"""
+Metrics for calculating the accuracy of a model.
+"""
+
 import numpy as np
 from fastdtw import fastdtw
-from scipy.spatial.distance import euclidean
+from scipy.stats import zscore
 from sklearn.metrics import mutual_info_score
 
 
@@ -45,6 +49,42 @@ def dtw_euclid_distance(x1, x2):
     """Calculate the distance between two signals using dynamic time warping."""
     distance, path = fastdtw(x1, x2, 1)
     return distance
+
+
+def similarity_measure(x1, x2) -> float:
+    """Calculate a similarity measure between two signals using dynamic time warping.
+
+    Source: https://cs.stackexchange.com/questions/53250/normalized-measure-from-dynamic-time-warping
+    """
+    D = dtw_euclid_distance(x1, x2)
+    M = len(x1) * np.max(x1)  # The maximum possible DTW path distance
+    S = (M - D) / M
+    return S
+
+
+def dtw_euclid_norm(x1, x2):
+    return dtw_euclid_distance(x1/np.max(x1), x2/np.max(x2))
+
+
+def dtw_euclid_z_norm(x1, x2):
+    return dtw_euclid_distance(zscore(x1), zscore(x2))
+
+
+def _joint_z_norm(x1, x2):
+    # http://luscinia.sourceforge.net/page26/page14/page14.html
+    joint_mean = np.sum([x1, x2])/(len(x1) + len(x2))
+    x1_joint_std = np.sum((x1 - joint_mean)**2)
+    x2_joint_std = np.sum((x2 - joint_mean)**2)
+    joint_std = np.sqrt((x1_joint_std + x2_joint_std)/(len(x1) + len(x2) - 1))
+
+    x1_norm = (x1-joint_mean)/joint_std
+    x2_norm = (x2-joint_mean)/joint_std
+    return x1_norm, x2_norm
+
+
+def dtw_euclid_joint_z_norm(x1, x2):
+    x1_norm, x2_norm = _joint_z_norm(x1, x2)
+    return dtw_euclid_distance(x1_norm, x2_norm)
 
 
 def mutual_information_score(x1, x2):
