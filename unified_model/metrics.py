@@ -3,9 +3,9 @@ Metrics for calculating the accuracy of a model.
 """
 
 import numpy as np
+from dtw import dtw
 from fastdtw import fastdtw
 from scipy.stats import zscore
-from sklearn.metrics import mutual_info_score
 
 
 def corr_coeff(x1, x2):
@@ -87,6 +87,47 @@ def dtw_euclid_joint_z_norm(x1, x2):
     return dtw_euclid_distance(x1_norm, x2_norm)
 
 
-def mutual_information_score(x1, x2):
-    joint = np.histogram2d(x1, x2, 100)[0]
-    return mutual_info_score(None, None, joint)
+def _get_trend(X):
+    X_prime = []
+    for i in range(len(X) - 1):
+        if X[i] == X[i + 1]:
+            x_prime = 0
+        else:
+            x_prime = 2 * (X[i + 1] - X[i]) / (np.abs(X[i]) + np.abs(X[i + 1]))
+        X_prime.append(x_prime)
+    return np.array(X_prime)
+
+
+def _calc_trend_warping_path(X_prime, Y_prime):
+    alignment = dtw(X_prime, Y_prime, keep_internals=True)
+    P_prime = list(zip(alignment.index1, alignment.index2))
+    return P_prime
+
+
+def _get_window_arr(P_prime, length):
+    arr = np.zeros([length, length])
+    for a, b in P_prime:
+        arr[a, b] = True
+        arr[a - 1, b] = True
+        arr[a, b - 1] = True
+        arr[a - 1, b - 1] = True
+    return arr
+
+
+def _ts_window_function(iw, jw, query_size, reference_size, arr):
+    return arr[iw, jw]
+
+
+def dtw_ts(x1, x2):
+    X_prime = _get_trend(x1)
+    Y_prime = _get_trend(x2)
+
+    P_prime = _calc_trend_warping_path(X_prime, Y_prime)
+    arr = _get_window_arr(P_prime, len(x1))
+
+    alignment = dtw(x1,
+                    x2,
+                    window_type=_ts_window_function,
+                    window_args={'arr': arr},
+                    keep_internals=True)
+    return alignment.distance
