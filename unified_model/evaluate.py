@@ -180,8 +180,8 @@ class AdcProcessor:
             voltage_readings = smooth_butterworth(voltage_readings,
                                                   critical_frequency)
 
-        voltage_readings = detrend(voltage_readings)
         voltage_readings = voltage_readings * self.voltage_division_ratio
+        voltage_readings = detrend(voltage_readings)
         return voltage_readings, groundtruth_dataframe[time_col].values / 1000
 
 
@@ -364,22 +364,13 @@ class MechanicalSystemEvaluator:
         results = self._score(**self.metrics)
         return results
 
-    def _score(self, **metrics):
+    def _score(self, **metrics) -> Dict[str, Any]:
         """Calculate the score of the predicted y values."""
 
-        if self.warp:
-            self._calc_dtw()
-            metric_results = apply_scalar_functions(
-                self.y_predict_warped_,
-                self.y_target_warped_,
-                **metrics
-            )
-        else:
-            metric_results = apply_scalar_functions(
-                self.y_predict_[:self._clip_index],
-                self.y_target_[:self._clip_index],
-                **metrics
-            )
+        metric_results = apply_scalar_functions(
+            self.y_predict_[:self._clip_index],
+            self.y_target_[:self._clip_index],
+            **metrics)
 
         return metric_results
 

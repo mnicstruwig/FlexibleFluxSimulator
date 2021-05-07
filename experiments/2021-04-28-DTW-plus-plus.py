@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from dtw import *
+from dtw import dtw
+from fastdtw import fastdtw
 
 
 # Let's calculate the trend sequence of a time series
@@ -52,12 +53,12 @@ def ts_dtw(X, Y):
                     Y,
                     window_type=ts_window_function,
                     window_args={'arr': arr},
-                    keep_internals=True)
-    return alignment
+                    keep_internals=False)
+    return alignment.distance
 
 # Run DTW again
 alignment_ref = dtw(X, Y, keep_internals=True)
-alignment_custom = ts_dtw(X, Y)
+P_prime = ts_dtw(X, Y)
+P_prime = np.array(P_prime)
 
-print(alignment_ref.distance)
-print(alignment_custom.distance)
+X_noise = X + np.random.random(len(X))

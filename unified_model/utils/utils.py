@@ -365,7 +365,7 @@ def find_signal_limits(target: Any, threshold: float = 0.05) -> Tuple[int, int]:
     )
 
 
-def apply_scalar_functions(x1, x2, **func):
+def apply_scalar_functions(x1, x2, **func) -> dict:
     """Apply a set of functions (that return a scalar result) to two arrays.
 
     Parameters
