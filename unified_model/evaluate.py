@@ -568,7 +568,8 @@ class ElectricalSystemEvaluator:
             t_1=self.time_target,
             y_1=self.emf_target,
             t_2=self.time_predict,
-            y_2=self.emf_predict
+            y_2=self.emf_predict,
+            num_samples=len(self.time_target)
         )
 
         resampled_time = resampled_signals[0]
