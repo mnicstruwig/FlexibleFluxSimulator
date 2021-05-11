@@ -121,8 +121,8 @@ def _make_superposition_curve(z_arr: np.ndarray,
         for j in range(m):  # For each magnet
             # Generate a interpolator for each individual flux curve
             flux_interp, dflux_interp = interpolate_flux(
-                z_arr,
-                (-1) ** (i + j) * phi_arr,  # noqa.  Remembering to alternate the polarity...
+                z_arr=z_arr,
+                phi_arr=(-1) ** (i + j) * phi_arr,  # noqa.  Remembering to alternate the polarity...
                 coil_center = c_c - j *  l_mcd + i *  l_ccd  # noqa ... and shift the center (peak)
             )
             flux_interp_list.append(flux_interp)
@@ -132,7 +132,7 @@ def _make_superposition_curve(z_arr: np.ndarray,
     # TODO: Add a resolution argument for finer sampling?
     z_arr_width = max(z_arr) - min(z_arr)
     new_z_start = c_c - z_arr_width / 2
-    new_z_end = (c_c + c * l_ccd + m * l_mcd + z_arr_width / 2)
+    new_z_end = (c_c + c * l_ccd + z_arr_width / 2)
 
     new_z_arr = np.linspace(new_z_start,
                             new_z_end,

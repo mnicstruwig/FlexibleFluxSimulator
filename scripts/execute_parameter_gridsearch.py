@@ -32,7 +32,6 @@ class QuasiKarnoppDamperFactory:
 
         self.param_tuples = product(self.b_m1_list, self.b_m2_list)
 
-
     def make(self):
         return [mechanical_components.damper.QuasiKarnoppDamper(b_m1,
                                                                 b_m2,

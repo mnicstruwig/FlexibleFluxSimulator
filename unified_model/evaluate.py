@@ -181,8 +181,13 @@ class AdcProcessor:
                                                   critical_frequency)
 
         voltage_readings = voltage_readings * self.voltage_division_ratio
-        voltage_readings = detrend(voltage_readings)
+        voltage_readings = self._detrend(voltage_readings, (100, 700))
         return voltage_readings, groundtruth_dataframe[time_col].values / 1000
+
+    @staticmethod
+    def _detrend(x, noise_window):
+        noise_mean = np.mean(x[noise_window[0]: noise_window[1]])
+        return x - noise_mean
 
 
 class MechanicalSystemEvaluator:

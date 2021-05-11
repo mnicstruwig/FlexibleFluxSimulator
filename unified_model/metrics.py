@@ -43,7 +43,7 @@ def root_mean_square_percentage_diff(x1, x2):
     `x1` overestimates `x2`.
     """
     x1_rms, x2_rms = root_mean_square(x1, x2)
-    return (x1_rms-x2_rms)/x2_rms*100
+    return (x1_rms - x2_rms) / x2_rms * 100
 
 
 def dtw_euclid_distance(x1, x2):

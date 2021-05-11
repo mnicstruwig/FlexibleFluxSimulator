@@ -27,7 +27,7 @@ def _parse_raw_flux_input(raw_flux_input):
         return raw_flux_input
 
 
-class FluxDatabase(object):
+class FluxDatabase:
     """Convert .csv produced by Maxwell parametric simulation into a flux database.
 
     Attributes
