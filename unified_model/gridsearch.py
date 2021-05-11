@@ -541,15 +541,15 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
         # We need to do a key-value swap to match the `.get_result` method
         # interface
         swapped = {v: k for k, v in curve_expressions.items()}
-        df_result = model.get_result(**swapped)
+        df_result: pd.DataFrame = model.get_result(**swapped)
         curves = df_result.to_dict(orient='list')  # type: ignore
 
     if score_metrics:
         metric_scores = {}
-        for i, (expression, evaluator) in enumerate(score_metrics.items()):
+        for _, (expression, evaluator) in enumerate(score_metrics.items()):
             df_result = model.get_result(time='t', target_value=expression)
             evaluator.fit(df_result['target_value'].values,
-                        df_result['time'].values)
+                          df_result['time'].values)
             score = evaluator.score()
             metric_scores.update(score)
 
@@ -597,21 +597,21 @@ class GridsearchBatchExecutor:
 
     """
     def __init__(self,
-                abstract_unified_model_factory: AbstractUnifiedModelFactory,
-                input_excitations: List[AccelerometerInput],
-                curve_expressions: Dict[str, str] = None,
-                score_metrics: Dict[str, List[Any]] = None,
-                calc_metrics: Dict[str, Callable] = None,
-                parameters_to_track: List[str] = None,
-                **ray_kwargs) -> None:
+                 abstract_unified_model_factory: AbstractUnifiedModelFactory,
+                 input_excitations: List[AccelerometerInput],
+                 curve_expressions: Dict[str, str] = None,
+                 score_metrics: Dict[str, List[Any]] = None,
+                 calc_metrics: Dict[str, Callable] = None,
+                 parameters_to_track: List[str] = None,
+                 **ray_kwargs) -> None:
         """Constructor"""
 
         if score_metrics:
             try:
                 for _, v in score_metrics.items():
                     assert len(input_excitations) == len(v)
-            except AssertionError:
-                raise AssertionError('len(input excitations) != len(score_metrics[x]) ')  # noqa
+            except AssertionError as e:
+                raise AssertionError('len(input excitations) != len(score_metrics[x]) ') from e  # noqa
 
         self.input_excitations = input_excitations
         self.curve_expressions = curve_expressions
@@ -623,13 +623,15 @@ class GridsearchBatchExecutor:
         self.ray_kwargs = ray_kwargs
         self.raw_grid_results = None
 
-    def _start_ray(self, ray_init_kwargs: Dict = None) -> None:
+    @staticmethod
+    def _start_ray(ray_init_kwargs: Dict = None) -> None:
         """Initialize Ray"""
         if ray_init_kwargs is None:
             ray_init_kwargs = {}
         ray.init(**ray_init_kwargs)
 
-    def _kill_ray(self) -> None:
+    @staticmethod
+    def _kill_ray() -> None:
         "Kill Ray."
         ray.shutdown()
 
@@ -637,7 +639,7 @@ class GridsearchBatchExecutor:
             self,
             output_file: str,
             batch_size: int
-    ):
+    ) -> None:
         """Execute the gridsearch."""
 
         # Convert to list since we may iterate over it multiple times
@@ -721,7 +723,7 @@ class GridsearchBatchExecutor:
                 self._write_out_results(df_results, output_file, ['input_excitation'])
                 del results  # Remove reference so Ray can free memory as needed
                 del df_results
-                ray.internal.free(task_queue)
+                ray.internal.free(task_queue)  # type: ignore
 
     def _write_out_results(self,
                            df_results,
@@ -752,7 +754,7 @@ class GridsearchBatchExecutor:
 
         # Merge dataframes
         results = []
-        result: pd.DataFrame = None
+        result: Optional[pd.DataFrame] = None
         for df in [df_curves, df_scores, df_calcs, df_params]:
             # Get the first defined dataframe
             if result is None:
