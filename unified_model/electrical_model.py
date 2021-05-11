@@ -131,9 +131,9 @@ class ElectricalModel:
 
         """
         dphi_dz = self.dflux_model.get(mag_pos)
-        emf = dphi_dz * (mag_vel)
+        emf = dphi_dz * mag_vel
 
-        if self.rectification_drop:
+        if self.rectification_drop:  # Loss due to rectification
             emf = np.abs(emf)
             if emf > self.rectification_drop:
                 emf = emf - self.rectification_drop
