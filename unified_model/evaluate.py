@@ -116,7 +116,10 @@ class AdcProcessor:
 
     """
 
-    def __init__(self, voltage_division_ratio=1., smooth=True, **smooth_kwargs):
+    def __init__(self,
+                 voltage_division_ratio: float=1.,
+                 smooth: bool=True,
+                 **smooth_kwargs: dict) -> None:
         """Constructor
 
         Parameters
@@ -477,9 +480,8 @@ class ElectricalSystemEvaluator:
                  time_target: np.ndarray,
                  metrics: Dict[str, Callable],
                  warp: bool = False,
-                 clip_threshold: float = 0.05):
+                 clip_threshold: float = 0.05) -> None:
         """Constructor.
-
 
         """
 
@@ -519,9 +521,11 @@ class ElectricalSystemEvaluator:
         end_index = np.max([emf_predict_end, emf_target_end])
         emf_predict_clipped_ = self.emf_predict_[start_index:end_index]
         emf_target_clipped_ = self.emf_target_[start_index:end_index]
+        time_clipped_ = self.time_[start_index:end_index]
 
         self.emf_predict_clipped_ = emf_predict_clipped_
         self.emf_target_clipped_ = emf_target_clipped_
+        self.time_clipped_ = time_clipped_
 
         self._clip_indexes = {
             'predict': (emf_predict_start, emf_predict_end),
