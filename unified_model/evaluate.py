@@ -653,15 +653,9 @@ class ElectricalSystemEvaluator:
 
         """
 
-        if self.warp:
-            self._calc_dtw()
-            metric_results = apply_scalar_functions(self.emf_predict_warped_,
-                                                    self.emf_target_warped_,
-                                                    **self.metrics)
-        else:
-            metric_results = apply_scalar_functions(self.emf_predict_clipped_,
-                                                    self.emf_target_clipped_,
-                                                    **self.metrics)
+        metric_results = apply_scalar_functions(self.emf_predict_clipped_,
+                                                self.emf_target_clipped_,
+                                                **self.metrics)
 
         return metric_results
 
