@@ -70,9 +70,9 @@ class MagneticSpringInterp:
             a column with name 'z' (with unit metres) and force values must be in a
             column with name 'force' (with unit Newtons).
         magnet_length : float
-            The height of the magnet in *metres*. This is used to offset the model
-            so that the distance between the magnets is relative to the center of
-            the moving magnet.
+            The height of the magnet in *metres*. This is used to offset the
+            model so that the distance between the magnets is relative to the
+            center of the moving magnet.
         filter_callable : Callable
             A filter_callable to smooth the data in the data file. Optional.
         **model_kwargs :
@@ -98,7 +98,7 @@ class MagneticSpringInterp:
                    **model_kwargs) -> FastInterpolator:
         """Fit the 1d interpolation model."""
         # Divide magnet_length by 2 because reference point is to the center of
-        # the lowermost magnet.
+        # the lowermost magnet in the assembly.
         return FastInterpolator(fea_dataframe.z.values + magnet_length / 2,
                                 fea_dataframe.force.values)
 
