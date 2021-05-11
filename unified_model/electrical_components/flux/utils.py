@@ -47,7 +47,7 @@ class FluxDatabase:
 
     """
 
-    def __init__(self, csv_database_path, fixed_velocity):
+    def __init__(self, csv_database_path: str, fixed_velocity: float) -> None:
         """Initialize the FluxDatabase
 
         Parameters
