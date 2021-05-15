@@ -6,7 +6,9 @@ WORKDIR /src
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY data data
+COPY data/2019-05-23_D/A data/2019-05-23_D/A
+COPY data/flux_curve_model data/flux_curve_model
+COPY data/magnetic-spring data/magnetic-spring
 
 COPY flux_modeller flux_modeller
 RUN cd flux_modeller && pip install .
