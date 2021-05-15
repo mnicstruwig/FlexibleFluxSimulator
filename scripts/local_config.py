@@ -64,9 +64,9 @@ for device in ['A', 'B', 'C']:
         n_z=int(abc_winding_num_z[device]),
         n_w=int(abc_winding_num_r[device]),
         l_ccd_mm=0,
-        ohm_per_mm=1361/1000/1000,
+        ohm_per_mm=1361 / 1000 / 1000,
         tube_wall_thickness_mm=2,
-        coil_wire_radius_mm=0.143/2,
+        coil_wire_radius_mm=0.143 / 2,
         coil_center_mm=abc_coil_center[device],
         inner_tube_radius_mm=5.5,
         coil_resistance=abc_coil_resistance[device]

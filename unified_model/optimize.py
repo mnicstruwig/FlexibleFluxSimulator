@@ -28,7 +28,7 @@ def _get_new_flux_curve(
     n_z = coil_configuration.n_z
     n_w = coil_configuration.n_w
 
-    coil_params = np.array([[n_z, n_w]])  # type: ignore
+    coil_params = np.array([[n_z, n_w]], dtype='int')  # type: ignore
     X = coil_params.reshape(1, -1)  # type: ignore
     return curve_model.predict_curves(X)
 
@@ -106,7 +106,10 @@ def _calc_constant_velocity_rms(curve_model: CurveModel,
                                 coil_configuration: CoilConfiguration,
                                 magnet_assembly: MagnetAssembly) -> float:
     """Calculate the open-circuit RMS for a simple emf curve."""
-    flux_interp_model = FluxModelInterp(coil_configuration, magnet_assembly)
+
+    flux_interp_model = FluxModelInterp(coil_configuration,
+                                        magnet_assembly,
+                                        curve_model)
     z_arr, phi = _get_new_flux_curve(curve_model=curve_model,
                                      coil_configuration=coil_configuration)
     flux_interp_model.fit(z_arr, phi.flatten())
@@ -119,32 +122,43 @@ def _calc_constant_velocity_rms(curve_model: CurveModel,
     return calc_rms(emf)
 
 
-def find_optimal_spacing(curve_model: CurveModel, coil_model_params: Dict) -> float:
-    """Find spacing between each coil / magnet that produces the largest RMS"""
-    cmp = copy(coil_model_params)  # Dicts are mutable
-    cmp['c'] = 2
+# TODO: Docstring
+def find_optimal_spacing(curve_model: CurveModel,
+                         coil_config: CoilConfiguration,
+                         magnet_assembly: MagnetAssembly) -> float:
+    """Find spacing between each coil / magnet that produces the largest RMS
+
+    Note, this requires a running `ray` instance.
+
+    """
+    coil_config = copy(coil_config)
+    coil_config.c = 2
     l_ccd_list = np.arange(1e-6, 0.05, 0.001)  # type: ignore
     task_ids = []
     for l_ccd in l_ccd_list:
-        cmp['l_ccd'] = l_ccd
-        task_ids.append(_calc_constant_velocity_rms.remote(curve_model, cmp))
+        coil_config.l_ccd_mm = l_ccd*1000  # Convert to mm
+        task_ids.append(_calc_constant_velocity_rms.remote(curve_model, coil_config, magnet_assembly))
     rms = ray.get(task_ids)
     return l_ccd_list[np.argmax(rms)]
 
 
+# TODO: Docstring
 def precompute_best_spacing(n_z_arr: np.ndarray,
                             n_w_arr: np.ndarray,
                             curve_model: CurveModel,
-                            coil_model_params: Dict,
+                            coil_config: CoilConfiguration,
+                            magnet_assembly: MagnetAssembly,
                             output_path: str) -> None:
     """Precompute the best spacing for coil parameters and save to disk"""
-    nz_nw_product = np.array(list(product(n_z_arr, n_w_arr)))  # type: ignore
+    nz_nw_product = list(product(n_z_arr, n_w_arr))
     results = []
     for n_z, n_w in tqdm(nz_nw_product):
-        coil_model_params['n_z'] = n_z
-        coil_model_params['n_w'] = n_w
-        results.append(find_optimal_spacing(curve_model, coil_model_params))
+        coil_config_copy = copy(coil_config)
+        coil_config_copy.n_w = n_w
+        coil_config_copy.n_z = n_z
+        results.append(find_optimal_spacing(curve_model, coil_config_copy, magnet_assembly))
 
+    nz_nw_product = np.array(nz_nw_product)
     df = pd.DataFrame({
         'n_z': nz_nw_product[:, 0],
         'n_w': nz_nw_product[:, 1],

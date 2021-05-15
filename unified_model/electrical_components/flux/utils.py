@@ -87,7 +87,8 @@ class FluxDatabase:
         split_ = str_.split()
         unprocessed_params = [s for s in split_ if '=' in s]
         param_names = [param.split('=')[0] for param in unprocessed_params]
-        param_values = [param.split('=')[1].replace("'", '') for param in unprocessed_params]
+        param_values = [param.split('=')[1].replace("'", '')
+                        for param in unprocessed_params]
 
         param_dict = {}
         for name, value in zip(param_names, param_values):
@@ -110,7 +111,7 @@ class FluxDatabase:
 
     def _make_db_key(self, **kwargs):
         """Build a database key using the internal look-up table."""
-        db_key = [None]*len(self.lut)
+        db_key = [None] * len(self.lut)
         for key in kwargs:
             db_key[self.lut[key]] = kwargs[key]
         if None in db_key:
