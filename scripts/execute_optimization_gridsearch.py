@@ -20,8 +20,8 @@ from unified_model import (CouplingModel, electrical_components,
 # PARAMETERS
 n_z_arr = np.arange(6, 201, 2)
 n_w_arr = np.arange(6, 201, 2)
-c = 1
-m = 1
+c = 2
+m = 2
 
 # Mechanical components
 magnetic_spring = mechanical_components.MagneticSpringInterp(
@@ -32,7 +32,7 @@ magnetic_spring = mechanical_components.MagneticSpringInterp(
 
 damper_model_params: Dict[str, Any] = {
     'coulomb_damping_coefficient': 5.742857,
-    'motional_damping_coefficient': 0.003333,
+    'motional_damping_coefficient': 0.006667,
     'magnet_assembly': None,
     'tube_inner_radius_mm': 5.5
 }
@@ -64,12 +64,12 @@ magnet_assembly_params: Dict[str, Any] = {
 
 mech_spring_params: Dict[str, Any] = {
     'magnet_assembly': None,
-    'position': 110 / 1000,
+    'position': 135 / 1000,
     'strength': 1e7,
     'damping_coefficient': 2.5,
 }
 
-curve_model = CurveModel.load('./data/flux_curve_model.model')
+curve_model = CurveModel.load('./data/flux_curve_model/flux_curve_model_2021_05_11.model')
 
 # Build our first "template" factory
 unified_model_factory = gridsearch.UnifiedModelFactory(
@@ -154,7 +154,7 @@ for batch_num, batch in enumerate(batches):
         optimal_spacing = None
         if coil_model_params_copy['c'] > 1:
             optimal_spacing = optimize.lookup_best_spacing(
-                path='./data/optimal_l_ccd_0_200_2.csv',
+                path='./data/flux_curve_model/optimal_l_ccd_0_200_2_v2.csv',
                 n_z=n_z,
                 n_w=n_w
             )
@@ -162,7 +162,7 @@ for batch_num, batch in enumerate(batches):
 
         if magnet_assembly_params_copy['m'] > 1:
             optimal_spacing = optimize.lookup_best_spacing(
-                path='./data/optimal_l_ccd_0_200_2.csv',
+                path='./data/flux_curve_model/optimal_l_ccd_0_200_2_v2.csv',
                 n_z=n_z,
                 n_w=n_w
             )
