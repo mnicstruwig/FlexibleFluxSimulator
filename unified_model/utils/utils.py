@@ -306,16 +306,22 @@ def align_signals_in_time(
         new_x_range=(0, stop_time)
     )
 
-    sample_delay = get_sample_delay(resampled_y_1, resampled_y_2)
+    def get_sample_shift(ref, sig):
+        corr = signal.correlate(ref, sig)
+        sample_shift = np.argmax(corr) - len(sig) + 1
+        return sample_shift
 
-    # Remove delay
-    time_delay = resampled_t[sample_delay]
-    _, resampled_y_2 = interpolate_and_resample(
-        x=resampled_t - time_delay,
-        y=resampled_y_2,
-        num_samples=num_samples,
-        new_x_range=(0, stop_time)
-    )
+    sample_delay = get_sample_shift(resampled_y_1, resampled_y_2)
+    resampled_y_2 = np.roll(resampled_y_2, sample_delay)
+
+    # # Remove delay
+    # time_delay = resampled_t[sample_delay]
+    # _, resampled_y_2 = interpolate_and_resample(
+    #     x=resampled_t + time_delay,
+    #     y=resampled_y_2,
+    #     num_samples=num_samples,
+    #     new_x_range=(0, stop_time)
+    # )
 
     return resampled_t, resampled_y_1, resampled_y_2
 
