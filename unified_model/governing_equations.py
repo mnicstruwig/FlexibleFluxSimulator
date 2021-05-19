@@ -24,7 +24,7 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
 
     emf = electrical_model.get_emf(x3 - x1, x4 - x2)
     current = electrical_model.get_current(emf)
-    coupling_force = coupling_model.get_mechanical_force(current)
+    coupling_force = np.sign(x4 - x2) * coupling_model.get_mechanical_force(current)
 
     try:
         mechanical_spring_force = mechanical_spring.get_force(x3-x1, x4-x2)
