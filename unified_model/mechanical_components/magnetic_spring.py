@@ -1,4 +1,4 @@
-from typing import Any, Callable, Optional
+from typing import Callable, Optional, Union, overload, cast
 
 import numpy as np
 import pandas as pd
@@ -52,16 +52,18 @@ def _preprocess(dataframe: pd.DataFrame,
 
 
 class MagneticSpringInterp:
+    """A magnetic spring model that uses interpolation.
+
+    This means that the model is not an explicit mathematical model -- it only
+    receives datapoints, and interpolates between those points.
+
+    """
     def __init__(self,
                  fea_data_file: str,
                  magnet_length: float,
                  filter_callable: Callable = None,
                  **model_kwargs) -> None:
-        """
-        A magnetic spring model that uses interpolation.
-
-        This means that the model is not an explicit mathematical model -- it only
-        receives datapoints, and interpolates between those points.
+        """Constructor.
 
         Parameters
         ----------
@@ -83,26 +85,22 @@ class MagneticSpringInterp:
         self.filter_callable = filter_callable
         self.magnet_length = magnet_length
 
-        self.fea_dataframe = _preprocess(pd.read_csv(fea_data_file),
+        self.fea_dataframe = _preprocess(cast(pd.DataFrame, pd.read_csv(fea_data_file)),
                                          filter_callable)
         self._model = self._fit_model(self.fea_dataframe,
                                       self.magnet_length,
                                       **model_kwargs)
 
-    def __repr__(self):
-        return f'MagneticSpringInterp({self.fea_data_file}, {self.filter_callable})'  # noqa
-
-    @staticmethod
-    def _fit_model(fea_dataframe: pd.DataFrame,
-                   magnet_length: float,
-                   **model_kwargs) -> FastInterpolator:
-        """Fit the 1d interpolation model."""
-        # Divide magnet_length by 2 because reference point is to the center of
-        # the lowermost magnet in the assembly.
-        return FastInterpolator(fea_dataframe.z.values + magnet_length / 2,
-                                fea_dataframe.force.values)
-
+    @overload
     def get_force(self, z: float) -> float:
+        ...
+
+    @overload
+    def get_force(self, z: np.ndarray) -> np.ndarray:
+        ...
+
+    def get_force(self,
+                  z: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         """Calculate the force between two magnets at a distance `z` apart.
 
         Parameters
@@ -117,6 +115,19 @@ class MagneticSpringInterp:
 
         """
         return self._model.get(z)
+
+    def __repr__(self):
+        return f'MagneticSpringInterp({self.fea_data_file}, {self.filter_callable})'  # noqa
+
+    @staticmethod
+    def _fit_model(fea_dataframe: pd.DataFrame,
+                   magnet_length: float) -> FastInterpolator:
+        """Fit the 1d interpolation model."""
+        # Divide magnet_length by 2 because reference point is to the center of
+        # the lowermost magnet in the assembly.
+        return FastInterpolator(fea_dataframe.z.values + magnet_length / 2,
+                                fea_dataframe.force.values)
+
 
 
 # TODO: Update to match latest version in paper.
@@ -146,13 +157,13 @@ class MagnetSpringAnalytic:
                  model: Callable,
                  filter_callable: Callable = None) -> None:
         """Constructor"""
-        self.fea_dataframe = _preprocess(pd.read_csv(fea_data_file),
+        self.fea_dataframe = _preprocess(cast(pd.DataFrame, pd.read_csv(fea_data_file)),
                                          filter_callable)
         self._model_params = self._fit_model(model)
 
     def _fit_model(self, model: Callable) -> np.ndarray:
         """Find the best-fit parameters for `model`"""
-        popt, _ = optimize.curve_fit(model,
+        popt, _ = optimize.curve_fit(model,  # type:ignore
                                      self.fea_dataframe.z.values,
                                      self.fea_dataframe.force.values)
         return popt
