@@ -529,7 +529,7 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
     model = unified_model_factory.make(input_excitation)
     model.solve(t_start=0,
                 t_end=8,
-                t_max_step=1e-3,
+                t_max_step=1e-2,
                 t_eval=np.arange(0., 8., 1e-3),
                 y0=[0.0, 0.0, 0.04, 0.0, 0.0])
 

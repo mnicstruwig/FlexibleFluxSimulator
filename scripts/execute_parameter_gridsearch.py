@@ -249,13 +249,15 @@ score_metrics = {
     'x3-x1': gridsearch.EvaluatorFactory(evaluator_cls=evaluate.MechanicalSystemEvaluator,
                                          expr_targets=mech_y_targets,
                                          time_targets=mech_time_targets,
-                                         metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance}).make()[which_input],  # noqa
+                                         metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance,
+                                                  'y_diff_dtw_euclid_norm': metrics.dtw_euclid_norm_by_length}).make()[which_input],  # noqa
 
     'g(t, x5)': gridsearch.EvaluatorFactory(evaluator_cls=evaluate.ElectricalSystemEvaluator,  # noqa
                                             expr_targets=elec_emf_targets,
                                             time_targets=elec_time_targets,
                                             metrics={'rms_perc_diff': metrics.root_mean_square_percentage_diff,  # noqa
-                                                     'emf_dtw_distance': metrics.dtw_euclid_distance}).make()[which_input]  # noqa
+                                                     'emf_dtw_distance': metrics.dtw_euclid_distance,
+                                                     'emf_dtw_euclid_norm': metrics.dtw_euclid_norm_by_length}).make()[which_input]  # noqa
 }
 
 # Metrics we want to calculate
