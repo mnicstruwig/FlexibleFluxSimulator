@@ -1,8 +1,0 @@
-[MESSAGES CONTROL]
-disable=
-    invalid-name,
-    too-few-public-methods,
-    too-many-locals,
-    too-many-arguments,
-    redefined-outer-name,
-    W503
