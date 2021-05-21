@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     magnetic_spring = mechanical_model.magnetic_spring
     mechanical_spring = mechanical_model.mechanical_spring
