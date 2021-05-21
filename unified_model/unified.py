@@ -8,9 +8,8 @@ describes their interaction.
 from __future__ import annotations
 
 import os
-import warnings
 from glob import glob
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union, Optional
 
 import cloudpickle
 import numpy as np
@@ -56,21 +55,21 @@ class UnifiedModel:
         The time steps of the solution to the governing equations.
 
     """
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
-        self.mechanical_model = None
-        self.electrical_model = None
-        self.coupling_model = None
-        self.governing_equations = None
-        self.raw_solution = None
-        self.post_processing_pipeline = {}
-        self.time = None
+        self.mechanical_model: Optional[MechanicalModel] = None
+        self.electrical_model: Optional[ElectricalModel] = None
+        self.coupling_model: Optional[CouplingModel] = None
+        self.governing_equations: Optional[Callable] = None
+        self.raw_solution: Any = None
+        self.post_processing_pipeline: Dict[str, Any] = {}
+        self.time: Optional[np.ndarray] = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return string representation of the UnifiedModel"""
         return f'Unified Model: {pretty_str(self.__dict__)}'
 
-    def _validate(self):
+    def _validate(self) -> None:
         try:
             assert self.mechanical_model is not None
             self.mechanical_model._validate()
@@ -110,7 +109,8 @@ class UnifiedModel:
             raise FileNotFoundError('Path to model does not exist')
 
         files = glob(path + '*')
-        keys = [f.split('.pkl')[0].split('/')[-1] for f in files]  # TODO: Use regex instead
+        # TODO: Use regex instead
+        keys = [f.split('.pkl')[0].split('/')[-1] for f in files]
 
         for key, file_ in zip(keys, files):
             with open(file_, 'rb') as f:
@@ -118,8 +118,11 @@ class UnifiedModel:
 
         return unified_model
 
-    def set_mechanical_model(self,
-                             mechanical_model: MechanicalModel) -> UnifiedModel:
+    def set_mechanical_model(
+            self,
+            mechanical_model: MechanicalModel,
+        ) -> UnifiedModel:
+
         """Add a mechanical model to the unified model
 
         Parameters
@@ -133,8 +136,10 @@ class UnifiedModel:
         self.mechanical_model = mechanical_model
         return self
 
-    def set_electrical_model(self,
-                             electrical_model: ElectricalModel) -> UnifiedModel:
+    def set_electrical_model(
+            self,
+            electrical_model: ElectricalModel
+    ) -> UnifiedModel:
         """Add an electrical model to the unified model
 
         Parameters
@@ -226,7 +231,9 @@ class UnifiedModel:
         """Execute the post-processing pipelines on the raw solution.."""
         for _, pipeline in self.post_processing_pipeline.items():
             # raw solution has dimensions d, n rather than n, d
-            self.raw_solution = np.array([pipeline(y) for y in self.raw_solution.T]).T
+            self.raw_solution = np.array([pipeline(y)
+                                          for y
+                                          in self.raw_solution.T]).T
 
     def solve(self,
               t_start: float,
@@ -265,13 +272,14 @@ class UnifiedModel:
             'coupling_model': self.coupling_model
         }
 
-        psoln = integrate.solve_ivp(fun=lambda t, y: self.governing_equations(t, y, **high_level_models),
-                                    t_span=[t_start, t_end],
-                                    y0=y0,
-                                    t_eval=t_eval,
-                                    method='RK45',
-                                    rtol=1e-4,
-                                    max_step=t_max_step)
+        psoln = integrate.solve_ivp(
+            fun=lambda t, y: self.governing_equations(t, y, **high_level_models),  # type: ignore # noqa
+            t_span=[t_start, t_end],
+            y0=y0,
+            t_eval=t_eval,
+            method='RK45',
+            rtol=1e-4,
+            max_step=t_max_step)
 
         self.time = psoln.t
         self.raw_solution = psoln.y
@@ -283,7 +291,7 @@ class UnifiedModel:
         self.time = None
         self.raw_solution = None
 
-    def get_result(self, **kwargs) -> Union[pd.DataFrame, None]:
+    def get_result(self, **kwargs) -> pd.DataFrame:
         """Get a dataframe of the results using expressions.
 
         *Any* reasonable expression is possible. You can refer to each of the
@@ -318,7 +326,9 @@ class UnifiedModel:
         >>> print(unified_model.raw_solution)
         [[1 2 3 4 5]
          [1 1 1 1 1]]
-        >>> unified_model.get_result(an_expr='x1', another_expr='x2-x1', third_expr='x1*x2')
+        >>> unified_model.get_result(an_expr='x1',
+                                     another_expr='x2-x1',
+                                     third_expr='x1*x2')
            an_expr  another_expr  third_expr
         0        1             0           1
         1        2            -1           2
@@ -328,10 +338,13 @@ class UnifiedModel:
 
         """
         try:
-            return parse_output_expression(self.time, self.raw_solution, **kwargs)
-        except AssertionError:
-            warnings.warn('Raw solution is not found. Did you run .solve?')
-            return None
+            return parse_output_expression(
+                self.time,
+                self.raw_solution,
+                **kwargs
+            )
+        except AssertionError as e:
+            raise ValueError('Raw solution is not found. Did you run .solve?') from e  # noqa
 
     def get_quick_results(self) -> Union[pd.DataFrame, None]:
         """Get a table of commonly used results.
@@ -418,10 +431,12 @@ class UnifiedModel:
         ...                       'mape': mean_absolute_percentage_err,
         ...                       'max': max_err}
         >>> pixel_scale = 0.18745
-        >>> labeled_video_processor = LabeledVideoProcessor(L=125,
-        ...                                                 mm=10,
-        ...                                                 seconds_per_frame=3/240,
-        ...                                                 pixel_scale=pixel_scale)
+        >>> labeled_video_processor = LabeledVideoProcessor(
+                L=125,
+        ...     mm=10,
+        ...     seconds_per_frame=3/240,
+        ...     pixel_scale=pixel_scale
+        ... )
         >>> y_target, y_time_target = labeled_video_processor.fit_transform(
         ...     video_labels_df,
         ...     impute_missing_values=True
@@ -444,11 +459,13 @@ class UnifiedModel:
         time_predict = df_result['time'].values
 
         # Scoring
-        mechanical_evaluator = MechanicalSystemEvaluator(y_target,
-                                                         time_target,
-                                                         metrics=metrics_dict,
-                                                         clip=kwargs.get('clip', True),
-                                                         warp=warp)
+        mechanical_evaluator = MechanicalSystemEvaluator(
+            y_target,
+            time_target,
+            metrics=metrics_dict,
+            clip=kwargs.get('clip', True),
+            warp=warp
+        )
         mechanical_evaluator.fit(y_predict, time_predict)
         mechanical_scores = mechanical_evaluator.score()
 
@@ -478,9 +495,9 @@ class UnifiedModel:
             The groundtruth load power values.
         metrics_dict: dict
             Metrics to compute on the predicted and target electrical data.
-            Keys will be used to set the attributes of the Score object.
-            Values must be the function used to compute the metric. Each function
-            must accept arguments (arr_predict, arr_target) as input, where
+            Keys will be used to set the attributes of the Score object.  Values
+            must be the function used to compute the metric. Each function must
+            accept arguments (arr_predict, arr_target) as input, where
             `arr_predict` and `arr_target` are numpy arrays that contain the
             predicted values and target values, respectively. The return value
             of the functions can have any shape.
@@ -514,10 +531,11 @@ class UnifiedModel:
         ...                     t_max_step=1e-3)
         >>> electrical_metrics = {'rms': root_mean_square}
         >>> adc_processor = AdcProcessor(voltage_division_ratio=1/0.3)
-        >>> electrical_scores = unified_model.score_electrical_model(metrics_dict=electrical_metrics,
-        ...                                                          adc_df=sample.adc_df,
-        ...                                                          adc_processor=adc_processor,
-        ...                                                          prediction_expr='g(t, x5)')
+        >>> electrical_scores = unified_model.score_electrical_model(
+        ... metrics_dict=electrical_metrics,
+        ... adc_df=sample.adc_df,
+        ... adc_processor=adc_processor,
+        ... prediction_expr='g(t, x5)')
 
         """
         # calculate prediction using expression
@@ -525,7 +543,6 @@ class UnifiedModel:
                                     prediction=prediction_expr)
         emf_predict = df_result['prediction'].values
         time_predict = df_result['time'].values
-
 
         # Scoring
         electrical_evaluator = ElectricalSystemEvaluator(emf_target,
@@ -542,7 +559,11 @@ class UnifiedModel:
             return electrical_scores, electrical_evaluator
         return electrical_scores
 
-    def calculate_metrics(self, prediction_expr: str, metric_dict: Dict) -> Dict:
+    def calculate_metrics(
+            self,
+            prediction_expr: str,
+            metric_dict: Dict
+    ) -> Dict:
         """Calculate metrics on a prediction expressions."""
 
         df_result = self.get_result(expr=prediction_expr)
