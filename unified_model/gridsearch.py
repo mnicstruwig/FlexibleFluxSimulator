@@ -3,7 +3,7 @@ import warnings
 from collections import defaultdict
 from copy import copy
 from itertools import product
-from typing import (Any, Dict, Generator, List, NamedTuple,
+from typing import (Any, Dict, Generator, List,
                     Union, Tuple, Callable, Optional)
 
 import numpy as np
@@ -197,7 +197,7 @@ class UnifiedModelFactory:
         self.dflux_model = dflux_model
         self.coupling_model = coupling_model
         self.governing_equations = governing_equations
-        self.model_id = model_id  # <-- used to keep track of a set of parameters
+        self.model_id = model_id  # <-- keep track of a set of parameters
 
     def get_args(self, param_filter: List[str] = None) -> Dict[str, float]:
         """Get arguments args that are be passed to `UnifiedModel`.
@@ -329,40 +329,44 @@ def _get_params_of_interest(param_dict: Dict[Any, Any],
             result[param] = _get_nested_param(param_dict, param)
         return result
     except KeyError as e:
-        raise KeyError(f'Attempted to lookup parameter {param} that could not be found!') from e
+        raise KeyError(f'Attempted to lookup parameter {param} that could not be found!') from e  # noqa
 
 
-def _scores_to_dataframe(grid_scores: List[Dict[str, Any]],
-                         model_ids: List[int]) -> pd.DataFrame:  # TODO: Docstring
-        """Parse scores from a grid search into a pandas dataframe.
+def _scores_to_dataframe(
+        grid_scores: List[Dict[str, Any]],
+        model_ids: List[int]
+) -> pd.DataFrame:
+    """Parse scores from a grid search into a pandas dataframe.
 
-        Parameters
-        ----------
-        grid_scores : List[Dict[str, Any]]
-            The grid scores, which are a list of `score_dict`s where the keys
-            indicate the score name, and the values are the calculated score.
+    Parameters
+    ----------
+    grid_scores : List[Dict[str, Any]]
+        The grid scores, which are a list of `score_dict`s where the keys
+        indicate the score name, and the values are the calculated score.
+    model_ids : List[int]
+        List of model ids to assosciate with each score in `grid_scores`.
 
-        Returns
-        -------
-        pandas dataframe
-            Pandas dataframe containing the scores.
+    Returns
+    -------
+    pandas dataframe
+        Pandas dataframe containing the scores.
 
-        """
-        if len(grid_scores[0]) == 0:
-            return None
+    """
+    if len(grid_scores[0]) == 0:
+        return None
 
-        result = defaultdict(list)
-        for i, score_dict in enumerate(grid_scores):
-            for key, val in score_dict.items():
-                result[key].append(val)
+    result = defaultdict(list)
+    for i, score_dict in enumerate(grid_scores):
+        for key, val in score_dict.items():
+            result[key].append(val)
 
-            result['model_id'].append(model_ids[i])
-        return pd.DataFrame(result)  # type: ignore
+        result['model_id'].append(model_ids[i])
+    return pd.DataFrame(result)  # type: ignore
 
 
 def _calc_metrics_to_dataframe(
         grid_calcs: List[Dict[str, Any]],
-        model_ids: List[int]  # TODO: Docstring
+        model_ids: List[int]
 ) -> pd.DataFrame:
     """Parse calculated metrics from a grid search into a pandas dataframe.
 
@@ -372,6 +376,8 @@ def _calc_metrics_to_dataframe(
         The grid's calculated metrics, which are a list of dicts, where the key
         is the name of the calculated metric and the values are the calculated
         metric.
+    model_ids : List[int]
+        List of model ids to assosciate with each score in `grid_scores`.
 
     Returns
     -------
@@ -390,9 +396,11 @@ def _calc_metrics_to_dataframe(
     return pd.DataFrame(result)
 
 
-def _curves_to_dataframe(grid_curves: List[Dict[str, Any]],
-                         sample_rate: int,
-                         model_ids: List[int]) -> pd.DataFrame:
+def _curves_to_dataframe(
+        grid_curves: List[Dict[str, Any]],
+        sample_rate: int,
+        model_ids: List[int]
+) -> pd.DataFrame:
     """Parse the curve waveforms from a grid search into a pandas dataframe.
 
     Parameters
@@ -402,6 +410,8 @@ def _curves_to_dataframe(grid_curves: List[Dict[str, Any]],
         the waveform, and the values are a List that holds the values.
     sample_rate : int
         The rate at which to *subsample* the curves, in order to save space.
+    model_ids : List[int]
+        List of model ids to assosciate with each curve in `grid_curves`.
 
     Returns
     -------
@@ -428,9 +438,11 @@ def _curves_to_dataframe(grid_curves: List[Dict[str, Any]],
     return df
 
 
-def _param_dict_list_to_dataframe(param_dict_list: List[Dict],
-                                  model_ids: List[int],
-                                  input_excitations: List[int]) -> pd.DataFrame:
+def _param_dict_list_to_dataframe(
+        param_dict_list: List[Dict],
+        model_ids: List[int],
+        input_excitations: List[int]
+) -> pd.DataFrame:
     """Parse the parameter list into a pandas dataframe.
 
     Useful for parsing a list of parameter values into a dataframe for later
@@ -441,6 +453,10 @@ def _param_dict_list_to_dataframe(param_dict_list: List[Dict],
     param_dict_list : List[Dict]
         List of dictionaries whose keys are the name of the parameter to track
         and whose values is the value of the parameter.
+    model_ids : List[int]
+        List of model ids to assosciated with each dict in `param_dict_list`.
+    input_excitations : List[int]
+        List of input excitations assosciated each dict in `param_dict_list`.
 
     Returns
     -------
@@ -457,7 +473,7 @@ def _param_dict_list_to_dataframe(param_dict_list: List[Dict],
             result[key].append(value)
 
         result['model_id'].append(model_ids[i])
-        # TODO: A bit of a hack. Find another place to append the input excitations.
+        # A bit of a hack. Find another place to append the input excitations.
         result['input_excitation'].append(input_excitations[i])
 
     return pd.DataFrame(result)
@@ -482,7 +498,7 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
              input_excitation: AccelerometerInput,
              curve_expressions: Dict[str, str] = None,
              score_metrics: Dict[str, Any] = None,
-             calc_metrics: Dict[str, Callable] = None) -> Tuple[Dict, Dict, Dict]:  # noqa
+             calc_metrics: Dict[str, Any] = None) -> Tuple[Dict, Dict, Dict]:  # noqa
     """Execute a single cell of a grid search.
 
     This is designed to be executed in parallel using Ray.
@@ -679,11 +695,13 @@ class GridsearchBatchExecutor:
                     input_numbers.append(input_number)
 
                     # Queue a simulation
-                    task_id = run_cell.remote(model_factory,
-                                            input_excitation=input_,
-                                            curve_expressions=self.curve_expressions,  # noqa
-                                            score_metrics=score_metric_dict_for_current_input,  # noqa
-                                            calc_metrics=self.calc_metrics)
+                    task_id = run_cell.remote(
+                        model_factory,
+                        input_excitation=input_,
+                        curve_expressions=self.curve_expressions,  # noqa
+                        score_metrics=score_metric_dict_for_current_input,  # noqa
+                        calc_metrics=self.calc_metrics
+                    )
 
                     task_queue.append(task_id)
 
@@ -710,31 +728,48 @@ class GridsearchBatchExecutor:
 
                 # Process results to dataframe
                 df_results = self._process_results(
-                    grid_results=(grid_curves,
-                                    grid_scores,
-                                    grid_calcs,
-                                    grid_params,
-                                    model_ids,
-                                    input_numbers)
+                    grid_results=(
+                        grid_curves,
+                        grid_scores,
+                        grid_calcs,
+                        grid_params,
+                        model_ids,
+                        input_numbers
+                    )
                 )
 
                 # Write out results to file
                 logging.info(f'Writing chunk to :: {output_file} ...')
-                self._write_out_results(df_results, output_file, ['input_excitation'])
+                self._write_out_results(
+                    df_results=df_results,
+                    path=output_file,
+                    partition_cols=['input_excitation']
+                )
                 del results  # Remove reference so Ray can free memory as needed
                 del df_results
                 ray.internal.free(task_queue)  # type: ignore
 
-    def _write_out_results(self,
-                           df_results,
-                           path,
-                           partition_cols):
-        table = pa.Table.from_pandas(df_results)
-        pq.write_to_dataset(table, path, partition_cols=partition_cols, compression='brotli')
+    def _write_out_results(
+            self,
+            df_results: pd.DataFrame,
+            path: str,
+            partition_cols: List[str]
+    ) -> None:
+        """Write results to disk as parquet."""
 
-    def _process_results(self,
-                         grid_results: Tuple[List, List, List, List, List, List],
-                         curve_subsample_rate: int = 3) -> pd.DataFrame:
+        table = pa.Table.from_pandas(df_results)
+        pq.write_to_dataset(
+            table,
+            path,
+            partition_cols=partition_cols,
+            compression='brotli'
+        )
+
+    def _process_results(
+            self,
+            grid_results: Tuple[List, List, List, List, List, List],
+            curve_subsample_rate: int = 3
+    ) -> pd.DataFrame:
         """Process the gridsearch results into a single pandas Dataframe."""
         grid_curves, grid_scores, grid_calcs, grid_params, model_ids, input_excitations = grid_results  # noqa
 
@@ -748,9 +783,11 @@ class GridsearchBatchExecutor:
                                          model_ids=model_ids)
         df_scores = _scores_to_dataframe(grid_scores, model_ids=model_ids)
         df_calcs = _calc_metrics_to_dataframe(grid_calcs, model_ids=model_ids)
-        df_params = _param_dict_list_to_dataframe(grid_params,
-                                                  model_ids=model_ids,
-                                                  input_excitations=input_excitations)
+        df_params = _param_dict_list_to_dataframe(
+            grid_params,
+            model_ids=model_ids,
+            input_excitations=input_excitations
+        )
 
         # Merge dataframes
         results = []
