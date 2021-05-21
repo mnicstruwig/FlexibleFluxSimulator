@@ -153,8 +153,10 @@ class UnifiedModel:
         self.electrical_model = electrical_model
         return self
 
-    def set_coupling_model(self,
-                           coupling_model: CouplingModel) -> UnifiedModel:
+    def set_coupling_model(
+            self,
+            coupling_model: CouplingModel
+    ) -> UnifiedModel:
         """Add the electro-mechanical coupling to the unified model.
 
         Parameters
@@ -227,7 +229,7 @@ class UnifiedModel:
         self.post_processing_pipeline[name] = pipeline
         return self
 
-    def _apply_pipeline(self):
+    def _apply_pipeline(self) -> None:
         """Execute the post-processing pipelines on the raw solution.."""
         for _, pipeline in self.post_processing_pipeline.items():
             # raw solution has dimensions d, n rather than n, d
@@ -346,7 +348,7 @@ class UnifiedModel:
         except AssertionError as e:
             raise ValueError('Raw solution is not found. Did you run .solve?') from e  # noqa
 
-    def get_quick_results(self) -> Union[pd.DataFrame, None]:
+    def get_quick_results(self) -> pd.DataFrame:
         """Get a table of commonly used results.
 
         Return a DataFrame containing the time, relative magnet position,
@@ -359,13 +361,15 @@ class UnifiedModel:
             v_load='g(t, x5)'
         )
 
-    def score_mechanical_model(self,
-                               y_target: np.ndarray,
-                               time_target: np.ndarray,
-                               metrics_dict: Dict[str, Callable],
-                               prediction_expr: str,
-                               warp: bool = False,
-                               **kwargs) -> Union[Dict, Tuple[Dict, Any]]:
+    def score_mechanical_model(
+            self,
+            y_target: np.ndarray,
+            time_target: np.ndarray,
+            metrics_dict: Dict[str, Callable],
+            prediction_expr: str,
+            warp: bool = False,
+            **kwargs
+    ) -> Union[Dict, Tuple[Dict, Any]]:
         """Evaluate the mechanical model using a selection of metrics.
 
         This is a useful helper function that makes use of the various
@@ -473,13 +477,15 @@ class UnifiedModel:
             return mechanical_scores, mechanical_evaluator
         return mechanical_scores
 
-    def score_electrical_model(self,
-                               emf_target: np.ndarray,
-                               time_target: np.ndarray,
-                               metrics_dict: Dict,
-                               prediction_expr: str,
-                               warp: bool = False,
-                               **kwargs) -> Union[Dict, Tuple[Dict, Any]]:
+    def score_electrical_model(
+            self,
+            emf_target: np.ndarray,
+            time_target: np.ndarray,
+            metrics_dict: Dict,
+            prediction_expr: str,
+            warp: bool = False,
+            **kwargs
+    ) -> Union[Dict, Tuple[Dict, Any]]:
         """Evaluate the electrical model using a selection of metrics.
 
         This is simply a useful helper function that makes use of the various
