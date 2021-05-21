@@ -5,7 +5,6 @@ Metrics for calculating the accuracy of a model.
 from math import gamma
 import numpy as np
 from fastdtw import fastdtw
-from tslearn import metrics
 from scipy.stats import zscore
 
 
@@ -50,11 +49,6 @@ def dtw_euclid_distance(x1, x2):
     """Calculate the distance between two signals using dynamic time warping."""
     distance, path = fastdtw(x1, x2, radius=30)
     return distance
-
-
-def soft_dtw(x1, x2):
-    """Calculate the Soft-DTW distance between two signals."""
-    return metrics.soft_dtw(x1, x2, gamma=0.001)
 
 
 def dtw_euclid_norm_by_length(x1, x2):
