@@ -7,7 +7,6 @@ from typing import Any, Dict
 
 from scipy.signal import savgol_filter
 
-from collections import namedtuple
 from unified_model.electrical_components.flux.utils import FluxDatabase
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
@@ -22,7 +21,8 @@ abc_coil_center = {'A': 59,
                    'B': 61,
                    'C': 63}
 
-# Is now calculated by the coil model, but we override it to make real-world measurements
+# Is now calculated by the coil model, but we override it to make real-world
+# measurements
 abc_coil_resistance = {'A': 12.5,
                        'B': 23.5,
                        'C': 17.8}
@@ -64,7 +64,7 @@ for device in ['A', 'B', 'C']:
         n_z=int(abc_winding_num_z[device]),
         n_w=int(abc_winding_num_r[device]),
         l_ccd_mm=0,
-        ohm_per_mm=1361 / 1000 / 1000,
+        ohm_per_mm=1079 / 1000 / 1000,
         tube_wall_thickness_mm=2,
         coil_wire_radius_mm=0.143 / 2,
         coil_center_mm=abc_coil_center[device],
@@ -98,6 +98,7 @@ config_parameters = ['coil_center',
                      'dflux_models',
                      'magnet_assembly']
 
+
 @dataclass
 class Config:
     """A configuration class"""
@@ -121,3 +122,7 @@ ABC_CONFIG = Config(coil_configs=abc_coil_configs,
                     flux_models=abc_flux_models,
                     dflux_models=abc_dflux_models,
                     magnet_assembly=abc_magnet_assembly)
+
+import cloudpickle
+with open('ABC.config', 'wb') as f:
+    cloudpickle.dump(ABC_CONFIG, f)
