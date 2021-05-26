@@ -469,7 +469,7 @@ def collect_samples(base_path: str,
                                         adc_dfs,
                                         lvp_dfs,
                                         paths,
-                                       fillvalue=None)]
+                                        fillvalue=None)]
     return np.array(sample_collection)
 
 

@@ -51,6 +51,20 @@ def dtw_euclid_distance(x1, x2):
     return distance
 
 
+def deriv_dtw_euclid_distance(x1, x2):
+    """DTW distance between two signals' first derivatives."""
+    d_x1 = np.gradient(x1)
+    d_x2 = np.gradient(x2)
+    return dtw_euclid_distance(d_x1, d_x2)
+
+
+def deriv_dtw_euclid_norm_by_length(x1, x2):
+    """DTW distance between two signals' first derivatives, normed."""
+    d_x1 = np.gradient(x1)
+    d_x2 = np.gradient(x2)
+    return dtw_euclid_norm_by_length(d_x1, d_x2)
+
+
 def dtw_euclid_norm_by_length(x1, x2):
     """Calculate the DTW distance that is normalized by vector length.
 
