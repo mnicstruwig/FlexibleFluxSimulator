@@ -1,8 +1,8 @@
 from itertools import product
 from dataclasses import dataclass
 from copy import copy
+from typing import Any
 
-from typing import List, Any, Dict, Callable
 import numpy as np
 from scipy.signal import savgol_filter
 
@@ -35,8 +35,8 @@ class QuasiKarnoppDamperFactory:
     def make(self):
         return [mechanical_components.damper.QuasiKarnoppDamper(b_m1,
                                                                 b_m2,
-                                                                self.magnet_assembly,
-                                                                self.tube_inner_radius_mm)
+                                                                self.magnet_assembly,  # noqa
+                                                                self.tube_inner_radius_mm)  # noqa
                 for b_m1, b_m2 in self.param_tuples]
 
 
@@ -93,20 +93,24 @@ class AccelerometerInputsFactory:
             accelerometer_inputs.append(acc_input)
         return np.array(accelerometer_inputs)
 
+
 @dataclass
 class MechanicalGroundtruth:
     y_diff: Any
     time: Any
+
 
 @dataclass
 class ElectricalGroundtruth:
     emf: Any
     time: Any
 
+
 @dataclass
 class Groundtruth:
     mech: MechanicalGroundtruth
     elec: ElectricalGroundtruth
+
 
 class GroundTruthFactory:
     def __init__(self,
@@ -214,7 +218,7 @@ mech_components = {
 }
 
 elec_components = {
-    'rectification_drop': [0.1],
+    'rectification_drop': [0.05],
     'load_model': [electrical_components.SimpleLoad(R=30)],
     'coil_configuration': [ABC_CONFIG.coil_configs[which_device]],
     'flux_model': [ABC_CONFIG.flux_models[which_device]],
@@ -250,7 +254,9 @@ score_metrics = {
                                          expr_targets=mech_y_targets,
                                          time_targets=mech_time_targets,
                                          metrics={'y_diff_dtw_distance': metrics.dtw_euclid_distance,
-                                                  'y_diff_dtw_euclid_norm': metrics.dtw_euclid_norm_by_length}).make()[which_input],  # noqa
+                                                  'y_diff_dtw_euclid_norm': metrics.dtw_euclid_norm_by_length,
+                                                  'dy_diff_dtw_distance': metrics.deriv_dtw_euclid_distance,
+                                                  'dy_diff_dtw_euclid_norm': metrics.deriv_dtw_euclid_norm_by_length}).make()[which_input],  # noqa
 
     'g(t, x5)': gridsearch.EvaluatorFactory(evaluator_cls=evaluate.ElectricalSystemEvaluator,  # noqa
                                             expr_targets=elec_emf_targets,
