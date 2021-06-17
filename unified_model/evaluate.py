@@ -1,6 +1,6 @@
 from typing import Any, Callable, Dict, Optional, Union, List, cast
-from dataclasses import dataclass
 from unified_model import mechanical_components
+from unified_model.utils.utils import Sample
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,22 +15,40 @@ from unified_model.utils.utils import (align_signals_in_time,
                                        Sample)
 
 
-@dataclass
-class MechanicalGroundtruth:
-    y_diff: Any
-    time: Any
-
-
-@dataclass
-class ElectricalGroundtruth:
-    emf: Any
-    time: Any
-
-
-@dataclass
 class Groundtruth:
-    mech: MechanicalGroundtruth
-    elec: ElectricalGroundtruth
+    """Compute and hold experimental ground truth data."""
+    def __init__(
+            self,
+            sample: Sample,
+            lvp_kwargs: dict,
+            adc_kwargs: dict=None
+    ) -> None:
+        """Constructor."""
+
+        self._sample = sample
+        self.mech = {}
+        self.elec = {}
+        self.lvp_kwargs = lvp_kwargs
+        self.adc_kwargs = adc_kwargs
+        if not adc_kwargs:
+            self.adc_kwargs = dict(
+                voltage_division_ratio=1 / 0.342,
+                smooth=True
+            )
+        self._make()
+
+    def _make(self) -> None:
+        self.lvp = LabeledVideoProcessor(**self.lvp_kwargs)
+        self.adc = AdcProcessor(**self.adc_kwargs)
+
+        y_target, y_time_target = self.lvp.fit_transform(self._sample.video_labels_df)
+        y_target = savgol_filter(y_target, 9, 3)  # addtional filtering on `y_target`
+        self.mech['y_diff'] = y_target
+        self.mech['time'] = y_time_target
+
+        emf_target, emf_time_target = self.adc.fit_transform(self._sample.adc_df)
+        self.elec['emf'] = emf_target
+        self.elec['time'] = emf_time_target
 
 
 class GroundTruthFactory:
@@ -59,22 +77,13 @@ class GroundTruthFactory:
         self.lvp_kwargs = lvp_kwargs
         self.adc_kwargs = adc_kwargs
 
-        self.lvp = LabeledVideoProcessor(**lvp_kwargs)
-        self.adc = AdcProcessor(**adc_kwargs)
-
-    def _make_mechanical_groundtruth(self, sample):
-        y_target, y_time_target = self.lvp.fit_transform(
-            sample.video_labels_df,
+    def _make_single_groundtruth(self, sample: Sample) -> Groundtruth:
+        ground_truth = Groundtruth(
+            sample=sample,
+            lvp_kwargs=self.lvp_kwargs,
+            adc_kwargs=self.adc_kwargs
         )
-        y_target = savgol_filter(y_target, 9, 3)
-
-        return MechanicalGroundtruth(y_target,
-                                     y_time_target)
-
-    def _make_electrical_groundtruth(self, sample):
-        emf_target, emf_time_target = self.adc.fit_transform(sample.adc_df)
-        return ElectricalGroundtruth(emf_target,
-                                     emf_time_target)
+        return ground_truth
 
     def make(self) -> List[Groundtruth]:
         """Make the Groundtruth objects.
@@ -86,17 +95,42 @@ class GroundTruthFactory:
         """
         groundtruths = []
         for sample in self.samples_list:
-            try:
-                mech_groundtruth = self._make_mechanical_groundtruth(sample)
-                elec_groundtruth = self._make_electrical_groundtruth(sample)
-
-                groundtruths.append(
-                    Groundtruth(mech_groundtruth, elec_groundtruth)
-                )
-            except AttributeError:
-                pass
+            groundtruths.append(self._make_single_groundtruth(sample))
 
         return groundtruths
+
+
+class Measurement:
+    def __init__(self, sample, model_prototype):
+        self.sample = sample
+        self.input_ = None
+        self.groundtruth = None
+        self._model_prototype = model_prototype  # We need some information from here to process our groundtruth data
+
+        self.input_, self.groundtruth = self._make_measurement(self.sample)
+
+    def _make_measurement(self, sample):
+        acc_input = mechanical_components.AccelerometerInput(
+            raw_accelerometer_input=sample.acc_df,
+            accel_column='z_G',
+            time_column='time(ms)',
+            accel_unit='g',
+            time_unit='ms',
+            smooth=True,
+            interpolate=True
+        )
+
+        ground_truth = Groundtruth(
+            sample=sample,
+            lvp_kwargs={
+                'magnet_assembly': self._model_prototype.mechanical_model.magnet_assembly,
+                'seconds_per_frame': 1/60,
+                'pixel_scale': 0.154508
+            },
+            adc_kwargs=None
+        )
+
+        return acc_input, ground_truth
 
 
 class AdcProcessor:
@@ -264,16 +298,15 @@ class MechanicalSystemEvaluator:
     clipping of the *actual* signal.
     """
 
-    def __init__(self,  # pylint: disable=too-many-arguments
-                 y_target: np.ndarray,
-                 time_target: np.ndarray,
-                 metrics: Dict[str, Callable],
-                 clip: bool = True,
-                 warp: bool = False) -> None:
-        """Constructor
-
-
-        """
+    def __init__(
+            self,
+            y_target: np.ndarray,
+            time_target: np.ndarray,
+            metrics: Dict[str, Callable],
+            clip: bool = True,
+            warp: bool = False
+    ) -> None:
+        """Constructor"""
         self.metrics = metrics
         self.clip = clip
         self.warp = warp
@@ -529,7 +562,8 @@ class ElectricalSystemEvaluator:
 
         self._clip_indexes = {
             'predict': (emf_predict_start, emf_predict_end),
-            'target': (emf_target_start, emf_target_end)
+            'target': (emf_target_start, emf_target_end),
+            'used_for_scoring': (start_index, end_index)
         }
 
     def fit(self,
@@ -683,11 +717,13 @@ class ElectricalSystemEvaluator:
 
         # Show the clip marks
 
-        plt.vlines(time[self._clip_indexes['target'][0]], 0, max_y, color='k', linestyle='--')
-        plt.vlines(time[self._clip_indexes['target'][1]], 0, max_y, color='k', linestyle='--')
+        plt.vlines(time[self._clip_indexes['used_for_scoring'][0]], 0, max_y, color='k', linestyle='--')
+        plt.vlines(time[self._clip_indexes['used_for_scoring'][1]], 0, max_y, color='k', linestyle='--')
 
-        plt.vlines(time[self._clip_indexes['predict'][0]], 0, max_y, color='r', linestyle='--')
-        plt.vlines(time[self._clip_indexes['predict'][1]], 0, max_y, color='r', linestyle='--')
+        plt.xlim(time[self._clip_indexes['used_for_scoring'][0]] - 0.5, time[self._clip_indexes['used_for_scoring'][1]] + 0.5)
+
+        # plt.vlines(time[self._clip_indexes['predict'][0]], 0, max_y, color='r', linestyle='--')
+        # plt.vlines(time[self._clip_indexes['predict'][1]], 0, max_y, color='r', linestyle='--')
 
         plt.legend()
 

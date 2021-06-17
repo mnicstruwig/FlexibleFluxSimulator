@@ -8,6 +8,7 @@ describes their interaction.
 from __future__ import annotations
 
 import os
+import shutil
 from glob import glob
 from typing import Any, Callable, Dict, List, Tuple, Union, Optional
 
@@ -85,8 +86,13 @@ class UnifiedModel:
         except AssertionError:
             raise ModelError('A coupling model must be specified.')
 
-    def save_to_disk(self, path: str) -> None:
+    def save_to_disk(self, path: str, overwrite=False) -> None:
         """Persists a unified model to disk"""
+        if overwrite:
+            try:
+                shutil.rmtree(path)
+            except FileNotFoundError:
+                pass
 
         if not os.path.exists(path):
             os.makedirs(path)

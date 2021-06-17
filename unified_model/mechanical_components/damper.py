@@ -49,6 +49,55 @@ class QuasiKarnoppDamper:
         return coulomb_contribution + shape_contribution
 
 
+class MassProportionalDamper:
+    """A mass-dependent constant damper.#!/usr/bin/env python
+
+    The force is equal to the damping coefficient multiplied by the velocity,
+    proportional to the mass of the magnet assembly.
+    """
+    def __init__(
+            self,
+            damping_coefficient: float,
+            magnet_assembly: MagnetAssembly
+    ) -> None:
+        """Constructor.
+
+        Parameters
+        ----------
+        damping_coefficient : float
+            The damping coefficient of the damper.
+        magnet_asssembly : MagnetAssembly
+            The MagnetAssembly whose mass directly proportions the force of the damper.
+
+        """
+        self.damping_coefficient=damping_coefficient
+        self.magnet_assembly_mass = magnet_assembly.get_mass()
+
+
+    def get_force(
+            self,
+            velocity: float
+    ) -> float:
+        """Get the force exerted by the damper.
+
+        Parameters
+        ----------
+        velocity : float
+            The velocity of the magnet assembly in m/s.
+
+        Returns
+        -------
+        float
+            The force exerted by the damper on the magnet assembly in Newtons.
+
+        """
+
+        return self.magnet_assembly_mass * self.damping_coefficient * velocity
+
+    def __repr__(self) -> str:
+        return f'MassProportionalDamper(damping_coefficient={self.damping_coefficient}, magnet_assembly_mass={self.magnet_assembly_mass})'  # noqa
+
+
 class ConstantDamper:
     """A constant-damping-coefficient damper.
 

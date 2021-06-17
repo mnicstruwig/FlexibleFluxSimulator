@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from numba import jit
+import copy
 
 from unified_model.utils.utils import smooth_savgol, FastInterpolator
 from scipy.interpolate import UnivariateSpline
@@ -151,7 +152,7 @@ class AccelerometerInput:
             The interpolation object is available under `self.interpolator`.
 
         """
-        self.raw_accelerometer_input = raw_accelerometer_input
+        self.raw_accelerometer_input = copy.deepcopy(raw_accelerometer_input)  # Prevents updating of mutable dataframes!
         self._accel_column = accel_column
         self._time_column = time_column
         self._accel_unit = accel_unit
@@ -160,7 +161,7 @@ class AccelerometerInput:
         self.interpolate = interpolate
         self.interpolator = None
 
-        self.acceleration_df = _parse_raw_accelerometer_input(raw_accelerometer_input)
+        self.acceleration_df = _parse_raw_accelerometer_input(self.raw_accelerometer_input)
         # TODO: Separate processed accelerometer from raw accelerometer
         self.acceleration_df = _preprocess_acceleration_dataframe(self.acceleration_df,
                                                                   self._accel_column,
