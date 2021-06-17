@@ -5,26 +5,25 @@ import copy
 from itertools import product
 from typing import Any, Dict, List, Tuple, Union
 
-import cloudpickle
+import nevergrad as ng
 import numpy as np
 import pandas as pd
 import ray
-import nevergrad as ng
 from flux_modeller.model import CurveModel
 from tqdm import tqdm
 
+from unified_model import metrics
 from unified_model.coupling import CouplingModel
 from unified_model.electrical_components.coil import CoilConfiguration
 from unified_model.electrical_components.flux.model import FluxModelInterp
+from unified_model.evaluate import Measurement
 from unified_model.gridsearch import UnifiedModelFactory
 from unified_model.mechanical_components.damper import (MassProportionalDamper,
                                                         QuasiKarnoppDamper)
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_components.mechanical_spring import \
-    MechanicalSpring  # noqa
+    MechanicalSpring
 from unified_model.unified import UnifiedModel
-from unified_model.evaluate import Measurement
-from unified_model import metrics
 
 
 def _solve_and_score_single_device_and_measurement(
@@ -206,48 +205,6 @@ def get_new_flux_and_dflux_model(
     return flux_interp_model.flux_model, flux_interp_model.dflux_model
 
 
-def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
-                          input_excitations: List[Any],
-                          curve_model: CurveModel,
-                          coil_config_params: Dict,
-                          magnet_assembly_params: Dict,
-                          mech_spring_params: Dict,
-                          damper_model_params: Dict) -> List[UnifiedModel]:
-    """Update the simulation set with new flux and coil resistance models."""
-
-    coil_configuration = CoilConfiguration(**coil_config_params)
-    magnet_assembly = MagnetAssembly(**magnet_assembly_params)
-
-    damper_model_params['magnet_assembly'] = magnet_assembly
-    damper = QuasiKarnoppDamper(**damper_model_params)
-
-    mech_spring_params['magnet_assembly'] = magnet_assembly
-    new_mech_spring = MechanicalSpring(**mech_spring_params)
-    new_flux_model, new_dflux_model = get_new_flux_and_dflux_model(
-        curve_model=curve_model,
-        coil_configuration=coil_configuration,
-        magnet_assembly=magnet_assembly
-    )
-
-    new_factory = UnifiedModelFactory(
-        damper=damper,  # New
-        magnet_assembly=magnet_assembly,  # New
-        magnetic_spring=unified_model_factory.magnetic_spring,
-        mechanical_spring=new_mech_spring,  # New
-        rectification_drop=unified_model_factory.rectification_drop,
-        load_model=unified_model_factory.load_model,
-        coil_configuration=coil_configuration,  # New
-        flux_model=new_flux_model,  # New
-        dflux_model=new_dflux_model,  # New
-        coupling_model=unified_model_factory.coupling_model,
-        governing_equations=unified_model_factory.governing_equations,
-        model_id=unified_model_factory.model_id
-    )
-
-    unified_models = [new_factory.make(input_) for input_ in input_excitations]
-    return unified_models
-
-
 # TODO: This should be available somewhere else
 def calc_rms(x):
     """Calculate the RMS of `x`."""
@@ -406,6 +363,48 @@ def calc_p_load_avg(x, r_load):
     """Calculate the average power over the load."""
     v_rms = calc_rms(x)
     return v_rms * v_rms / r_load
+
+
+def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
+                          input_excitations: List[Any],
+                          curve_model: CurveModel,
+                          coil_config_params: Dict,
+                          magnet_assembly_params: Dict,
+                          mech_spring_params: Dict,
+                          damper_model_params: Dict) -> List[UnifiedModel]:
+    """Update the simulation set with new flux and coil resistance models."""
+
+    coil_configuration = CoilConfiguration(**coil_config_params)
+    magnet_assembly = MagnetAssembly(**magnet_assembly_params)
+
+    damper_model_params['magnet_assembly'] = magnet_assembly
+    damper = QuasiKarnoppDamper(**damper_model_params)
+
+    mech_spring_params['magnet_assembly'] = magnet_assembly
+    new_mech_spring = MechanicalSpring(**mech_spring_params)
+    new_flux_model, new_dflux_model = get_new_flux_and_dflux_model(
+        curve_model=curve_model,
+        coil_configuration=coil_configuration,
+        magnet_assembly=magnet_assembly
+    )
+
+    new_factory = UnifiedModelFactory(
+        damper=damper,  # New
+        magnet_assembly=magnet_assembly,  # New
+        magnetic_spring=unified_model_factory.magnetic_spring,
+        mechanical_spring=new_mech_spring,  # New
+        rectification_drop=unified_model_factory.rectification_drop,
+        load_model=unified_model_factory.load_model,
+        coil_configuration=coil_configuration,  # New
+        flux_model=new_flux_model,  # New
+        dflux_model=new_dflux_model,  # New
+        coupling_model=unified_model_factory.coupling_model,
+        governing_equations=unified_model_factory.governing_equations,
+        model_id=unified_model_factory.model_id
+    )
+
+    unified_models = [new_factory.make(input_) for input_ in input_excitations]
+    return unified_models
 
 
 @ray.remote
