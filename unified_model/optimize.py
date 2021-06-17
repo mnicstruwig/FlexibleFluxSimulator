@@ -194,8 +194,12 @@ def find_optimal_spacing(curve_model: CurveModel,
     l_ccd_list = np.arange(1e-6, 0.05, 0.001)  # type: ignore
     task_ids = []
     for l_ccd in l_ccd_list:
-        coil_config.l_ccd_mm = l_ccd*1000  # Convert to mm
-        task_ids.append(_calc_constant_velocity_rms.remote(curve_model, coil_config, magnet_assembly))
+        coil_config.l_ccd_mm = l_ccd * 1000  # Convert to mm
+        task_ids.append(
+            _calc_constant_velocity_rms.remote(curve_model,
+                                               coil_config,
+                                               magnet_assembly)
+        )
     rms = ray.get(task_ids)
     return l_ccd_list[np.argmax(rms)]
 
@@ -263,13 +267,19 @@ def lookup_best_spacing(path: str, n_z: int, n_w: int) -> float:
     n_w : int
         The value of `n_w` (number of coil windings in the radial direction) to
         lookup the optimal spacing for.
+
+    Returns
+    -------
+    float
+        The optimal coil or magnet center distance, in mm.
+
     """
     df = pd.read_csv(path)
     # TODO: Fix underlying data file so that optimal distances values are in mm.
     # For now, we use a loose heuristic to make sure we return in mm.
-    if df['optimal_spacing_mm'].max() < 1:  # Hack to check if we should return in mm.
+    if df['optimal_spacing_mm'].max() < 1:  # Hack to check if we should return in mm.  # noqa
         df['optimal_spacing_mm'] = df['optimal_spacing_mm'] * 1000
-    result = df.query(f'n_z == {n_z} and n_w == {n_w}')['optimal_spacing_mm'].values
+    result = df.query(f'n_z == {n_z} and n_w == {n_w}')['optimal_spacing_mm'].values  # noqa
 
     if not result:
         raise ValueError(f'Coil parameters not found in {path}')
@@ -284,7 +294,25 @@ def calc_p_load_avg(x, r_load):
 
 
 @ray.remote
-def simulate_unified_model(unified_model: UnifiedModel, **solve_kwargs) -> Dict:
+def simulate_unified_model_for_power(
+        unified_model: UnifiedModel,
+        **solve_kwargs
+) -> Dict:
+    """Simulate a unified model and return the average load power.
+
+    Parameters
+    ----------
+    unified_model : UnifiedModel
+        The unified model to simulate.
+    solve_kwargs : dict
+        Keyword arguments passed to the `.solve` methof the `unified_model`.
+
+    Returns
+    -------
+    dict
+        Output of the `.calulate_metrics` method of `unified_model`.
+
+    """
     unified_model.reset()  # Make sure we're starting from a clean slate
 
     if not solve_kwargs:
