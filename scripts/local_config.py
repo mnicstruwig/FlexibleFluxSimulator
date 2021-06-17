@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Dict
 
 from scipy.signal import savgol_filter
+import cloudpickle
 
 from unified_model.electrical_components.flux.utils import FluxDatabase
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
@@ -123,6 +124,5 @@ ABC_CONFIG = Config(coil_configs=abc_coil_configs,
                     dflux_models=abc_dflux_models,
                     magnet_assembly=abc_magnet_assembly)
 
-import cloudpickle
 with open('ABC.config', 'wb') as f:
     cloudpickle.dump(ABC_CONFIG, f)

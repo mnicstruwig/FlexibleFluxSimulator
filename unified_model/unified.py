@@ -247,7 +247,7 @@ class UnifiedModel:
               t_start: float,
               t_end: float,
               y0: List[float],
-              t_eval: List[float],
+              t_eval: Union[List, np.ndarray],
               t_max_step: float = 1e-5) -> None:
         """Solve the unified model.
 
