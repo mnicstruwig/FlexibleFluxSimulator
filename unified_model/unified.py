@@ -375,7 +375,7 @@ class UnifiedModel:
             prediction_expr: str,
             warp: bool = False,
             **kwargs
-    ) -> Union[Dict, Tuple[Dict, Any]]:
+    ) -> Union[Dict[str, float], Tuple[Dict, Any]]:
         """Evaluate the mechanical model using a selection of metrics.
 
         This is a useful helper function that makes use of the various

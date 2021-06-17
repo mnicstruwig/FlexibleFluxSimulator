@@ -3,7 +3,7 @@ A module for finding the optimal energy harvester
 """
 import copy
 from itertools import product
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union, cast
 
 import nevergrad as ng
 import numpy as np
@@ -24,74 +24,6 @@ from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_components.mechanical_spring import \
     MechanicalSpring
 from unified_model.unified import UnifiedModel
-
-
-def _solve_and_score_single_device_and_measurement(
-        model_prototype: UnifiedModel,
-        measurement: Measurement,
-        damping_coefficient: float,
-        coupling_constant: float,
-        mech_spring_constant: float
-) -> float:
-    """Solve and score a unified model for a single ground truth measurement."""
-
-    model = copy.deepcopy(model_prototype)
-
-    # Build a new model using parameters
-    if model.mechanical_model is not None:
-
-        # Damper
-        model.mechanical_model.set_damper(
-            MassProportionalDamper(
-                damping_coefficient=damping_coefficient,
-                magnet_assembly=model.mechanical_model.magnet_assembly
-            )
-        )
-
-        # Mechanical spring
-        model.mechanical_model.set_mechanical_spring(
-            MechanicalSpring(
-                magnet_assembly=model.mechanical_model.magnet_assembly,
-                position=model.mechanical_model.mechanical_spring.position
-            )
-        )
-
-        # Input excitation
-        model.mechanical_model.set_input(measurement.input_)
-    else:
-        raise ValueError('MechanicalModel can not be None.')
-
-    # Coupling model
-    model.set_coupling_model(
-        CouplingModel().set_coupling_constant(coupling_constant)
-    )
-
-    model.solve(
-        t_start=0,
-        t_end=8.,
-        y0=[0., 0., 0.04, 0., 0.],
-        t_eval=np.linspace(0, 8, 1000),
-        t_max_step=1e-2
-    )
-
-    # Score the solved model against the ground truth.
-    mech_result, mech_eval = model.score_mechanical_model(
-        y_target=measurement.groundtruth.mech['y_diff'],
-        time_target=measurement.groundtruth.mech['time'],
-        metrics_dict={'dtw_distance': metrics.dtw_euclid_norm_by_length},
-        prediction_expr='x3-x1',
-        return_evaluator=True
-    )
-    elec_result, elec_eval = model.score_electrical_model(
-        emf_target=measurement.groundtruth.elec['emf'],
-        time_target=measurement.groundtruth.elec['time'],
-        metrics_dict={'rms_perc_diff': metrics.root_mean_square_percentage_diff,
-                       'dtw_distance': metrics.dtw_euclid_norm_by_length},
-        prediction_expr='g(t, x5)',
-        return_evaluator=True
-    )
-
-    return mech_result['dtw_distance'] + elec_result['dtw_distance']
 
 
 def meta_minimize_for_mean_of_votes(
@@ -139,6 +71,8 @@ def meta_minimize_for_mean_of_votes(
     if not measurements:
         raise ValueError('No measurements were passed.')
 
+    model = copy.deepcopy(model_prototype)
+
     recommended_params: Dict[str, List[float]] = {
         'damping_coefficient': [],
         'coupling_constant': [],
@@ -150,7 +84,7 @@ def meta_minimize_for_mean_of_votes(
         print(f'-> {i+1}/{len(measurements)}')
 
         instrum = ng.p.Instrumentation(
-            model_prototype=model_prototype,
+            model_prototype=model,
             measurement=m,
             damping_coefficient=instruments['damping_coefficient'],
             coupling_constant=instruments['coupling_constant'],
@@ -163,7 +97,7 @@ def meta_minimize_for_mean_of_votes(
         )
 
         recommendation = optimizer.minimize(
-            _solve_and_score_single_device_and_measurement
+            _calculate_cost_for_single_measurement
         )
 
         recommended_params['damping_coefficient'].append(recommendation.value[1]['damping_coefficient'])  # noqa
@@ -176,6 +110,173 @@ def meta_minimize_for_mean_of_votes(
             raise ValueError('A loss could not be computed.')
 
     return recommended_params
+
+
+def meta_minimize_for_mean_of_scores(
+        models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
+        instruments: Dict[str, ng.p.Scalar],
+        budget: int = 500,
+        verbose: bool = True
+) -> Dict[str, float]:
+
+    instrum = ng.p.Instrumentation(
+        models_and_measurements=models_and_measurements,
+        damping_coefficient=instruments['damping_coefficient'],
+        coupling_constant=instruments['coupling_constant'],
+        mech_spring_constant=instruments['mech_spring_constant']
+    )
+
+    optimizer = ng.optimizers.OnePlusOne(
+        parametrization=instrum,
+        budget=budget
+    )
+
+    def callback(optmizer, candidate, value):
+        print(f'-> Loss: {value}')
+
+    if verbose:
+        optimizer.register_callback('tell', callback)
+
+    recommendation = optimizer.minimize(
+        _calculate_cost_for_multiple_devices_multiple_measurements
+    )
+
+    recommended_params = {
+        'damping_coefficient': recommendation.value[1]['damping_coefficient'],
+        'coupling_constant': recommendation.value[1]['coupling_constant'],
+        'mech_spring_constant': recommendation.value[1]['mech_spring_constant'],
+        'loss': recommendation.loss
+    }
+
+    return recommended_params
+
+
+def _calculate_cost_for_single_measurement(
+        model_prototype: UnifiedModel,
+        measurement: Measurement,
+        damping_coefficient: float,
+        coupling_constant: float,
+        mech_spring_constant: float
+) -> float:
+    """Return the cost of a unified model for a single ground truth measurement.
+
+    This function is intended to be passed to a `nevergrad` optimizer.
+
+    """
+
+    model = copy.deepcopy(model_prototype)
+
+    # Build a new model using parameters
+    if model.mechanical_model is not None:
+
+        # Damper
+        model.mechanical_model.set_damper(
+            MassProportionalDamper(
+                damping_coefficient=damping_coefficient,
+                magnet_assembly=model.mechanical_model.magnet_assembly
+            )
+        )
+
+        # Mechanical spring
+        model.mechanical_model.set_mechanical_spring(
+            MechanicalSpring(
+                magnet_assembly=model.mechanical_model.magnet_assembly,
+                position=model.mechanical_model.mechanical_spring.position
+            )
+        )
+
+        # Input excitation
+        model.mechanical_model.set_input(measurement.input_)
+    else:
+        raise ValueError('MechanicalModel can not be None.')
+
+    # Coupling model
+    model.set_coupling_model(
+        CouplingModel().set_coupling_constant(coupling_constant)
+    )
+
+    model.solve(
+        t_start=0,
+        t_end=8.,
+        y0=[0., 0., 0.04, 0., 0.],
+        t_eval=np.linspace(0, 8, 1000),
+        t_max_step=1e-2
+    )
+
+    # Score the solved model against the ground truth.
+    mech_result = _score_mechanical_model(model, measurement)
+    elec_result = _score_electrical_model(model, measurement)
+
+    return mech_result['dtw_distance'] + elec_result['dtw_distance']
+
+
+def _calculate_cost_for_multiple_devices_multiple_measurements(
+        models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
+        damping_coefficient: float,
+        coupling_constant: float,
+        mech_spring_constant: float
+) -> float:
+    """Return cost of multiple unified models with multiple measurements.
+
+    The cost is the average cost across all devices and their respective ground
+    truth measurements.  This function is intended to be passed to a `nevergrad`
+    optimizer.
+
+    """
+    costs = []
+    for model, measurements in models_and_measurements:
+        for measurement in measurements:
+            individual_cost = _calculate_cost_for_single_measurement(
+                model_prototype=model,
+                measurement=measurement,
+                damping_coefficient=damping_coefficient,
+                coupling_constant=coupling_constant,
+                mech_spring_constant=mech_spring_constant
+            )
+            costs.append(individual_cost)
+    mean_cost = np.mean(costs)
+    return mean_cost  # type: ignore
+
+
+def _score_mechanical_model(
+        model: UnifiedModel,
+        measurement: Measurement
+) -> Dict[str, float]:
+    """Score the unified model against a ground truth measurement.
+
+    This function scores the mechanical component of the model.
+
+    """
+    mech_result = model.score_mechanical_model(
+        y_target=measurement.groundtruth.mech['y_diff'],
+        time_target=measurement.groundtruth.mech['time'],
+        metrics_dict={'dtw_distance': metrics.dtw_euclid_norm_by_length},
+        prediction_expr='x3-x1',
+        return_evaluator=False
+    )
+    mech_result = cast(dict, mech_result)  # To help the typechecker
+    return mech_result
+
+
+def _score_electrical_model(
+        model: UnifiedModel,
+        measurement: Measurement
+) -> Dict[str, float]:
+    """Score the unified model against a ground truth measurement.
+
+    This function scores the electrical component of the model.
+
+    """
+    elec_result = model.score_electrical_model(
+        emf_target=measurement.groundtruth.elec['emf'],
+        time_target=measurement.groundtruth.elec['time'],
+        metrics_dict={'rms_perc_diff': metrics.root_mean_square_percentage_diff,
+                       'dtw_distance': metrics.dtw_euclid_norm_by_length},
+        prediction_expr='g(t, x5)',
+        return_evaluator=False
+    )
+    elec_result = cast(dict, elec_result)  # To help the typechecker
+    return elec_result
 
 
 def _get_new_flux_curve(
