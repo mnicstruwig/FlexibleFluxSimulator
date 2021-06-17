@@ -1,23 +1,67 @@
 """
 A module for finding the optimal energy harvester
 """
-from copy import copy
+import copy
 from itertools import product
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import ray
+from flux_modeller.model import CurveModel
 from tqdm import tqdm
 
-from flux_modeller.model import CurveModel
-from unified_model.electrical_components.flux.model import FluxModelInterp
+from unified_model.coupling import CouplingModel
 from unified_model.electrical_components.coil import CoilConfiguration
-from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_components.damper import QuasiKarnoppDamper
-from unified_model.mechanical_components.mechanical_spring import MechanicalSpring  # noqa
+from unified_model.electrical_components.flux.model import FluxModelInterp
 from unified_model.gridsearch import UnifiedModelFactory
+from unified_model.mechanical_components.damper import (MassProportionalDamper,
+                                                        QuasiKarnoppDamper)
+from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
+from unified_model.mechanical_components.mechanical_spring import \
+    MechanicalSpring  # noqa
 from unified_model.unified import UnifiedModel
+
+
+def make_unified_model_from_params(
+        model_prototype: UnifiedModel,
+        damper_cdc: float,
+        coupling_constant: float,
+        mech_spring_constant: float,
+        mech_spring_position: float,
+) -> UnifiedModel:
+    """Create a unified model from a prototype and parameters.
+
+    Notes:
+    ------
+    A model prototype is only a concept. The "prototype" is simply a
+    `UnifiedModel` instance that will have certain parameter and components
+    overloaded.
+
+    """
+    model = copy.deepcopy(model_prototype)
+
+    if model.mechanical_model is not None:
+        damper = MassProportionalDamper(
+            damper_cdc,
+            model.mechanical_model.magnet_assembly
+        )
+    else:
+        raise ValueError('A MechanicalModel is not specified on the prototype.')
+
+    coupling_model = CouplingModel().set_coupling_constant(coupling_constant)
+
+    mech_spring = MechanicalSpring(
+        magnet_assembly=model.mechanical_model.magnet_assembly,
+        position=mech_spring_position,
+        damping_coefficient=mech_spring_constant
+    )
+
+    model.mechanical_model.set_damper(damper)
+    model.set_coupling_model(coupling_model)
+    model.mechanical_model.set_mechanical_spring(mech_spring)
+
+    return model
 
 
 def _get_new_flux_curve(
@@ -95,12 +139,6 @@ def calc_rms(x):
     return np.sqrt(np.sum(x**2) / len(x))
 
 
-def calc_p_load_avg(x, r_load):
-    """Calculate the average power over the load."""
-    v_rms = calc_rms(x)
-    return v_rms * v_rms / r_load
-
-
 @ray.remote
 def _calc_constant_velocity_rms(curve_model: CurveModel,
                                 coil_configuration: CoilConfiguration,
@@ -122,16 +160,36 @@ def _calc_constant_velocity_rms(curve_model: CurveModel,
     return calc_rms(emf)
 
 
-# TODO: Docstring
 def find_optimal_spacing(curve_model: CurveModel,
                          coil_config: CoilConfiguration,
                          magnet_assembly: MagnetAssembly) -> float:
-    """Find spacing between each coil / magnet that produces the largest RMS
+    """Find spacing between each coil / magnet that produces the largest RMS.
 
-    Note, this requires a running `ray` instance.
+    This is calculuated by finding the RMS of the produced EMF assuming a
+    constant velocity. This function requires a running `ray` instance.
+
+    Parameters
+    ----------
+    curve_model : CurveModel
+        The trained CurveModel to use to predict the flux curve.
+    coil_config: CoilConfiguration
+        The coil configuration that must be simulated.
+    magnet_assembly : MagnetAssembly
+        The magnet assembly that must be simulated.
+
+    Returns
+    -------
+    float
+        The magnet spacing and/or coil spacing that produces the maximum RMS.
+
+    Notes
+    -----
+    The optimal magnet spacing and/or coil spacing are equal to one another, and
+    so can be used interchangeably depending on the context in which the optimal
+    spacing is required.
 
     """
-    coil_config = copy(coil_config)
+    coil_config = copy.copy(coil_config)
     coil_config.c = 2
     l_ccd_list = np.arange(1e-6, 0.05, 0.001)  # type: ignore
     task_ids = []
@@ -142,21 +200,42 @@ def find_optimal_spacing(curve_model: CurveModel,
     return l_ccd_list[np.argmax(rms)]
 
 
-# TODO: Docstring
 def precompute_best_spacing(n_z_arr: np.ndarray,
                             n_w_arr: np.ndarray,
                             curve_model: CurveModel,
                             coil_config: CoilConfiguration,
                             magnet_assembly: MagnetAssembly,
                             output_path: str) -> None:
-    """Precompute the best spacing for coil parameters and save to disk"""
-    nz_nw_product = list(product(n_z_arr, n_w_arr))
+    """Precompute the best spacing for coil parameters and save to disk.
+
+    Parameters
+    ----------
+    n_z_arr : np.ndarray
+        An array of the number of windings in the z (axial) direction to be
+        considered.
+    n_w_arr : np.ndarray
+        An array of the number of windings in the w (radial) direction to be
+        considered.
+    curve_model : CurveModel
+        The trained curve model to use to predict the flux waveform.
+    magnet_assembly : MagnetAssembly
+        The magnet assembly to use to excite the coil.
+    output_path : str
+        The path to store the output of the precomputation, which is a .csv
+        file.
+
+    """
+    nz_nw_product: Union[List, np.ndarray] = list(product(n_z_arr, n_w_arr))
     results = []
     for n_z, n_w in tqdm(nz_nw_product):
-        coil_config_copy = copy(coil_config)
+        coil_config_copy = copy.copy(coil_config)
         coil_config_copy.n_w = n_w
         coil_config_copy.n_z = n_z
-        results.append(find_optimal_spacing(curve_model, coil_config_copy, magnet_assembly))
+        results.append(
+            find_optimal_spacing(curve_model,
+                                 coil_config_copy,
+                                 magnet_assembly)
+        )
 
     nz_nw_product = np.array(nz_nw_product)
     df = pd.DataFrame({
@@ -198,6 +277,12 @@ def lookup_best_spacing(path: str, n_z: int, n_w: int) -> float:
     return result[0]
 
 
+def calc_p_load_avg(x, r_load):
+    """Calculate the average power over the load."""
+    v_rms = calc_rms(x)
+    return v_rms * v_rms / r_load
+
+
 @ray.remote
 def simulate_unified_model(unified_model: UnifiedModel, **solve_kwargs) -> Dict:
     unified_model.reset()  # Make sure we're starting from a clean slate
@@ -213,8 +298,11 @@ def simulate_unified_model(unified_model: UnifiedModel, **solve_kwargs) -> Dict:
 
     unified_model.solve(**solve_kwargs)
 
+    if unified_model.electrical_model is None:
+        raise ValueError('ElectricalModel is not specified.')
+
     results = unified_model.calculate_metrics('g(t, x5)', {
-        'p_load_avg': lambda x: calc_p_load_avg(x, unified_model.electrical_model.load_model.R)
+        'p_load_avg': lambda x: calc_p_load_avg(x, unified_model.electrical_model.load_model.R)  # noqa
     })
 
     return results
