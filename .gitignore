@@ -8,4 +8,5 @@
 *.el
 *.pdf
 *.egg*
-
+*flycheck*
+*dask-worker-space*
