@@ -5,9 +5,11 @@ import copy
 from itertools import product
 from typing import Any, Dict, List, Tuple, Union
 
+import cloudpickle
 import numpy as np
 import pandas as pd
 import ray
+import nevergrad as ng
 from flux_modeller.model import CurveModel
 from tqdm import tqdm
 
@@ -21,47 +23,160 @@ from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_components.mechanical_spring import \
     MechanicalSpring  # noqa
 from unified_model.unified import UnifiedModel
+from unified_model.evaluate import Measurement
+from unified_model import metrics
 
 
-def make_unified_model_from_params(
+def _solve_and_score_single_device_and_measurement(
         model_prototype: UnifiedModel,
-        damper_cdc: float,
+        measurement: Measurement,
+        damping_coefficient: float,
         coupling_constant: float,
-        mech_spring_constant: float,
-        mech_spring_position: float,
-) -> UnifiedModel:
-    """Create a unified model from a prototype and parameters.
+        mech_spring_constant: float
+) -> float:
+    """Solve and score a unified model for a single ground truth measurement."""
 
-    Notes:
-    ------
-    A model prototype is only a concept. The "prototype" is simply a
-    `UnifiedModel` instance that will have certain parameter and components
-    overloaded.
-
-    """
     model = copy.deepcopy(model_prototype)
 
+    # Build a new model using parameters
     if model.mechanical_model is not None:
-        damper = MassProportionalDamper(
-            damper_cdc,
-            model.mechanical_model.magnet_assembly
+
+        # Damper
+        model.mechanical_model.set_damper(
+            MassProportionalDamper(
+                damping_coefficient=damping_coefficient,
+                magnet_assembly=model.mechanical_model.magnet_assembly
+            )
         )
+
+        # Mechanical spring
+        model.mechanical_model.set_mechanical_spring(
+            MechanicalSpring(
+                magnet_assembly=model.mechanical_model.magnet_assembly,
+                position=model.mechanical_model.mechanical_spring.position
+            )
+        )
+
+        # Input excitation
+        model.mechanical_model.set_input(measurement.input_)
     else:
-        raise ValueError('A MechanicalModel is not specified on the prototype.')
+        raise ValueError('MechanicalModel can not be None.')
 
-    coupling_model = CouplingModel().set_coupling_constant(coupling_constant)
-
-    mech_spring = MechanicalSpring(
-        magnet_assembly=model.mechanical_model.magnet_assembly,
-        position=mech_spring_position,
-        damping_coefficient=mech_spring_constant
+    # Coupling model
+    model.set_coupling_model(
+        CouplingModel().set_coupling_constant(coupling_constant)
     )
 
-    model.mechanical_model.set_damper(damper)
-    model.set_coupling_model(coupling_model)
-    model.mechanical_model.set_mechanical_spring(mech_spring)
+    model.solve(
+        t_start=0,
+        t_end=8.,
+        y0=[0., 0., 0.04, 0., 0.],
+        t_eval=np.linspace(0, 8, 1000),
+        t_max_step=1e-2
+    )
 
-    return model
+    # Score the solved model against the ground truth.
+    mech_result, mech_eval = model.score_mechanical_model(
+        y_target=measurement.groundtruth.mech['y_diff'],
+        time_target=measurement.groundtruth.mech['time'],
+        metrics_dict={'dtw_distance': metrics.dtw_euclid_norm_by_length},
+        prediction_expr='x3-x1',
+        return_evaluator=True
+    )
+    elec_result, elec_eval = model.score_electrical_model(
+        emf_target=measurement.groundtruth.elec['emf'],
+        time_target=measurement.groundtruth.elec['time'],
+        metrics_dict={'rms_perc_diff': metrics.root_mean_square_percentage_diff,
+                       'dtw_distance': metrics.dtw_euclid_norm_by_length},
+        prediction_expr='g(t, x5)',
+        return_evaluator=True
+    )
+
+    return mech_result['dtw_distance'] + elec_result['dtw_distance']
+
+
+def meta_minimize_for_mean_of_votes(
+        model_prototype: UnifiedModel,
+        measurements: List[Measurement],
+        instruments: Dict[str, ng.p.Scalar],
+        budget: int = 500
+) -> Dict[str, List[float]]:
+    """Perform the `mean of votes` evolutionary optimization.
+
+    For each measurement, a set of model parameters is found that minimizes the
+    cost function. The recommended parameters for each measurement, alongside
+    the corresponding loss is returned.
+
+    Currently, only the friction damping coefficient, coupling coefficient and
+    mechanical spring damping coefficient are considered for optimization. These must be
+    specified as `nevergrad` scalars using the `instruments` argument.
+
+    The cost function is the sum of the DTW distance between the simulated and
+    measured devices. There are two dtw distances. The first is the DTW distance
+    between the simulated and measured position of the magnet assembly. The
+    second is the DTW distance between the simulated and measured load voltage.
+
+    Examples
+    --------
+
+    >>> # instrumentation example
+    >>> instruments = {
+    ...     'damping_coefficient': ng.p.Scalar(init=5),
+    ...     'coupling_constant': ng.p.Scalar(init=5),
+    ...     'mech_spring_constant': ng.p.Scalar(init=0)
+    ...     }
+
+    TODO: Rest of docstring
+    """
+
+    # Some quick validation.
+    if 'damping_coefficient' not in instruments:
+        raise KeyError('damping_coefficient must be present in `instruments`')
+    if 'coupling_constant' not in instruments:
+        raise KeyError('coupling_constant must be present in `instruments`')
+    if 'mech_spring_constant' not in instruments:
+        raise KeyError('mech_spring_constant must be present in `instruments`')
+
+    if not measurements:
+        raise ValueError('No measurements were passed.')
+
+    recommended_params: Dict[str, List[float]] = {
+        'damping_coefficient': [],
+        'coupling_constant': [],
+        'mech_spring_constant': [],
+        'loss': []
+    }
+
+    for i, m in enumerate(measurements):
+        print(f'-> {i+1}/{len(measurements)}')
+
+        instrum = ng.p.Instrumentation(
+            model_prototype=model_prototype,
+            measurement=m,
+            damping_coefficient=instruments['damping_coefficient'],
+            coupling_constant=instruments['coupling_constant'],
+            mech_spring_constant=instruments['mech_spring_constant']
+        )
+
+        optimizer = ng.optimizers.OnePlusOne(
+            parametrization=instrum,
+            budget=budget
+        )
+
+        recommendation = optimizer.minimize(
+            _solve_and_score_single_device_and_measurement
+        )
+
+        recommended_params['damping_coefficient'].append(recommendation.value[1]['damping_coefficient'])  # noqa
+        recommended_params['coupling_constant'].append(recommendation.value[1]['coupling_constant'])  # noqa
+        recommended_params['mech_spring_constant'].append(recommendation.value[1]['mech_spring_constant'])  # noqa
+
+        if recommendation.loss:
+            recommended_params['loss'].append(recommendation.loss)
+        else:
+            raise ValueError('A loss could not be computed.')
+
+    return recommended_params
 
 
 def _get_new_flux_curve(
