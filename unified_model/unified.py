@@ -20,7 +20,8 @@ from scipy import integrate
 from unified_model.coupling import CouplingModel
 from unified_model.electrical_model import ElectricalModel
 from unified_model.evaluate import (ElectricalSystemEvaluator,
-                                    MechanicalSystemEvaluator)
+                                    MechanicalSystemEvaluator,
+                                    Measurement)
 from unified_model.mechanical_model import MechanicalModel
 from unified_model.utils.utils import parse_output_expression, pretty_str
 from unified_model.local_exceptions import ModelError
@@ -307,7 +308,7 @@ class UnifiedModel:
             prediction_expr: str,
             warp: bool = False,
             **kwargs
-    ) -> Union[Dict[str, float], Tuple[Dict, Any]]:
+    ) -> Tuple[Dict[str, float], Any]:
         """Evaluate the mechanical model using a selection of metrics.
 
         This is a useful helper function that makes use of the various
@@ -317,10 +318,10 @@ class UnifiedModel:
 
         Parameters
         ----------
-        time_target : np.ndarray
-            The corresponding target time values.
         y_target : np.ndarray
             The target mechanical values.
+        time_target : np.ndarray
+            The corresponding target time values.
         metrics_dict: dict
             Metrics to compute on the predicted and target mechanical data.
             Keys must be the name of the metric returned in the Results object.
@@ -341,9 +342,7 @@ class UnifiedModel:
             target signals.
             Default value is False.
         **kwargs
-            return_evaluator : bool
-                Whether to return the evaluator used to score the electrical
-                system.
+            Keyword arguments passed to to the underlying evaluator class.
 
         Returns
         -------
@@ -411,9 +410,7 @@ class UnifiedModel:
         mechanical_evaluator.fit(y_predict, time_predict)
         mechanical_scores = mechanical_evaluator.score()
 
-        if kwargs.pop('return_evaluator', None):
-            return mechanical_scores, mechanical_evaluator
-        return mechanical_scores
+        return mechanical_scores, mechanical_evaluator
 
     def score_electrical_model(
             self,
@@ -423,7 +420,7 @@ class UnifiedModel:
             prediction_expr: str,
             warp: bool = False,
             **kwargs
-    ) -> Union[Dict, Tuple[Dict, Any]]:
+    ) -> Tuple[Dict[str, float], Any]:
         """Evaluate the electrical model using a selection of metrics.
 
         This is simply a useful helper function that makes use of the various
@@ -433,10 +430,10 @@ class UnifiedModel:
 
         Parameters
         ----------
-        time_target : np.ndarray
-            The groundtruth time values.
         emf_target: np.ndarray
             The groundtruth load power values.
+        time_target : np.ndarray
+            The groundtruth time values.
         metrics_dict: dict
             Metrics to compute on the predicted and target electrical data.
             Keys will be used to set the attributes of the Score object.  Values
@@ -455,9 +452,7 @@ class UnifiedModel:
             functions can also be applied to the differential equations. These
             are referenced in the "See Also" section below.
         **kwargs
-            return_evaluator : bool
-                Whether to return the evaluator used to score the electrical
-                system.
+            Keyword arguments passed to the underlying evaluator class.
 
         Returns
         -------
@@ -499,9 +494,94 @@ class UnifiedModel:
 
         electrical_scores = electrical_evaluator.score()
 
-        if kwargs.get('return_evaluator', None):
-            return electrical_scores, electrical_evaluator
-        return electrical_scores
+        return electrical_scores, electrical_evaluator
+
+    def score_measurement(
+            self,
+            measurement: Measurement,
+            mech_pred_expr: Optional[str] = None,
+            mech_metrics_dict: Optional[Dict[str, Callable]] = None,
+            elec_pred_expr: Optional[str] = None,
+            elec_metrics_dict: Optional[Dict[str, Callable]] = None,
+    ) -> Dict[str, float]:
+        """Score against a single measurement.
+
+        The mechanical and electrical (or both) can be scored against. This
+        function is a convenience wrapper around the `.score_mechanical_system`
+        and `.score_electrical_system` methods.
+
+        Parameters
+        ----------
+        measurement : Measurement
+            The measurement object containing the groundtruth data.
+        mech_pred_expr : str
+            Optional. The mechanical expression to score.
+        mech_metrics_dict : Dict[str, Callable]
+            The metrics to calculate on `mech_pred_expr` and the mechanical
+            ground truth data. Keys are a user-chosen name to give each metric.
+            Values are callables that accept two positional arguments; the first
+            being the predicted output (calculated from `mech_pred_expr`), and
+            the second being the ground truth measurement.
+        elec_pred_expr : str
+            Optional. The electrical expression to score.
+        elec_metrics_dict : Dict[str, Callable]
+            The metrics to calculate on `elec_pred_expr` and the electrical
+            ground truth data. Keys are a user-chosen name to give each metric.
+            Values are callables that accept two positional arguments; the first
+            being the predicted output (calculated from `elec_pred_expr`), and
+            the second being the ground truth measurement.
+
+        Examples
+        --------
+
+        >>> model.score_measurement(
+        ...    measurement=measurement,
+        ...    mech_pred_expr='x3-x1',
+        ...    mech_metrics_dict={
+        ...    'y_diff_dtw_distance': metrics.dtw_euclid_distance
+        ...    },
+        ...    elec_pred_expr='g(t, x5)',
+        ...    elec_metrics_dict={
+        ...        'emf_dtw_distance': metrics.dtw_euclid_distance,
+        ...        'rms_perc_diff': metrics.root_mean_square_percentage_diff
+        ...    }
+        ... )
+
+        Returns
+        -------
+        Dict[str, float]
+            The calculated metrics. The keys correspond to the names given in
+            the `*_metrics_dict` dictionaries, and values correspond to the
+            calculated Callables.
+
+        """
+
+        result = {}
+        mech_result: Dict[str, float] = {}
+        elec_result: Dict[str, float] = {}
+
+        if mech_pred_expr and mech_metrics_dict:
+            mech_result, mech_eval = self.score_mechanical_model(
+                y_target=measurement.groundtruth.mech['y_diff'],
+                time_target=measurement.groundtruth.mech['time'],
+                metrics_dict=mech_metrics_dict,
+                prediction_expr=mech_pred_expr,
+                return_evaluator=True
+            )
+
+        if elec_pred_expr and elec_metrics_dict:
+            elec_result, elec_eval = self.score_electrical_model(
+                emf_target=measurement.groundtruth.elec['emf'],
+                time_target=measurement.groundtruth.elec['time'],
+                metrics_dict=elec_metrics_dict,
+                prediction_expr=elec_pred_expr,
+                return_evaluator=True
+            )
+
+        result.update(mech_result)
+        result.update(elec_result)
+
+        return result
 
     def calculate_metrics(
             self,
