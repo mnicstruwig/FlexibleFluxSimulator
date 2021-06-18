@@ -70,60 +70,6 @@ class UnifiedModel:
         """Return string representation of the UnifiedModel"""
         return f'Unified Model: {pretty_str(self.__dict__)}'
 
-    def _validate(self) -> None:
-        try:
-            assert self.mechanical_model is not None
-            self.mechanical_model._validate()
-        except AssertionError:
-            raise ModelError('A mechanical model must be specified.')
-        try:
-            assert self.electrical_model is not None
-            self.electrical_model._validate()
-        except AssertionError:
-            raise ModelError('A electrical model must be specified.')
-        try:
-            assert self.coupling_model is not None
-        except AssertionError:
-            raise ModelError('A coupling model must be specified.')
-
-    def save_to_disk(self, path: str, overwrite=False) -> None:
-        """Persists a unified model to disk"""
-        if overwrite:
-            try:
-                shutil.rmtree(path)
-            except FileNotFoundError:
-                pass
-
-        if not os.path.exists(path):
-            os.makedirs(path)
-        else:
-            raise FileExistsError('The path already exists.')
-
-        for key, val in self.__dict__.items():
-            component_path = path + key + '.pkl'
-            with open(component_path, 'wb') as f:
-                cloudpickle.dump(val, f)
-
-    @staticmethod
-    def load_from_disk(path: str) -> UnifiedModel:
-        """Load a unified model from disk."""
-        unified_model = UnifiedModel()
-
-        try:
-            assert os.path.isdir(path)
-        except AssertionError:
-            raise FileNotFoundError('Path to model does not exist')
-
-        files = glob(path + '*')
-        # TODO: Use regex instead
-        keys = [f.split('.pkl')[0].split('/')[-1] for f in files]
-
-        for key, file_ in zip(keys, files):
-            with open(file_, 'rb') as f:
-                unified_model.__dict__[key] = cloudpickle.load(f)
-
-        return unified_model
-
     def set_mechanical_model(
             self,
             mechanical_model: MechanicalModel,
@@ -235,14 +181,6 @@ class UnifiedModel:
         self.post_processing_pipeline[name] = pipeline
         return self
 
-    def _apply_pipeline(self) -> None:
-        """Execute the post-processing pipelines on the raw solution.."""
-        for _, pipeline in self.post_processing_pipeline.items():
-            # raw solution has dimensions d, n rather than n, d
-            self.raw_solution = np.array([pipeline(y)
-                                          for y
-                                          in self.raw_solution.T]).T
-
     def solve(self,
               t_start: float,
               t_end: float,
@@ -292,12 +230,6 @@ class UnifiedModel:
         self.time = psoln.t
         self.raw_solution = psoln.y
         self._apply_pipeline()
-
-    def reset(self) -> None:
-        """Clear all computed results from the unified model."""
-
-        self.time = None
-        self.raw_solution = None
 
     def get_result(self, **kwargs) -> pd.DataFrame:
         """Get a dataframe of the results using expressions.
@@ -584,3 +516,71 @@ class UnifiedModel:
         for name, metric_func in metric_dict.items():
             results[name] = metric_func(df_result['expr'].values)
         return results
+
+    def reset(self) -> None:
+        """Clear all computed results from the unified model."""
+
+        self.time = None
+        self.raw_solution = None
+
+    def save_to_disk(self, path: str, overwrite=False) -> None:
+        """Persists a unified model to disk"""
+        if overwrite:
+            try:
+                shutil.rmtree(path)
+            except FileNotFoundError:
+                pass
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+        else:
+            raise FileExistsError('The path already exists.')
+
+        for key, val in self.__dict__.items():
+            component_path = path + key + '.pkl'
+            with open(component_path, 'wb') as f:
+                cloudpickle.dump(val, f)
+
+    @staticmethod
+    def load_from_disk(path: str) -> UnifiedModel:
+        """Load a unified model from disk."""
+        unified_model = UnifiedModel()
+
+        try:
+            assert os.path.isdir(path)
+        except AssertionError:
+            raise FileNotFoundError('Path to model does not exist')
+
+        files = glob(path + '*')
+        # TODO: Use regex instead
+        keys = [f.split('.pkl')[0].split('/')[-1] for f in files]
+
+        for key, file_ in zip(keys, files):
+            with open(file_, 'rb') as f:
+                unified_model.__dict__[key] = cloudpickle.load(f)
+
+        return unified_model
+
+    def _validate(self) -> None:
+        try:
+            assert self.mechanical_model is not None
+            self.mechanical_model._validate()
+        except AssertionError:
+            raise ModelError('A mechanical model must be specified.')
+        try:
+            assert self.electrical_model is not None
+            self.electrical_model._validate()
+        except AssertionError:
+            raise ModelError('A electrical model must be specified.')
+        try:
+            assert self.coupling_model is not None
+        except AssertionError:
+            raise ModelError('A coupling model must be specified.')
+
+    def _apply_pipeline(self) -> None:
+        """Execute the post-processing pipelines on the raw solution.."""
+        for _, pipeline in self.post_processing_pipeline.items():
+            # raw solution has dimensions d, n rather than n, d
+            self.raw_solution = np.array([pipeline(y)
+                                          for y
+                                          in self.raw_solution.T]).T

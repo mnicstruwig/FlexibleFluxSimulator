@@ -738,7 +738,6 @@ class ElectricalSystemEvaluator:
 
 
 class LabeledVideoProcessor:
-
     def __init__(
             self,
             magnet_assembly: mechanical_components.MagnetAssembly,
