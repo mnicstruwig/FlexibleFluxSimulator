@@ -503,7 +503,7 @@ class UnifiedModel:
             mech_metrics_dict: Optional[Dict[str, Callable]] = None,
             elec_pred_expr: Optional[str] = None,
             elec_metrics_dict: Optional[Dict[str, Callable]] = None,
-    ) -> Dict[str, float]:
+    ) -> Tuple[Dict[str, float], Dict[str, Any]]:
         """Score against a single measurement.
 
         The mechanical and electrical (or both) can be scored against. This
@@ -549,18 +549,21 @@ class UnifiedModel:
 
         Returns
         -------
-        Dict[str, float]
-            The calculated metrics. The keys correspond to the names given in
-            the `*_metrics_dict` dictionaries, and values correspond to the
+        Tuple[Dict[str, float], Dict[str, Any]]
+            The calculated metrics and evaluators in a tuple. For the calculated
+            metrics, the keys correspond to the names given in the
+            `*_metrics_dict` dictionaries and values correspond to the
             calculated Callables.
 
         """
 
         result = {}
+        evaluators: Dict[str, Any] = {'mech': None, 'elec': None}
+
         mech_result: Dict[str, float] = {}
         elec_result: Dict[str, float] = {}
 
-        if mech_pred_expr and mech_metrics_dict:
+        if mech_pred_expr is not None and mech_metrics_dict is not None:
             mech_result, mech_eval = self.score_mechanical_model(
                 y_target=measurement.groundtruth.mech['y_diff'],
                 time_target=measurement.groundtruth.mech['time'],
@@ -568,8 +571,9 @@ class UnifiedModel:
                 prediction_expr=mech_pred_expr,
                 return_evaluator=True
             )
+            evaluators['mech'] = mech_eval
 
-        if elec_pred_expr and elec_metrics_dict:
+        if elec_pred_expr is not None and elec_metrics_dict is not None:
             elec_result, elec_eval = self.score_electrical_model(
                 emf_target=measurement.groundtruth.elec['emf'],
                 time_target=measurement.groundtruth.elec['time'],
@@ -577,11 +581,12 @@ class UnifiedModel:
                 prediction_expr=elec_pred_expr,
                 return_evaluator=True
             )
+            evaluators['elec'] = elec_eval
 
         result.update(mech_result)
         result.update(elec_result)
 
-        return result
+        return result, evaluators
 
     def calculate_metrics(
             self,
