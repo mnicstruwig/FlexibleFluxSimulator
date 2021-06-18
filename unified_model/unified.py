@@ -123,8 +123,10 @@ class UnifiedModel:
         self.coupling_model = coupling_model
         return self
 
-    def set_governing_equations(self,
-                                governing_equations: Callable) -> UnifiedModel:
+    def set_governing_equations(
+            self,
+            governing_equations: Callable
+    ) -> UnifiedModel:
         """Add a set of governing equations to the unified model.
 
         The governing equations describe the behaviour of the entire system,
@@ -152,9 +154,11 @@ class UnifiedModel:
         self.governing_equations = governing_equations
         return self
 
-    def set_post_processing_pipeline(self,
-                                     pipeline: Callable,
-                                     name: str) -> UnifiedModel:
+    def set_post_processing_pipeline(
+            self,
+            pipeline: Callable,
+            name: str
+    ) -> UnifiedModel:
         """Add a post-processing pipeline to the unified model
 
         After solving the unified model, optional post-processing pipelines can
