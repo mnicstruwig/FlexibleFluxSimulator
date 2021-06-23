@@ -19,7 +19,7 @@ def mean_of_votes(
         instruments: Dict[str, ng.p.Scalar],
         budget: int = 500
 ) -> Dict[str, List[float]]:
-    """Perform the `mean of votes` evolutionary optimization.
+    """Perform the `mean of votes` evolutionary parameter search optimization.
 
     For each measurement, a set of model parameters is found that minimizes the
     cost function. The recommended parameters for each measurement, alongside
@@ -57,6 +57,7 @@ def mean_of_votes(
     budget : int
         The budget (maximum number of allowed iterations) that the evolutionary
         algorithm will run for, for *each* measurement in `measurements`.
+        Optional.
 
     Returns
     -------
@@ -144,6 +145,74 @@ def mean_of_scores(
         budget: int = 500,
         verbose: bool = True
 ) -> Dict[str, float]:
+    """Perform the `mean of scores` evolutionary parameter search optimization.
+
+    A set of model parameters is found that minimizes the average cost functions
+    across all measurements. The recommended parameters, alongside the
+    corresponding loss, is returned.
+
+    Currently, only the friction damping coefficient, coupling coefficient and
+    mechanical spring damping coefficient are considered for the parameter
+    search. These must be specified as `nevergrad` scalars using the
+    `instruments` argument.
+
+    The cost function is the mean of the sum of the DTW distance between the
+    simulated and measured devices. There are two dtw distances. The first is
+    the DTW distance between the simulated and measured position of the magnet
+    assembly. The second is the DTW distance between the simulated and measured
+    load voltage.
+
+    Parameters
+    ----------
+    models_and_measurements : List[Tuple[UnifiedModel, List[Measurement]]]
+        A list of tuples. The first element of each tuple is a
+        fully-instantiated UnifiedModel object that will be used as the basis
+        for the parameter search. The second element of each tuple is a list of
+        corresponding `Measurement` objects to the unified model. For the
+        unified model, the damper, coupling model, mechanical spring and input
+        excitation will be replaced during the parameter search. Every other
+        component must be specified.
+    instruments : Dict[str, ng.p.Scalar]
+        The `nevergrad` parametrization instruments that will be evolved in
+        order to find the most accurate set of parameters. Keys must correspond
+        to all three of {'damping_coefficient', 'coupling_constant',
+        'mech_spring_constant'} and values must be a nevergrad `Scalar`. See the
+        relevant `Scalar` documentation for how initial values and limits can be
+        set.
+    budget : int
+        The budget (maximum number of allowed iterations) that the evolutionary
+        algorithm will run for, for *each* measurement in `measurements`.
+        Optional.
+    verbose : bool
+        Set to `True` to print out the Loss value of the cost function during
+        optimization. Optional.
+
+    Returns
+    -------
+    Dict[str, float]
+        The optimization results. Each key is one of {'damping_coefficient',
+        'coupling_constant', 'mech_spring_constant'}, and each value corresponds
+        to the optimal parameter values found by minimizing the cost function.
+
+    Examples
+    --------
+
+    >>> # instrumentation example
+    >>> instruments = {
+    ...     'damping_coefficient': ng.p.Scalar(init=5),
+    ...     'coupling_constant': ng.p.Scalar(init=5),
+    ...     'mech_spring_constant': ng.p.Scalar(init=0)
+    ...     }
+
+    See Also
+    --------
+    evaluate.Measurement : Class
+        The Measurement class that contains both input excitation and measured
+        ground truth information.
+    nevergrad.p.Scalar : Class
+        The nevergrad Scalar parametrization instrument.
+
+    """
 
     instrum = ng.p.Instrumentation(
         models_and_measurements=models_and_measurements,
