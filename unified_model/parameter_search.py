@@ -1,16 +1,17 @@
 """A module for finding the parameter of a unified model."""
 
-from typing import Dict, List, Tuple
 import copy
-
-from .unified import UnifiedModel
-from .mechanical_components import MassProportionalDamper, MechanicalSpring
-from .coupling import CouplingModel
-from .evaluate import Measurement
-from .metrics import dtw_euclid_norm_by_length, root_mean_square_percentage_diff
+from typing import Dict, List, Tuple
 
 import nevergrad as ng
 import numpy as np
+
+from .coupling import CouplingModel
+from .evaluate import Measurement
+from .mechanical_components import MassProportionalDamper, MechanicalSpring
+from .metrics import (dtw_euclid_norm_by_length, power_difference_perc,
+                      root_mean_square_percentage_diff)
+from .unified import UnifiedModel
 
 
 def mean_of_votes(
@@ -302,7 +303,7 @@ def _calculate_cost_for_single_measurement(
     mech_result = _score_mechanical_model(model, measurement)
     elec_result = _score_electrical_model(model, measurement)
 
-    return mech_result['dtw_distance'] + elec_result['dtw_distance']
+    return mech_result['dtw_distance'] + elec_result['dtw_distance'] + elec_result['watts_perc_diff']**2  # noqa
 
 
 def _calculate_cost_for_multiple_devices_multiple_measurements(
@@ -365,7 +366,8 @@ def _score_electrical_model(
         emf_target=measurement.groundtruth.elec['emf'],
         time_target=measurement.groundtruth.elec['time'],
         metrics_dict={'rms_perc_diff': root_mean_square_percentage_diff,
-                      'dtw_distance': dtw_euclid_norm_by_length},
+                      'dtw_distance': dtw_euclid_norm_by_length,
+                      'watts_perc_diff': power_difference_perc},
         prediction_expr='g(t, x5)',
         return_evaluator=False
     )

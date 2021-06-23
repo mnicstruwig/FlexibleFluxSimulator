@@ -42,14 +42,13 @@ def root_mean_square_percentage_diff(x1, x2):
     `x1` overestimates `x2`.
     """
     x1_rms, x2_rms = root_mean_square(x1, x2)
-    return (x1_rms - x2_rms) / x2_rms * 100
+    return (x1_rms - x2_rms) / x2_rms
 
 
 def dtw_euclid_distance(x1, x2):
     """Calculate the distance between two signals using dynamic time warping."""
     distance, path = fastdtw(x1, x2, radius=30)
     return distance
-
 
 def deriv_dtw_euclid_distance(x1, x2):
     """DTW distance between two signals' first derivatives."""
@@ -105,3 +104,22 @@ def dtw_euclid_joint_z_norm(x1, x2):
     return dtw_euclid_distance(x1_norm, x2_norm)
 
 
+def power_difference_perc(x1, x2):
+    """Calculate the power difference between `x1` and `x2`
+
+    This function expects `x1` and `x2` to be arrays of the *load* voltage, and
+    also assumes that the load resistance is identical for both `x1` and `x2`
+    (this should be a very safe assumption). This allows us to accurately
+    calculate the percentage difference of the load power, *without* requiring
+    the load resistance (since P = V*2 / R, and the R will be identical across
+    both `x1` and `x2` and so will be cancelled out).
+
+    Calculation is done relative to `x2`. Therefore positive values indicate
+    `x1` overestimates `x2`.
+    """
+
+    x1_rms, x2_rms = root_mean_square(x1, x2)
+    x1_watts = x1_rms * x1_rms
+    x2_watts = x2_rms * x2_rms
+
+    return (x1_watts - x2_watts) / x2_watts
