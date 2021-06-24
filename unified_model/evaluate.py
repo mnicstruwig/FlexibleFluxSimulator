@@ -103,10 +103,7 @@ class GroundTruthFactory:
 class Measurement:
     def __init__(self, sample, model_prototype):
         self.sample = sample
-        self.input_ = None
-        self.groundtruth = None
         self._model_prototype = model_prototype  # We need some information from here to process our groundtruth data
-
         self.input_, self.groundtruth = self._make_measurement(self.sample)
 
     def _make_measurement(self, sample):

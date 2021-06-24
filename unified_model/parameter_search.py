@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple
 
 import nevergrad as ng
 import numpy as np
+import ray
 
 from .coupling import CouplingModel
 from .evaluate import Measurement
@@ -12,6 +13,17 @@ from .mechanical_components import MassProportionalDamper, MechanicalSpring
 from .metrics import (dtw_euclid_norm_by_length, power_difference_perc,
                       root_mean_square_percentage_diff)
 from .unified import UnifiedModel
+
+
+def _import_spinner():
+    import sys
+    try:
+        get_ipython = sys.modules['IPython'].get_ipython  # type: ignore
+        if 'IPKernelApp' in get_ipython().config:
+            from halo import HaloNotebook as Halo
+    except KeyError:
+        from halo import Halo
+    return Halo
 
 
 def mean_of_votes(
@@ -107,27 +119,46 @@ def mean_of_votes(
         'mech_spring_constant': [],
         'loss': []
     }
+    ray.init()
+    tasks = []
+    for m in measurements:
 
-    for i, m in enumerate(measurements):
-        print(f'-> {i+1}/{len(measurements)}')
+        @ray.remote
+        def wrapper():
+            instrum = ng.p.Instrumentation(
+                model_prototype=model,
+                measurement=m,
+                damping_coefficient=instruments['damping_coefficient'],
+                coupling_constant=instruments['coupling_constant'],
+                mech_spring_constant=instruments['mech_spring_constant']
+            )
 
-        instrum = ng.p.Instrumentation(
-            model_prototype=model,
-            measurement=m,
-            damping_coefficient=instruments['damping_coefficient'],
-            coupling_constant=instruments['coupling_constant'],
-            mech_spring_constant=instruments['mech_spring_constant']
-        )
+            optimizer = ng.optimizers.OnePlusOne(
+                parametrization=instrum,
+                budget=budget
+            )
+            recommendation = optimizer.minimize(
+                _calculate_cost_for_single_measurement
+            )
+            return recommendation
 
-        optimizer = ng.optimizers.OnePlusOne(
-            parametrization=instrum,
-            budget=budget
-        )
+        ref = wrapper.remote()
+        tasks.append(ref)
 
-        recommendation = optimizer.minimize(
-            _calculate_cost_for_single_measurement
-        )
 
+    Halo = _import_spinner()
+    spinner = Halo(text=f'Running :: 0 / {len(tasks)}', spinner='dots', color='red')
+    spinner.start()
+
+    ready = []
+    while len(ready) < len(tasks):
+        ready, _ = ray.wait(tasks, num_returns=len(tasks), timeout=30)
+        spinner.text = f'Running :: {len(ready)} / {len(tasks)}'
+
+    spinner.succeed('Simulation complete!')
+    results = ray.get(tasks)
+
+    for recommendation in results:
         recommended_params['damping_coefficient'].append(recommendation.value[1]['damping_coefficient'])  # noqa
         recommended_params['coupling_constant'].append(recommendation.value[1]['coupling_constant'])  # noqa
         recommended_params['mech_spring_constant'].append(recommendation.value[1]['mech_spring_constant'])  # noqa
@@ -137,6 +168,7 @@ def mean_of_votes(
         else:
             raise ValueError('A loss could not be computed.')
 
+    ray.shutdown()
     return recommended_params
 
 
@@ -214,6 +246,7 @@ def mean_of_scores(
         The nevergrad Scalar parametrization instrument.
 
     """
+    ray.init()
 
     instrum = ng.p.Instrumentation(
         models_and_measurements=models_and_measurements,
@@ -227,8 +260,17 @@ def mean_of_scores(
         budget=budget
     )
 
+    Halo = _import_spinner()
+    spinner = Halo(text='Starting...', spinner='dots')
+    spinner.start()
+
     def callback(optmizer, candidate, value):
-        print(f'-> Loss: {value}')
+        try:
+            best_score = np.round(optimizer.provide_recommendation().loss, 5)
+        except TypeError:
+            best_score = None
+        latest_score = np.round(value, 5)
+        spinner.text = f'{optimizer.num_ask} / {budget} - latest: {latest_score} - best: {best_score}'
 
     if verbose:
         optimizer.register_callback('tell', callback)
@@ -236,6 +278,7 @@ def mean_of_scores(
     recommendation = optimizer.minimize(
         _calculate_cost_for_multiple_devices_multiple_measurements
     )
+    spinner.succeed('Done!')
 
     recommended_params = {
         'damping_coefficient': recommendation.value[1]['damping_coefficient'],
@@ -244,6 +287,7 @@ def mean_of_scores(
         'loss': recommendation.loss
     }
 
+    ray.shutdown()
     return recommended_params
 
 
@@ -262,29 +306,32 @@ def _calculate_cost_for_single_measurement(
 
     model = copy.deepcopy(model_prototype)
 
+    # Quick verification
+    assert model.mechanical_model is not None
+    assert model.mechanical_model.magnet_assembly is not None
+    assert model.mechanical_model.mechanical_spring is not None
+
     # Build a new model using parameters
-    if model.mechanical_model is not None:
 
-        # Damper
-        model.mechanical_model.set_damper(
-            MassProportionalDamper(
-                damping_coefficient=damping_coefficient,
-                magnet_assembly=model.mechanical_model.magnet_assembly
-            )
+    # Damper
+    model.mechanical_model.set_damper(
+        MassProportionalDamper(
+            damping_coefficient=damping_coefficient,
+            magnet_assembly=model.mechanical_model.magnet_assembly
         )
+    )
 
-        # Mechanical spring
-        model.mechanical_model.set_mechanical_spring(
-            MechanicalSpring(
-                magnet_assembly=model.mechanical_model.magnet_assembly,
-                position=model.mechanical_model.mechanical_spring.position
-            )
+    # Mechanical spring
+    model.mechanical_model.set_mechanical_spring(
+        MechanicalSpring(
+            magnet_assembly=model.mechanical_model.magnet_assembly,
+            position=model.mechanical_model.mechanical_spring.position,
+            damping_coefficient=mech_spring_constant
         )
+    )
 
-        # Input excitation
-        model.mechanical_model.set_input(measurement.input_)
-    else:
-        raise ValueError('MechanicalModel can not be None.')
+    # Input excitation
+    model.mechanical_model.set_input(measurement.input_)
 
     # Coupling model
     model.set_coupling_model(
@@ -306,6 +353,24 @@ def _calculate_cost_for_single_measurement(
     return mech_result['dtw_distance'] + elec_result['dtw_distance'] + elec_result['watts_perc_diff']**2  # noqa
 
 
+@ray.remote
+def _calculate_cost_for_single_measurement_remote(
+        model_prototype: UnifiedModel,
+        measurement: Measurement,
+        damping_coefficient: float,
+        coupling_constant: float,
+        mech_spring_constant: float
+) -> float:
+    """A ray-wrapped version to calculate the cost if a single measurement."""
+    return _calculate_cost_for_single_measurement(
+        model_prototype=model_prototype,
+        measurement=measurement,
+        damping_coefficient=damping_coefficient,
+        coupling_constant=coupling_constant,
+        mech_spring_constant=mech_spring_constant
+    )
+
+
 def _calculate_cost_for_multiple_devices_multiple_measurements(
         models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
         damping_coefficient: float,
@@ -320,16 +385,24 @@ def _calculate_cost_for_multiple_devices_multiple_measurements(
 
     """
     costs = []
+    tasks = []
     for model, measurements in models_and_measurements:
         for measurement in measurements:
-            individual_cost = _calculate_cost_for_single_measurement(
+
+            task_id = _calculate_cost_for_single_measurement_remote.remote(
                 model_prototype=model,
                 measurement=measurement,
                 damping_coefficient=damping_coefficient,
                 coupling_constant=coupling_constant,
                 mech_spring_constant=mech_spring_constant
             )
-            costs.append(individual_cost)
+            tasks.append(task_id)
+
+    ready = []
+    while len(ready) < len(tasks):
+        ready, _ = ray.wait(tasks, num_returns=len(tasks), timeout=30)
+
+    costs = ray.get(tasks)
     mean_cost = np.mean(costs)
     return mean_cost  # type: ignore
 
