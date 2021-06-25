@@ -1,11 +1,11 @@
 """A module for finding the parameter of a unified model."""
 
 import copy
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 
 import nevergrad as ng
 import numpy as np
-import ray
+import ray  # type: ignore
 
 from .coupling import CouplingModel
 from .evaluate import Measurement
@@ -15,21 +15,28 @@ from .metrics import (dtw_euclid_norm_by_length, power_difference_perc,
 from .unified import UnifiedModel
 
 
-def _import_spinner():
+def _import_spinner() -> Any:
+    # https://stackoverflow.com/a/22424821
     import sys
     try:
         get_ipython = sys.modules['IPython'].get_ipython  # type: ignore
         if 'IPKernelApp' in get_ipython().config:
             from halo import HaloNotebook as Halo
     except KeyError:
-        from halo import Halo
-    return Halo
+        from halo import Halo  # type: ignore
+    return Halo  # type: ignore
+
+
+def _assert_valid_cost_metric(cost_metric: str) -> None:
+    if cost_metric not in ['dtw', 'power', 'combined']:
+        raise ValueError("`cost_metric` must be one of 'dtw', 'power' or 'combined'.")  # noqa
 
 
 def mean_of_votes(
         model_prototype: UnifiedModel,
         measurements: List[Measurement],
         instruments: Dict[str, ng.p.Scalar],
+        cost_metric: str,
         budget: int = 500
 ) -> Dict[str, List[float]]:
     """Perform the `mean of votes` evolutionary parameter search optimization.
@@ -67,6 +74,8 @@ def mean_of_votes(
         'mech_spring_constant'} and values must be a nevergrad `Scalar`. See the
         relevant `Scalar` documentation for how initial values and limits can be
         set.
+    cost_metric : str
+        The cost metric to use. Must be 'dtw,'power' or 'combined'.
     budget : int
         The budget (maximum number of allowed iterations) that the evolutionary
         algorithm will run for, for *each* measurement in `measurements`.
@@ -111,6 +120,8 @@ def mean_of_votes(
     if not measurements:
         raise ValueError('No measurements were passed.')
 
+    _assert_valid_cost_metric(cost_metric)
+
     model = copy.deepcopy(model_prototype)
 
     recommended_params: Dict[str, List[float]] = {
@@ -128,12 +139,13 @@ def mean_of_votes(
             instrum = ng.p.Instrumentation(
                 model_prototype=model,
                 measurement=m,
+                cost_metric=cost_metric,
                 damping_coefficient=instruments['damping_coefficient'],
                 coupling_constant=instruments['coupling_constant'],
                 mech_spring_constant=instruments['mech_spring_constant']
             )
 
-            optimizer = ng.optimizers.OnePlusOne(
+            optimizer = ng.optimizers.PSO(
                 parametrization=instrum,
                 budget=budget
             )
@@ -145,12 +157,11 @@ def mean_of_votes(
         ref = wrapper.remote()
         tasks.append(ref)
 
-
     Halo = _import_spinner()
-    spinner = Halo(text=f'Running :: 0 / {len(tasks)}', spinner='dots', color='red')
+    spinner = Halo(text=f'Running :: 0 / {len(tasks)}', spinner='dots', color='red')  # noqa
     spinner.start()
 
-    ready = []
+    ready: List[Any] = []
     while len(ready) < len(tasks):
         ready, _ = ray.wait(tasks, num_returns=len(tasks), timeout=30)
         spinner.text = f'Running :: {len(ready)} / {len(tasks)}'
@@ -175,6 +186,7 @@ def mean_of_votes(
 def mean_of_scores(
         models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
         instruments: Dict[str, ng.p.Scalar],
+        cost_metric: str,
         budget: int = 500,
         verbose: bool = True
 ) -> Dict[str, float]:
@@ -212,6 +224,8 @@ def mean_of_scores(
         'mech_spring_constant'} and values must be a nevergrad `Scalar`. See the
         relevant `Scalar` documentation for how initial values and limits can be
         set.
+    cost_metric : str
+        The cost metric to use. Must be 'dtw,'power' or 'combined'.
     budget : int
         The budget (maximum number of allowed iterations) that the evolutionary
         algorithm will run for, for *each* measurement in `measurements`.
@@ -246,7 +260,7 @@ def mean_of_scores(
         The nevergrad Scalar parametrization instrument.
 
     """
-    ray.init()
+    _assert_valid_cost_metric(cost_metric)
 
     instrum = ng.p.Instrumentation(
         models_and_measurements=models_and_measurements,
@@ -255,7 +269,7 @@ def mean_of_scores(
         mech_spring_constant=instruments['mech_spring_constant']
     )
 
-    optimizer = ng.optimizers.OnePlusOne(
+    optimizer = ng.optimizers.PSO(
         parametrization=instrum,
         budget=budget
     )
@@ -270,11 +284,12 @@ def mean_of_scores(
         except TypeError:
             best_score = None
         latest_score = np.round(value, 5)
-        spinner.text = f'{optimizer.num_ask} / {budget} - latest: {latest_score} - best: {best_score}'
+        spinner.text = f'{optimizer.num_ask} / {budget} - latest: {latest_score} - best: {best_score}'  # noqa
 
     if verbose:
         optimizer.register_callback('tell', callback)
 
+    ray.init()
     recommendation = optimizer.minimize(
         _calculate_cost_for_multiple_devices_multiple_measurements
     )
@@ -294,6 +309,7 @@ def mean_of_scores(
 def _calculate_cost_for_single_measurement(
         model_prototype: UnifiedModel,
         measurement: Measurement,
+        cost_metric: str,
         damping_coefficient: float,
         coupling_constant: float,
         mech_spring_constant: float
@@ -350,13 +366,21 @@ def _calculate_cost_for_single_measurement(
     mech_result = _score_mechanical_model(model, measurement)
     elec_result = _score_electrical_model(model, measurement)
 
-    return mech_result['dtw_distance'] + elec_result['dtw_distance'] + elec_result['watts_perc_diff']**2  # noqa
+    if cost_metric == 'dtw':
+        return mech_result['dtw_distance'] + elec_result['dtw_distance']
+    elif cost_metric == 'power':
+        return np.abs(mech_result['watt_perc_diff'])
+    elif cost_metric == 'combined':
+        return mech_result['dtw_distance'] + elec_result['dtw_distance'] + np.abs(elec_result['watts_perc_diff'])  # noqa
+    else:
+        raise ValueError("`cost_metric` must be one of 'dtw', 'power' or 'combined'.")  # noqa
 
 
 @ray.remote
 def _calculate_cost_for_single_measurement_remote(
         model_prototype: UnifiedModel,
         measurement: Measurement,
+        cost_metric: str,
         damping_coefficient: float,
         coupling_constant: float,
         mech_spring_constant: float
@@ -365,6 +389,7 @@ def _calculate_cost_for_single_measurement_remote(
     return _calculate_cost_for_single_measurement(
         model_prototype=model_prototype,
         measurement=measurement,
+        cost_metric=cost_metric,
         damping_coefficient=damping_coefficient,
         coupling_constant=coupling_constant,
         mech_spring_constant=mech_spring_constant
@@ -398,7 +423,7 @@ def _calculate_cost_for_multiple_devices_multiple_measurements(
             )
             tasks.append(task_id)
 
-    ready = []
+    ready: List[Any] = []
     while len(ready) < len(tasks):
         ready, _ = ray.wait(tasks, num_returns=len(tasks), timeout=30)
 
