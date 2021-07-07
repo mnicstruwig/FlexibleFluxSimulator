@@ -6,6 +6,7 @@ from typing import Dict, List, Tuple, Any
 import nevergrad as ng
 import numpy as np
 import ray  # type: ignore
+from halo import Halo
 
 from .coupling import CouplingModel
 from .evaluate import Measurement
@@ -15,16 +16,52 @@ from .metrics import (dtw_euclid_norm_by_length, power_difference_perc,
 from .unified import UnifiedModel
 
 
-def _import_spinner() -> Any:
+def _in_notebook() -> bool:
     # https://stackoverflow.com/a/22424821
     import sys
     try:
         get_ipython = sys.modules['IPython'].get_ipython  # type: ignore
         if 'IPKernelApp' in get_ipython().config:
-            from halo import HaloNotebook as Halo
+            return True
     except KeyError:
-        from halo import Halo  # type: ignore
-    return Halo  # type: ignore
+        return False
+
+
+class NotebookSpinner:
+    def __init__(self, text):
+        self.running = False
+        self.text = text
+
+    def start(self):
+        self.running = True
+        self._print()
+
+    def succeed(self, text):
+        self.text = text
+        self.stop()
+
+    def _print(self):
+        print(self.text, end='\r')
+
+    def _clear(self):
+        try:
+            print(' ' * len(self.text), end='\r')
+        except AttributeError:
+            pass
+
+    def stop(self):
+        self.running = False
+
+    def __setattr__(self, key, value):
+        if key == 'text':
+            super().__setattr__(key, value)
+            if self.running:
+                self._print()  # Print after updating the text attribute
+
+        # must call the base parent __setattr__ to actually set an attribute.
+        # Otherwise we recurse forever.
+        else:
+            super().__setattr__(key, value)
 
 
 def _assert_valid_cost_metric(cost_metric: str) -> None:
@@ -157,10 +194,12 @@ def mean_of_votes(
         ref = wrapper.remote()
         tasks.append(ref)
 
-    Halo = _import_spinner()
-    spinner = Halo(text=f'Running :: 0 / {len(tasks)}', spinner='dots', color='red')  # noqa
-    spinner.start()
+    if _in_notebook():
+        spinner = Halo(text=f'Running :: 0 / {len(tasks)}', spinner='dots', color='red')  # noqa
+    else:
+        spinner = NotebookSpinner(text=f'Running :: 0 / {len(tasks)}')
 
+    spinner.start()
     ready: List[Any] = []
     while len(ready) < len(tasks):
         ready, _ = ray.wait(tasks, num_returns=len(tasks), timeout=30)
@@ -264,6 +303,7 @@ def mean_of_scores(
 
     instrum = ng.p.Instrumentation(
         models_and_measurements=models_and_measurements,
+        cost_metric=cost_metric,
         damping_coefficient=instruments['damping_coefficient'],
         coupling_constant=instruments['coupling_constant'],
         mech_spring_constant=instruments['mech_spring_constant']
@@ -274,17 +314,14 @@ def mean_of_scores(
         budget=budget
     )
 
-    Halo = _import_spinner()
-    spinner = Halo(text='Starting...', spinner='dots')
-    spinner.start()
-
-    def callback(optmizer, candidate, value):
+    def callback(optimizer, candidate, value):
         try:
             best_score = np.round(optimizer.provide_recommendation().loss, 5)
         except TypeError:
             best_score = None
         latest_score = np.round(value, 5)
-        spinner.text = f'{optimizer.num_ask} / {budget} - latest: {latest_score} - best: {best_score}'  # noqa
+        text = f'{optimizer.num_ask} / {budget} - latest: {latest_score} - best: {best_score}'  # noqa
+        print(text, end='\r')
 
     if verbose:
         optimizer.register_callback('tell', callback)
@@ -293,7 +330,6 @@ def mean_of_scores(
     recommendation = optimizer.minimize(
         _calculate_cost_for_multiple_devices_multiple_measurements
     )
-    spinner.succeed('Done!')
 
     recommended_params = {
         'damping_coefficient': recommendation.value[1]['damping_coefficient'],
@@ -369,9 +405,9 @@ def _calculate_cost_for_single_measurement(
     if cost_metric == 'dtw':
         return mech_result['dtw_distance'] + elec_result['dtw_distance']
     elif cost_metric == 'power':
-        return np.abs(mech_result['watt_perc_diff'])
+        return np.abs(elec_result['watt_perc_diff'])
     elif cost_metric == 'combined':
-        return mech_result['dtw_distance'] + elec_result['dtw_distance'] + np.abs(elec_result['watts_perc_diff'])  # noqa
+        return mech_result['dtw_distance'] + elec_result['dtw_distance'] + np.abs(elec_result['watt_perc_diff'])  # noqa
     else:
         raise ValueError("`cost_metric` must be one of 'dtw', 'power' or 'combined'.")  # noqa
 
@@ -398,6 +434,7 @@ def _calculate_cost_for_single_measurement_remote(
 
 def _calculate_cost_for_multiple_devices_multiple_measurements(
         models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
+        cost_metric: str,
         damping_coefficient: float,
         coupling_constant: float,
         mech_spring_constant: float
@@ -417,6 +454,7 @@ def _calculate_cost_for_multiple_devices_multiple_measurements(
             task_id = _calculate_cost_for_single_measurement_remote.remote(
                 model_prototype=model,
                 measurement=measurement,
+                cost_metric=cost_metric,
                 damping_coefficient=damping_coefficient,
                 coupling_constant=coupling_constant,
                 mech_spring_constant=mech_spring_constant
@@ -465,7 +503,7 @@ def _score_electrical_model(
         time_target=measurement.groundtruth.elec['time'],
         metrics_dict={'rms_perc_diff': root_mean_square_percentage_diff,
                       'dtw_distance': dtw_euclid_norm_by_length,
-                      'watts_perc_diff': power_difference_perc},
+                      'watt_perc_diff': power_difference_perc},
         prediction_expr='g(t, x5)',
         return_evaluator=False
     )

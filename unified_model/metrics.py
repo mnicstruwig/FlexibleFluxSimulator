@@ -104,8 +104,11 @@ def dtw_euclid_joint_z_norm(x1, x2):
     return dtw_euclid_distance(x1_norm, x2_norm)
 
 
-def power_difference_perc(x1, x2):
-    """Calculate the power difference between `x1` and `x2`
+def power_difference_perc(x1, x2) -> float:
+    """Calculate the power difference between `x1` and `x2`.
+
+    Calculation is done relative to `x2`. Therefore positive values indicate
+    `x1` overestimates `x2`.
 
     This function expects `x1` and `x2` to be arrays of the *load* voltage, and
     also assumes that the load resistance is identical for both `x1` and `x2`
@@ -114,8 +117,6 @@ def power_difference_perc(x1, x2):
     the load resistance (since P = V*2 / R, and the R will be identical across
     both `x1` and `x2` and so will be cancelled out).
 
-    Calculation is done relative to `x2`. Therefore positive values indicate
-    `x1` overestimates `x2`.
     """
 
     x1_rms, x2_rms = root_mean_square(x1, x2)
