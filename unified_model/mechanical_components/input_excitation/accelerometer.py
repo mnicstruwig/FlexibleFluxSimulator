@@ -4,7 +4,6 @@ from numba import jit
 import copy
 
 from unified_model.utils.utils import smooth_savgol, FastInterpolator
-from scipy.interpolate import UnivariateSpline
 
 
 @jit(nopython=True)
@@ -178,10 +177,6 @@ class AccelerometerInput:
                 self.acceleration_df["simulation_time_seconds"].values,
                 self.acceleration_df[self._accel_column].values,
             )
-            # self.interpolator = UnivariateSpline(x=self.acceleration_df['simulation_time_seconds'].values,
-            #                                      y=self.acceleration_df[self._accel_column].values,
-            #                                      s=0,
-            #                                      ext='zeros')
 
     def get_acceleration(self, t):
         """Get the acceleration at time `t`.

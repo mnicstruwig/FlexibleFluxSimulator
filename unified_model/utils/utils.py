@@ -1,7 +1,6 @@
 import copy
 import os
 import warnings
-from collections import namedtuple
 from glob import glob
 from itertools import product, zip_longest
 from typing import Tuple, List, Any, Union
@@ -122,7 +121,7 @@ def smooth_savgol(values, **kwargs):
         return signal.savgol_filter(values, 101, 2)
     except ValueError:
         warnings.warn(
-            "Filter window length exceeds signal length. No filtering is being applied.",
+            "Filter window length exceeds signal length. No filtering is being applied.",  # noqa
             RuntimeWarning,
         )
         return values
@@ -350,14 +349,18 @@ def find_signal_limits(target: Any, threshold: float = 0.05) -> Tuple[int, int]:
             ]  # First index *before* the peak of the signal.
             return int(start_index - 1)
         except IndexError:
-            return 0  # If we can't find the start before the maximum value, then we start at the beginning.
+            # If we can't find the start before the maximum value, then we start
+            # at the beginning.
+            return 0
 
     def _find_end_index(arr, threshold):
         end_index = _find_start_index(arr[::-1], threshold)
         end_index = len(arr) - end_index
+        # Don't need to subtract 1 since it's already subtracted in
+        # `_find_start_index`
         return int(
             end_index
-        )  # Don't need to subtract 1 since it's already subtracted in `_find_start_index`
+        )
 
     return (_find_start_index(target, threshold), _find_end_index(target, threshold))
 
@@ -447,7 +450,7 @@ def collect_samples(
         adc_paths
     ):
         warnings.warn(
-            "There are a different number of groundtruth files, or some of them could not be found."
+            "There are a different number of groundtruth files, or some of them could not be found."  # noqa
         )
 
     if len(labeled_video_paths) == 0 and len(acc_paths) == 0 and len(adc_paths) == 0:

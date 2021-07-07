@@ -1,9 +1,13 @@
 [flake8]
-max_line_length=80
-ignore=
+max_line_length=88
+ignore =
     # Line break occurred before a binary operator (W503)
     W503,
     # Continuation line with same indent as next logical line [E125]: https://lukasz.langa.pl/1d1a43c4-9c8a-4c5f-a366-7f22ce6a49fc/
     E125,
     # Continuation line under-indented for hanging inddent [E121]
-    E121
+    E121,
+    E203
+per-file-ignores=
+    unified_model/mechanical_components/__init__.py:F401
+    unified_model/electrical_components/__init__.py:F401
