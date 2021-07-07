@@ -191,13 +191,10 @@ class TestElectricalSystemEvaluator(unittest.TestCase):
         test_emf_target = np.array([1, 2, 3, 4, 5, 4, 3, 2, 1])
         test_time_target = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
         test_emf_predict = np.array([1, 2, 3, 4, 5, 6, 5, 4, 3])
-        test_time_predict = test_time_target
 
         test_electrical_system_evaluator = ElectricalSystemEvaluator(
             emf_target=test_emf_target, time_target=test_time_target
         )
-        test_time_ = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
-        test_emf_predict_ = np.array([1, 2, 3, 4, 5, 6, 5, 4, 3])
 
         # We test the fit method separately. So let's mock it out
         # here for testing purposes.

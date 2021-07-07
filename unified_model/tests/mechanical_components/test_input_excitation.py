@@ -153,7 +153,7 @@ class TestAccelerometerInput(unittest.TestCase):
         """
 
         with self.assertRaises(KeyError):
-            processed_df = _preprocess_acceleration_dataframe(
+            processed_df = _preprocess_acceleration_dataframe(  # noqa
                 self.test_raw_accelerometer_df,
                 self.test_accel_column,
                 self.test_time_column,

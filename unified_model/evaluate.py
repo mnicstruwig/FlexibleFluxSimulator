@@ -99,7 +99,8 @@ class GroundTruthFactory:
 class Measurement:
     def __init__(self, sample, model_prototype):
         self.sample = sample
-        self._model_prototype = model_prototype  # We need some information from here to process our groundtruth data
+        # We need some information from prototype to process our groundtruth data
+        self._model_prototype = model_prototype
         self.input_, self.groundtruth = self._make_measurement(self.sample)
 
     def _make_measurement(self, sample):
@@ -116,7 +117,7 @@ class Measurement:
         ground_truth = Groundtruth(
             sample=sample,
             lvp_kwargs={
-                "magnet_assembly": self._model_prototype.mechanical_model.magnet_assembly,
+                "magnet_assembly": self._model_prototype.mechanical_model.magnet_assembly,  # noqa
                 "seconds_per_frame": 1 / 60,
                 "pixel_scale": 0.154508,
             },
@@ -214,7 +215,7 @@ class AdcProcessor:
             self.critical_frequency = critical_frequency
             voltage_readings = smooth_butterworth(voltage_readings, critical_frequency)
 
-        voltage_readings = voltage_readings * self.voltage_division_ratio  # type: ignore
+        voltage_readings = voltage_readings * self.voltage_division_ratio  # type: ignore # noqa
         voltage_readings = self._detrend(voltage_readings, (100, 700))
         return voltage_readings, groundtruth_dataframe[time_col].values / 1000
 
@@ -370,8 +371,8 @@ class MechanicalSystemEvaluator:
 
         # Find where to clip the resampled signals
         if self.clip:
-            self._clip_time = np.min([self.time_target[-1], self.time_predict[-1]])  # type: ignore
-            self._clip_index = np.argmin(np.abs(resampled_time - self._clip_time)) - 1  # type: ignore
+            self._clip_time = np.min([self.time_target[-1], self.time_predict[-1]])  # type: ignore # noqa
+            self._clip_index = np.argmin(np.abs(resampled_time - self._clip_time)) - 1  # type: ignore # noqa
         else:
             self._clip_time = resampled_time[0]
             self._clip_index = len(resampled_time) - 1
@@ -615,31 +616,6 @@ class ElectricalSystemEvaluator:
 
         self._make_clipped_signals(target=self.emf_target_, predict=self.emf_predict_)
 
-        # emf_predict_start, emf_predict_end = find_signal_limits(resampled_emf_predict)
-        # emf_target_start, emf_target_end = find_signal_limits(resampled_emf_target, 0.075)
-
-        # start_index = np.min([emf_predict_start, emf_target_start])
-        # end_index = np.max([emf_predict_end, emf_target_end])
-        # emf_predict_clipped_ = self.emf_predict_[start_index:end_index]
-        # emf_target_clipped_ = self.emf_target_[start_index:end_index]
-
-        # emf_predict_clipped_ = self.emf_predict_[emf_predict_start:emf_predict_end]
-        # emf_target_clipped_ = self.emf_target_[emf_target_start:emf_target_end]
-
-        # length_difference = len(emf_predict_clipped_) - len(emf_target_clipped_)
-        # if length_difference < 0:  # right-pad emf_predict_clipped_
-        #     emf_predict_clipped_ = np.pad(emf_predict_clipped_, (0, abs(length_difference)), 'constant')
-        # else:  # right-pad the target signal
-        #     emf_target_clipped_ = np.pad(emf_target_clipped_, (0, length_difference), 'constant')
-
-        # self.emf_predict_clipped_ = emf_predict_clipped_
-        # self.emf_target_clipped_ = emf_target_clipped_
-
-        # self._clip_indexes = {
-        #     'predict': (emf_predict_start, emf_predict_end),
-        #     'target': (emf_target_start, emf_target_end)
-        # }
-
     def _calc_dtw(self):
         """Perform dynamic time warping on prediction and targets."""
 
@@ -733,9 +709,6 @@ class ElectricalSystemEvaluator:
             time[self._clip_indexes["used_for_scoring"][0]] - 0.5,
             time[self._clip_indexes["used_for_scoring"][1]] + 0.5,
         )
-
-        # plt.vlines(time[self._clip_indexes['predict'][0]], 0, max_y, color='r', linestyle='--')
-        # plt.vlines(time[self._clip_indexes['predict'][1]], 0, max_y, color='r', linestyle='--')
 
         plt.legend()
 
@@ -902,17 +875,17 @@ def impute_missing(df_missing, indexes):
             # TODO: Turn this check into a function w/ tests
             if df_missing.loc[end_velocity_calc, "start_y"] == -1:
                 raise ValueError(
-                    "Too few many sequential missing values to be able to impute all missing values."
+                    "Too few many sequential missing values to be able to impute all missing values."  # noqa
                 )  # noqa
             if df_missing.loc[start_velocity_calc, "start_y"] == -1:
                 start_velocity_calc = start_velocity_calc - 1
                 if df_missing.loc[start_velocity_calc, "start_y"] == -1:
                     raise ValueError(
-                        "Too many sequential missing values to be able to impute all missing values."
+                        "Too many sequential missing values to be able to impute all missing values."  # noqa
                     )  # noqa
         except KeyError:
             raise IndexError(
-                "Too few points available to calculate velocity and impute missing values."
+                "Too few points available to calculate velocity and impute missing values."  # noqa
             )  # noqa
 
         velocity = (

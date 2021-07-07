@@ -2,7 +2,6 @@ import os
 from unittest.mock import patch
 
 from scipy.signal import savgol_filter
-import pytest
 
 from unified_model.electrical_components.coil import CoilConfiguration
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
@@ -84,7 +83,7 @@ def test_coil_set_optimal_coil_center():
     )
 
     with patch(
-        "unified_model.electrical_components.coil.CoilConfiguration._calc_hovering_height"
+        "unified_model.electrical_components.coil.CoilConfiguration._calc_hovering_height"  # noqa
     ) as mock_calc_hovering_height:  # noqa
         test_hovering_height = 10
         mock_calc_hovering_height.return_value = test_hovering_height

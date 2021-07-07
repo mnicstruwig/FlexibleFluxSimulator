@@ -2,7 +2,6 @@
 Metrics for calculating the accuracy of a model.
 """
 
-from math import gamma
 import numpy as np
 from fastdtw import fastdtw
 from scipy.stats import zscore
@@ -76,7 +75,8 @@ def dtw_euclid_norm_by_length(x1, x2):
 def similarity_measure(x1, x2) -> float:
     """Calculate a similarity measure between two signals using dynamic time warping.
 
-    Source: https://cs.stackexchange.com/questions/53250/normalized-measure-from-dynamic-time-warping
+    Source:
+    https://cs.stackexchange.com/questions/53250/normalized-measure-from-dynamic-time-warping
     """
     D = dtw_euclid_distance(x1, x2)
     M = len(x1) * np.max(x1)  # The maximum possible DTW path distance

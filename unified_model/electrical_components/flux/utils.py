@@ -1,11 +1,5 @@
 import pandas as pd
 
-from unified_model.electrical_components.flux.model import (
-    interpolate_flux,
-    flux_univariate_spline,
-)
-from unified_model.utils.utils import fetch_key_from_dictionary
-
 
 def _parse_raw_flux_input(raw_flux_input):
     """Parse a raw flux input.

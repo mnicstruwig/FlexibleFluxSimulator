@@ -49,7 +49,9 @@ class FluxModelInterp:
 
     def _validate(self):
         """Do some internal validation of the parameters"""
-        # TODO: Figure out a better way of warning the user that doesn't spam gridsearch.
+        # TODO: Figure out a better way of warning the user that doesn't spam
+        # gridsearch.
+
         # if self.curve_model:
         #     assert self.coil_config.n_z is not None
         #     assert self.coil_config.n_w is not None

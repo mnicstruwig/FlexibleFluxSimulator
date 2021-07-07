@@ -143,7 +143,7 @@ class AbstractUnifiedModelFactory:
 
         if "input_excitation" in mechanical_components:
             warnings.warn(
-                "input_excitation was specified in mechanical_components! This will break when `generate` is called!"
+                "input_excitation was specified in mechanical_components! This will break when `generate` is called!"  # noqa
             )  # noqa
 
         self.mechanical_components = mechanical_components

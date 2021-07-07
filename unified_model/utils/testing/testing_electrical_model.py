@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.interpolate import interp1d
 
 from unified_model.electrical_model import ElectricalModel
 

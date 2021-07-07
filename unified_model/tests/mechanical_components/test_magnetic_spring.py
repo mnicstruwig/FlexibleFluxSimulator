@@ -1,5 +1,4 @@
-import unittest
-from mockito import when, ANY, mock
+from mockito import when, mock
 
 import pandas as pd
 from pandas.testing import assert_frame_equal
