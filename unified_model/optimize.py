@@ -18,36 +18,38 @@ from unified_model.electrical_components.coil import CoilConfiguration
 from unified_model.electrical_components.flux.model import FluxModelInterp
 from unified_model.evaluate import Measurement
 from unified_model.gridsearch import UnifiedModelFactory
-from unified_model.mechanical_components.damper import (MassProportionalDamper,
-                                                        QuasiKarnoppDamper)
+from unified_model.mechanical_components.damper import (
+    MassProportionalDamper,
+    QuasiKarnoppDamper,
+)
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_components.mechanical_spring import \
-    MechanicalSpring
+from unified_model.mechanical_components.mechanical_spring import MechanicalSpring
 from unified_model.unified import UnifiedModel
 
 
 def _get_new_flux_curve(
-        curve_model: CurveModel,
-        coil_configuration: CoilConfiguration
+    curve_model: CurveModel, coil_configuration: CoilConfiguration
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Get new z and phi values  from coil parameters and a `CurveModel`."""
     n_z = coil_configuration.n_z
     n_w = coil_configuration.n_w
 
-    coil_params = np.array([[n_z, n_w]], dtype='int')  # type: ignore
+    coil_params = np.array([[n_z, n_w]], dtype="int")  # type: ignore
     X = coil_params.reshape(1, -1)  # type: ignore
     return curve_model.predict_curves(X)
 
 
 def _get_new_flux_and_dflux_model(
-        curve_model: CurveModel,
-        coil_configuration: CoilConfiguration,
-        magnet_assembly: MagnetAssembly) -> Tuple[Any, Any]:
+    curve_model: CurveModel,
+    coil_configuration: CoilConfiguration,
+    magnet_assembly: MagnetAssembly,
+) -> Tuple[Any, Any]:
     """Predict and return a new flux and dflux model from a CurveModel"""
     flux_interp_model = FluxModelInterp(coil_configuration, magnet_assembly)
 
-    z_arr, phi = _get_new_flux_curve(curve_model=curve_model,
-                                     coil_configuration=coil_configuration)
+    z_arr, phi = _get_new_flux_curve(
+        curve_model=curve_model, coil_configuration=coil_configuration
+    )
 
     flux_interp_model.fit(z_arr, phi.flatten())
     return flux_interp_model.flux_model, flux_interp_model.dflux_model
@@ -56,20 +58,23 @@ def _get_new_flux_and_dflux_model(
 # TODO: This should be available somewhere else
 def calc_rms(x):
     """Calculate the RMS of `x`."""
-    return np.sqrt(np.sum(x**2) / len(x))
+    return np.sqrt(np.sum(x ** 2) / len(x))
 
 
 @ray.remote
-def _calc_constant_velocity_rms(curve_model: CurveModel,
-                                coil_configuration: CoilConfiguration,
-                                magnet_assembly: MagnetAssembly) -> float:
+def _calc_constant_velocity_rms(
+    curve_model: CurveModel,
+    coil_configuration: CoilConfiguration,
+    magnet_assembly: MagnetAssembly,
+) -> float:
     """Calculate the open-circuit RMS for a simple emf curve."""
 
-    flux_interp_model = FluxModelInterp(coil_configuration,
-                                        magnet_assembly,
-                                        curve_model)
-    z_arr, phi = _get_new_flux_curve(curve_model=curve_model,
-                                     coil_configuration=coil_configuration)
+    flux_interp_model = FluxModelInterp(
+        coil_configuration, magnet_assembly, curve_model
+    )
+    z_arr, phi = _get_new_flux_curve(
+        curve_model=curve_model, coil_configuration=coil_configuration
+    )
     flux_interp_model.fit(z_arr, phi.flatten())
 
     # Use constant velocity case
@@ -80,9 +85,11 @@ def _calc_constant_velocity_rms(curve_model: CurveModel,
     return calc_rms(emf)
 
 
-def find_optimal_spacing(curve_model: CurveModel,
-                         coil_config: CoilConfiguration,
-                         magnet_assembly: MagnetAssembly) -> float:
+def find_optimal_spacing(
+    curve_model: CurveModel,
+    coil_config: CoilConfiguration,
+    magnet_assembly: MagnetAssembly,
+) -> float:
     """Find spacing between each coil / magnet that produces the largest RMS.
 
     This is calculuated by finding the RMS of the produced EMF assuming a
@@ -116,20 +123,22 @@ def find_optimal_spacing(curve_model: CurveModel,
     for l_ccd in l_ccd_list:
         coil_config.l_ccd_mm = l_ccd * 1000  # Convert to mm
         task_ids.append(
-            _calc_constant_velocity_rms.remote(curve_model,
-                                               coil_config,
-                                               magnet_assembly)
+            _calc_constant_velocity_rms.remote(
+                curve_model, coil_config, magnet_assembly
+            )
         )
     rms = ray.get(task_ids)
     return l_ccd_list[np.argmax(rms)]
 
 
-def precompute_best_spacing(n_z_arr: np.ndarray,
-                            n_w_arr: np.ndarray,
-                            curve_model: CurveModel,
-                            coil_config: CoilConfiguration,
-                            magnet_assembly: MagnetAssembly,
-                            output_path: str) -> None:
+def precompute_best_spacing(
+    n_z_arr: np.ndarray,
+    n_w_arr: np.ndarray,
+    curve_model: CurveModel,
+    coil_config: CoilConfiguration,
+    magnet_assembly: MagnetAssembly,
+    output_path: str,
+) -> None:
     """Precompute the best spacing for coil parameters and save to disk.
 
     Parameters
@@ -156,17 +165,17 @@ def precompute_best_spacing(n_z_arr: np.ndarray,
         coil_config_copy.n_w = n_w
         coil_config_copy.n_z = n_z
         results.append(
-            find_optimal_spacing(curve_model,
-                                 coil_config_copy,
-                                 magnet_assembly)
+            find_optimal_spacing(curve_model, coil_config_copy, magnet_assembly)
         )
 
     nz_nw_product = np.array(nz_nw_product)
-    df = pd.DataFrame({
-        'n_z': nz_nw_product[:, 0],
-        'n_w': nz_nw_product[:, 1],
-        'optimal_spacing_mm': results
-    })
+    df = pd.DataFrame(
+        {
+            "n_z": nz_nw_product[:, 0],
+            "n_w": nz_nw_product[:, 1],
+            "optimal_spacing_mm": results,
+        }
+    )
     # TODO: Consider a better format. Don't want to use pickle
     # due to version incompatibilities that can arise
     df.to_csv(output_path)
@@ -197,12 +206,16 @@ def lookup_best_spacing(path: str, n_z: int, n_w: int) -> float:
     df = pd.read_csv(path)
     # TODO: Fix underlying data file so that optimal distances values are in mm.
     # For now, we use a loose heuristic to make sure we return in mm.
-    if df['optimal_spacing_mm'].max() < 1:  # Hack to check if we should return in mm.  # noqa
-        df['optimal_spacing_mm'] = df['optimal_spacing_mm'] * 1000
-    result = df.query(f'n_z == {n_z} and n_w == {n_w}')['optimal_spacing_mm'].values  # noqa
+    if (
+        df["optimal_spacing_mm"].max() < 1
+    ):  # Hack to check if we should return in mm.  # noqa
+        df["optimal_spacing_mm"] = df["optimal_spacing_mm"] * 1000
+    result = df.query(f"n_z == {n_z} and n_w == {n_w}")[
+        "optimal_spacing_mm"
+    ].values  # noqa
 
     if not result:
-        raise ValueError(f'Coil parameters not found in {path}')
+        raise ValueError(f"Coil parameters not found in {path}")
 
     return result[0]
 
@@ -213,27 +226,29 @@ def calc_p_load_avg(x, r_load):
     return v_rms * v_rms / r_load
 
 
-def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
-                          input_excitations: List[Any],
-                          curve_model: CurveModel,
-                          coil_config_params: Dict,
-                          magnet_assembly_params: Dict,
-                          mech_spring_params: Dict,
-                          damper_model_params: Dict) -> List[UnifiedModel]:
+def evolve_simulation_set(
+    unified_model_factory: UnifiedModelFactory,
+    input_excitations: List[Any],
+    curve_model: CurveModel,
+    coil_config_params: Dict,
+    magnet_assembly_params: Dict,
+    mech_spring_params: Dict,
+    damper_model_params: Dict,
+) -> List[UnifiedModel]:
     """Update the simulation set with new flux and coil resistance models."""
 
     coil_configuration = CoilConfiguration(**coil_config_params)
     magnet_assembly = MagnetAssembly(**magnet_assembly_params)
 
-    damper_model_params['magnet_assembly'] = magnet_assembly
+    damper_model_params["magnet_assembly"] = magnet_assembly
     damper = QuasiKarnoppDamper(**damper_model_params)
 
-    mech_spring_params['magnet_assembly'] = magnet_assembly
+    mech_spring_params["magnet_assembly"] = magnet_assembly
     new_mech_spring = MechanicalSpring(**mech_spring_params)
     new_flux_model, new_dflux_model = _get_new_flux_and_dflux_model(
         curve_model=curve_model,
         coil_configuration=coil_configuration,
-        magnet_assembly=magnet_assembly
+        magnet_assembly=magnet_assembly,
     )
 
     new_factory = UnifiedModelFactory(
@@ -248,7 +263,7 @@ def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
         dflux_model=new_dflux_model,  # New
         coupling_model=unified_model_factory.coupling_model,
         governing_equations=unified_model_factory.governing_equations,
-        model_id=unified_model_factory.model_id
+        model_id=unified_model_factory.model_id,
     )
 
     unified_models = [new_factory.make(input_) for input_ in input_excitations]
@@ -257,8 +272,7 @@ def evolve_simulation_set(unified_model_factory: UnifiedModelFactory,
 
 @ray.remote
 def simulate_unified_model_for_power(
-        unified_model: UnifiedModel,
-        **solve_kwargs
+    unified_model: UnifiedModel, **solve_kwargs
 ) -> Dict:
     """Simulate a unified model and return the average load power.
 
@@ -280,19 +294,24 @@ def simulate_unified_model_for_power(
     if not solve_kwargs:
         solve_kwargs = {}
 
-    solve_kwargs.setdefault('t_start', 0)
-    solve_kwargs.setdefault('t_end', 8)
-    solve_kwargs.setdefault('y0', [0., 0., 0.04, 0., 0.])
-    solve_kwargs.setdefault('t_max_step', 1e-3)
-    solve_kwargs.setdefault('t_eval', np.arange(0, 8, 1e-3))  # type: ignore
+    solve_kwargs.setdefault("t_start", 0)
+    solve_kwargs.setdefault("t_end", 8)
+    solve_kwargs.setdefault("y0", [0.0, 0.0, 0.04, 0.0, 0.0])
+    solve_kwargs.setdefault("t_max_step", 1e-3)
+    solve_kwargs.setdefault("t_eval", np.arange(0, 8, 1e-3))  # type: ignore
 
     unified_model.solve(**solve_kwargs)
 
     if unified_model.electrical_model is None:
-        raise ValueError('ElectricalModel is not specified.')
+        raise ValueError("ElectricalModel is not specified.")
 
-    results = unified_model.calculate_metrics('g(t, x5)', {
-        'p_load_avg': lambda x: calc_p_load_avg(x, unified_model.electrical_model.load_model.R)  # noqa
-    })
+    results = unified_model.calculate_metrics(
+        "g(t, x5)",
+        {
+            "p_load_avg": lambda x: calc_p_load_avg(
+                x, unified_model.electrical_model.load_model.R
+            )  # noqa
+        },
+    )
 
     return results

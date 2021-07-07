@@ -49,12 +49,9 @@ def _parse_raw_accelerometer_input(raw_accelerometer_input):
     return None
 
 
-def _preprocess_acceleration_dataframe(df,
-                                       accel_column,
-                                       time_column,
-                                       accel_unit,
-                                       time_unit,
-                                       smooth=True):
+def _preprocess_acceleration_dataframe(
+    df, accel_column, time_column, accel_unit, time_unit, smooth=True
+):
     """Pre-process the raw acceleration dataframe.
 
     This includes converting the time to seconds, converting the acceleration
@@ -83,22 +80,20 @@ def _preprocess_acceleration_dataframe(df,
         Dataframe with processed time and acceleration columns.
 
     """
-    time_conversion_table = {'us': 1 / 1000000,
-                             'ms': 1 / 1000,
-                             's': 1}
+    time_conversion_table = {"us": 1 / 1000000, "ms": 1 / 1000, "s": 1}
 
-    df['simulation_time_seconds'] = df[time_column] * time_conversion_table[time_unit]
+    df["simulation_time_seconds"] = df[time_column] * time_conversion_table[time_unit]
 
     if smooth:
         df[accel_column] = smooth_savgol(df[accel_column], window_length=7, polyorder=2)
 
-    if accel_unit not in ['g', 'ms2']:
+    if accel_unit not in ["g", "ms2"]:
         raise KeyError('Acceleration unit must be specified as "g" or "ms2".')
     else:
         # subtract gravity, convert to m/s^2
-        if accel_unit == 'g':
-            df[accel_column] = (df[accel_column]-1)*9.81
-        if accel_unit == 'ms2':
+        if accel_unit == "g":
+            df[accel_column] = (df[accel_column] - 1) * 9.81
+        if accel_unit == "ms2":
             df[accel_column] = df[accel_column] - 9.81
 
     return df
@@ -121,14 +116,16 @@ class AccelerometerInput:
 
     """
 
-    def __init__(self,
-                 raw_accelerometer_input,
-                 accel_column,
-                 time_column,
-                 accel_unit='g',
-                 time_unit='ms',
-                 smooth=True,
-                 interpolate=False):
+    def __init__(
+        self,
+        raw_accelerometer_input,
+        accel_column,
+        time_column,
+        accel_unit="g",
+        time_unit="ms",
+        smooth=True,
+        interpolate=False,
+    ):
         """Constructor
 
         Parameters
@@ -152,7 +149,9 @@ class AccelerometerInput:
             The interpolation object is available under `self.interpolator`.
 
         """
-        self.raw_accelerometer_input = copy.deepcopy(raw_accelerometer_input)  # Prevents updating of mutable dataframes!
+        self.raw_accelerometer_input = copy.deepcopy(
+            raw_accelerometer_input
+        )  # Prevents updating of mutable dataframes!
         self._accel_column = accel_column
         self._time_column = time_column
         self._accel_unit = accel_unit
@@ -161,18 +160,24 @@ class AccelerometerInput:
         self.interpolate = interpolate
         self.interpolator = None
 
-        self.acceleration_df = _parse_raw_accelerometer_input(self.raw_accelerometer_input)
+        self.acceleration_df = _parse_raw_accelerometer_input(
+            self.raw_accelerometer_input
+        )
         # TODO: Separate processed accelerometer from raw accelerometer
-        self.acceleration_df = _preprocess_acceleration_dataframe(self.acceleration_df,
-                                                                  self._accel_column,
-                                                                  self._time_column,
-                                                                  self._accel_unit,
-                                                                  self._time_unit,
-                                                                  self.smooth)
+        self.acceleration_df = _preprocess_acceleration_dataframe(
+            self.acceleration_df,
+            self._accel_column,
+            self._time_column,
+            self._accel_unit,
+            self._time_unit,
+            self.smooth,
+        )
 
         if self.interpolate:
-            self.interpolator = FastInterpolator(self.acceleration_df['simulation_time_seconds'].values,
-                                                 self.acceleration_df[self._accel_column].values)
+            self.interpolator = FastInterpolator(
+                self.acceleration_df["simulation_time_seconds"].values,
+                self.acceleration_df[self._accel_column].values,
+            )
             # self.interpolator = UnivariateSpline(x=self.acceleration_df['simulation_time_seconds'].values,
             #                                      y=self.acceleration_df[self._accel_column].values,
             #                                      s=0,
@@ -195,6 +200,8 @@ class AccelerometerInput:
         if self.interpolate:
             return self.interpolator.get(t)
 
-        return _find_nearest_acc_value(t,
-                                       self.acceleration_df['simulation_time_seconds'].values,
-                                       self.acceleration_df[self._accel_column].values)
+        return _find_nearest_acc_value(
+            t,
+            self.acceleration_df["simulation_time_seconds"].values,
+            self.acceleration_df[self._accel_column].values,
+        )

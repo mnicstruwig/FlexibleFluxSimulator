@@ -48,19 +48,23 @@ class ElectricalModel:
             assert self.flux_model is not None
             assert self.dflux_model is not None
         except AssertionError as e:
-            raise ModelError('A flux model and dflux model must be specified.') from e  # noqa
+            raise ModelError(
+                "A flux model and dflux model must be specified."
+            ) from e  # noqa
         try:
             assert self.coil_config is not None
         except AssertionError as e:
-            raise ModelError('A coil model must be specified.') from e
+            raise ModelError("A coil model must be specified.") from e
         try:
             assert self.rectification_drop is not None
         except AssertionError:
-            warnings.warn('Rectification drop not specified. Assuming no loss due to rectification.')  # noqa
+            warnings.warn(
+                "Rectification drop not specified. Assuming no loss due to rectification."
+            )  # noqa
         try:
             assert self.load_model is not None
         except AssertionError as e:
-            raise ModelError('A load model must be specified.') from e
+            raise ModelError("A load model must be specified.") from e
 
     def set_flux_model(self, flux_model, dflux_model):
         """Assign a flux model.
@@ -80,8 +84,7 @@ class ElectricalModel:
         self.dflux_model = dflux_model
         return self
 
-    def set_coil_configuration(self, coil_config: CoilConfiguration
-                               ) -> ElectricalModel:
+    def set_coil_configuration(self, coil_config: CoilConfiguration) -> ElectricalModel:
         """Set the coil model"""
         self.coil_config = coil_config
         return self
@@ -105,8 +108,11 @@ class ElectricalModel:
 
     def get_load_voltage(self, mag_pos, mag_vel):
         emf = self.get_emf(mag_pos, mag_vel)
-        v_load = emf * self.load_model.R / (self.load_model.R
-                                            + self.coil_config.coil_resistance)
+        v_load = (
+            emf
+            * self.load_model.R
+            / (self.load_model.R + self.coil_config.coil_resistance)
+        )
 
         return v_load
 

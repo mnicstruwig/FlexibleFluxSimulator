@@ -2,24 +2,25 @@ from typing import Optional
 
 import numpy as np
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_components.magnetic_spring import \
-    MagneticSpringInterp
+from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
 
 
 class CoilConfiguration:  # pylint: disable=too-many-instance-attributes
     """A linear coil model configuration"""
 
-    def __init__(self,  # pylint: disable=too-many-arguments
-                 c: int,
-                 n_z: Optional[int],
-                 n_w: Optional[int],
-                 l_ccd_mm: float,
-                 ohm_per_mm: float,
-                 tube_wall_thickness_mm: float,
-                 coil_wire_radius_mm: float,
-                 coil_center_mm: float,
-                 inner_tube_radius_mm: float,
-                 coil_resistance: Optional[float] = None) -> None:
+    def __init__(
+        self,  # pylint: disable=too-many-arguments
+        c: int,
+        n_z: Optional[int],
+        n_w: Optional[int],
+        l_ccd_mm: float,
+        ohm_per_mm: float,
+        tube_wall_thickness_mm: float,
+        coil_wire_radius_mm: float,
+        coil_center_mm: float,
+        inner_tube_radius_mm: float,
+        coil_resistance: Optional[float] = None,
+    ) -> None:
         """Constructor.
 
         Parameters
@@ -71,42 +72,45 @@ class CoilConfiguration:  # pylint: disable=too-many-instance-attributes
         self._validate()
 
     def __repr__(self):
-        to_print = ', '.join([f'{k}={v}' for k, v in self.__dict__.items()])
-        return f'CoilModel({to_print})'
+        to_print = ", ".join([f"{k}={v}" for k, v in self.__dict__.items()])
+        return f"CoilModel({to_print})"
 
     def _validate(self) -> None:
         """Do some basic validation of parameters."""
         if self.l_ccd_mm < 0:
-            raise ValueError('l_ccd_mm must be > 0')
+            raise ValueError("l_ccd_mm must be > 0")
 
         if self.l_ccd_mm == 0 and self.c > 1:
-            raise ValueError('l_ccd_mm = 0, but c > 1')
+            raise ValueError("l_ccd_mm = 0, but c > 1")
 
         if not self.coil_resistance:
             try:
                 assert self.n_z is not None
                 assert self.n_w is not None
             except AssertionError as e:
-                raise ValueError('`coil_resistance` must be specified if `n_z` and `n_w` are `None`') from e # noqa
+                raise ValueError(
+                    "`coil_resistance` must be specified if `n_z` and `n_w` are `None`"
+                ) from e  # noqa
 
     def _calculate_coil_resistance(self) -> float:
         return (
-            2 * np.pi
+            2
+            * np.pi
             * self.ohm_per_mm
-            * self.n_w * self.n_z  # type: ignore
+            * self.n_w
+            * self.n_z  # type: ignore
             * (
                 self.tube_wall_thickness_mm
                 + self.inner_tube_radius_mm
                 + self.coil_wire_radius_mm
-                + 2 * self.coil_wire_radius_mm
-                * (self.n_w + 1) / 2  # type: ignore
+                + 2 * self.coil_wire_radius_mm * (self.n_w + 1) / 2  # type: ignore
             )
             * self.c
         )
 
-    def _calc_hovering_height(self,
-                              magnet_assembly: MagnetAssembly,
-                              magnetic_spring: MagneticSpringInterp) -> float:
+    def _calc_hovering_height(
+        self, magnet_assembly: MagnetAssembly, magnetic_spring: MagneticSpringInterp
+    ) -> float:
         target_force = magnet_assembly.get_weight()
         z_arr = np.linspace(0, 0.1, 1000)
         predict_force = magnetic_spring.get_force(z_arr)
@@ -116,20 +120,16 @@ class CoilConfiguration:  # pylint: disable=too-many-instance-attributes
 
         return hover_height * 1000  # Must be in mm
 
-    def set_optimal_coil_center(self,
-                                magnet_assembly: MagnetAssembly,
-                                magnetic_spring: MagneticSpringInterp) -> None:
+    def set_optimal_coil_center(
+        self, magnet_assembly: MagnetAssembly, magnetic_spring: MagneticSpringInterp
+    ) -> None:
 
-        hover_height = self._calc_hovering_height(
-            magnet_assembly,
-            magnetic_spring
-        )
+        hover_height = self._calc_hovering_height(magnet_assembly, magnetic_spring)
         hover_height = hover_height
         l_eps = 5
         coil_height = self.coil_wire_radius_mm * 2 * self.n_z
-        new_coil_center_mm = (hover_height
-                              + magnet_assembly.get_length()
-                              + l_eps
-                              + coil_height / 2)
+        new_coil_center_mm = (
+            hover_height + magnet_assembly.get_length() + l_eps + coil_height / 2
+        )
 
         self.coil_center_mm = new_coil_center_mm

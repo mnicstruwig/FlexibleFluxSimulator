@@ -11,18 +11,18 @@ class SimpleLoad:
         self.R = R
 
     def __str__(self):
-        return f'SimpleLoad: {self.R} Ohms'
+        return f"SimpleLoad: {self.R} Ohms"
 
     def __repr__(self):
         # Couldn't discover a nicer way to do this
-        return f'SimpleLoad(R={self.R})'
+        return f"SimpleLoad(R={self.R})"
 
     def get_current(self, emf, coil_resistance):
         """Get the current through the load."""
         if np.isinf(self.R) or np.isinf(coil_resistance):
             return 0
-        v_load = emf*self.R/(self.R + coil_resistance)
-        return v_load/self.R
+        v_load = emf * self.R / (self.R + coil_resistance)
+        return v_load / self.R
 
     def get_voltage(self, current):
         """Get the voltage over the load."""

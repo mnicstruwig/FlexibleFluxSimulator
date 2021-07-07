@@ -15,5 +15,3 @@ Comparison
 5. Read in ground truth emf data
 6. Compare adc readings with predicted emf.
 """
-
-

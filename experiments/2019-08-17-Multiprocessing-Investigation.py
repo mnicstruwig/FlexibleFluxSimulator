@@ -1,10 +1,11 @@
 import ray
 
-#ray.init()  # Initialize Ray, only call this once
+# ray.init()  # Initialize Ray, only call this once
 
 
 def regular_function():
     return 1
+
 
 @ray.remote
 def remote_function():
@@ -13,7 +14,9 @@ def remote_function():
 
 # Invocation is a little different now
 result = regular_function()  # Works like regular function --> returns the result
-obj_id = remote_function.remote()  # Invocation for a remote function --> returns on object ID
+obj_id = (
+    remote_function.remote()
+)  # Invocation for a remote function --> returns on object ID
 
 
 remote_result = ray.get(obj_id)  # Fetching a remote result

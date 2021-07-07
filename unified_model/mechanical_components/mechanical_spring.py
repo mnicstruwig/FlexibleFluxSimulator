@@ -8,11 +8,13 @@ from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 class MechanicalSpring:
     """Mechanical, non-attached, spring."""
 
-    def __init__(self,
-                 magnet_assembly: MagnetAssembly,
-                 position: float,
-                 strength: float = 1e7,
-                 damping_coefficient: float = 0) -> None:
+    def __init__(
+        self,
+        magnet_assembly: MagnetAssembly,
+        position: float,
+        strength: float = 1e7,
+        damping_coefficient: float = 0,
+    ) -> None:
         """Constructor.
 
         Parameters
@@ -37,7 +39,7 @@ class MechanicalSpring:
         self.damping_coefficient = damping_coefficient
 
     def __repr__(self):
-        return f'MechanicalSpring(position={self.position}, magnet_length={self.magnet_length}, magnet_assembly_length={self.magnet_assembly_length}, strength={self.strength}, damping_coefficient={self.damping_coefficient})'  # noqa
+        return f"MechanicalSpring(position={self.position}, magnet_length={self.magnet_length}, magnet_assembly_length={self.magnet_assembly_length}, strength={self.strength}, damping_coefficient={self.damping_coefficient})"  # noqa
 
     def _heaviside_step_function(self, x, boundary):
         """Compute the output of a Heaviside step function"""
@@ -60,10 +62,9 @@ class MechanicalSpring:
 
         """
         offset = self.magnet_assembly_length - (self.magnet_length / 2)
-        force = (
-            self._heaviside_step_function(x + offset, self.position)
-            * (self.strength * (x - self.position + offset)
-               + self.damping_coefficient * x_dot)
+        force = self._heaviside_step_function(x + offset, self.position) * (
+            self.strength * (x - self.position + offset)
+            + self.damping_coefficient * x_dot
         )
 
         return force

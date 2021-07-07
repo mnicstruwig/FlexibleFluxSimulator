@@ -13,14 +13,14 @@ def _model_savgol_smoothing(z_arr, force_arr):
     Apply a savgol filter_callable and interpolate the result
     """
     filtered_force_arr = savgol_filter(force_arr, 27, 5)
-    interp = interpolate.interp1d(z_arr, filtered_force_arr, fill_value=0,
-                                  bounds_error=False)
+    interp = interpolate.interp1d(
+        z_arr, filtered_force_arr, fill_value=0, bounds_error=False
+    )
     return interp
 
 
 def _model_coulombs_law(z, m):
-    """A magnetic spring model that implements a variant of Coulomb's Law.
-    """
+    """A magnetic spring model that implements a variant of Coulomb's Law."""
     u0 = 4 * np.pi * 10 ** (-7)
     return u0 * m * m / (4 * np.pi * z * z)
 
@@ -42,11 +42,12 @@ def _model_power_series_3(z, a0, a1, a2, a3):
     return part0 + part1 + part2 + part3
 
 
-def _preprocess(dataframe: pd.DataFrame,
-                filter_callable: Optional[Callable]) -> pd.DataFrame:
+def _preprocess(
+    dataframe: pd.DataFrame, filter_callable: Optional[Callable]
+) -> pd.DataFrame:
     """Filter the `force` values in `dataframe` using `filter_callable`."""
     if filter_callable:
-        dataframe['force'] = filter_callable(dataframe['force'].values)
+        dataframe["force"] = filter_callable(dataframe["force"].values)
         return dataframe
     return dataframe
 
@@ -58,11 +59,14 @@ class MagneticSpringInterp:
     receives datapoints, and interpolates between those points.
 
     """
-    def __init__(self,
-                 fea_data_file: str,
-                 magnet_length: float,
-                 filter_callable: Callable = None,
-                 **model_kwargs) -> None:
+
+    def __init__(
+        self,
+        fea_data_file: str,
+        magnet_length: float,
+        filter_callable: Callable = None,
+        **model_kwargs,
+    ) -> None:
         """Constructor.
 
         Parameters
@@ -85,11 +89,12 @@ class MagneticSpringInterp:
         self.filter_callable = filter_callable
         self.magnet_length = magnet_length
 
-        self.fea_dataframe = _preprocess(cast(pd.DataFrame, pd.read_csv(fea_data_file)),
-                                         filter_callable)
-        self._model = self._fit_model(self.fea_dataframe,
-                                      self.magnet_length,
-                                      **model_kwargs)
+        self.fea_dataframe = _preprocess(
+            cast(pd.DataFrame, pd.read_csv(fea_data_file)), filter_callable
+        )
+        self._model = self._fit_model(
+            self.fea_dataframe, self.magnet_length, **model_kwargs
+        )
 
     @overload
     def get_force(self, z: float) -> float:
@@ -99,8 +104,7 @@ class MagneticSpringInterp:
     def get_force(self, z: np.ndarray) -> np.ndarray:
         ...
 
-    def get_force(self,
-                  z: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+    def get_force(self, z: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         """Calculate the force between two magnets at a distance `z` apart.
 
         Parameters
@@ -117,17 +121,18 @@ class MagneticSpringInterp:
         return self._model.get(z)
 
     def __repr__(self):
-        return f'MagneticSpringInterp({self.fea_data_file}, {self.filter_callable})'  # noqa
+        return f"MagneticSpringInterp({self.fea_data_file}, {self.filter_callable})"  # noqa
 
     @staticmethod
-    def _fit_model(fea_dataframe: pd.DataFrame,
-                   magnet_length: float) -> FastInterpolator:
+    def _fit_model(
+        fea_dataframe: pd.DataFrame, magnet_length: float
+    ) -> FastInterpolator:
         """Fit the 1d interpolation model."""
         # Divide magnet_length by 2 because reference point is to the center of
         # the lowermost magnet in the assembly.
-        return FastInterpolator(fea_dataframe.z.values + magnet_length / 2,
-                                fea_dataframe.force.values)
-
+        return FastInterpolator(
+            fea_dataframe.z.values + magnet_length / 2, fea_dataframe.force.values
+        )
 
 
 # TODO: Update to match latest version in paper.
@@ -152,20 +157,23 @@ class MagnetSpringAnalytic:
         Pandas dataframe containing the processed FEA magnet force readings.
 
     """
-    def __init__(self,
-                 fea_data_file: str,
-                 model: Callable,
-                 filter_callable: Callable = None) -> None:
+
+    def __init__(
+        self, fea_data_file: str, model: Callable, filter_callable: Callable = None
+    ) -> None:
         """Constructor"""
-        self.fea_dataframe = _preprocess(cast(pd.DataFrame, pd.read_csv(fea_data_file)),
-                                         filter_callable)
+        self.fea_dataframe = _preprocess(
+            cast(pd.DataFrame, pd.read_csv(fea_data_file)), filter_callable
+        )
         self._model_params = self._fit_model(model)
 
     def _fit_model(self, model: Callable) -> np.ndarray:
         """Find the best-fit parameters for `model`"""
-        popt, _ = optimize.curve_fit(model,  # type:ignore
-                                     self.fea_dataframe.z.values,
-                                     self.fea_dataframe.force.values)
+        popt, _ = optimize.curve_fit(
+            model,  # type:ignore
+            self.fea_dataframe.z.values,
+            self.fea_dataframe.force.values,
+        )
         return popt
 
     def get_force(self, z):

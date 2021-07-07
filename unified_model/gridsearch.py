@@ -3,8 +3,7 @@ import warnings
 from collections import defaultdict
 from copy import copy
 from itertools import product
-from typing import (Any, Dict, Generator, List,
-                    Union, Tuple, Callable, Optional)
+from typing import Any, Dict, Generator, List, Union, Tuple, Callable, Optional
 
 import numpy as np
 import pandas as pd
@@ -12,52 +11,61 @@ import ray
 import pyarrow.parquet as pq
 import pyarrow as pa
 
-from unified_model import (ElectricalModel, MechanicalModel, UnifiedModel,
-                           pipeline)
+from unified_model import ElectricalModel, MechanicalModel, UnifiedModel, pipeline
 from unified_model.mechanical_components import AccelerometerInput
 
-logging.basicConfig(format='%(asctime)s :: %(levelname)s :: %(message)s',
-                    level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s :: %(levelname)s :: %(message)s", level=logging.INFO
+)
 
 
 class AccelerometerInputsFactory:
     def __init__(self, sample_list, acc_input_kwargs=None):
         self.sample_list = sample_list
-        self.acc_input_kwargs = {} if acc_input_kwargs is None else acc_input_kwargs  # noqa
+        self.acc_input_kwargs = (
+            {} if acc_input_kwargs is None else acc_input_kwargs
+        )  # noqa
         self._set_defaults()
 
     def _set_defaults(self):
-        self.acc_input_kwargs.setdefault('accel_column', 'z_G'),
-        self.acc_input_kwargs.setdefault('time_column', 'time(ms)'),
-        self.acc_input_kwargs.setdefault('accel_unit', 'g'),
-        self.acc_input_kwargs.setdefault('time_unit', 'ms'),
-        self.acc_input_kwargs.setdefault('smooth', True),
-        self.acc_input_kwargs.setdefault('interpolate', True)
+        self.acc_input_kwargs.setdefault("accel_column", "z_G"),
+        self.acc_input_kwargs.setdefault("time_column", "time(ms)"),
+        self.acc_input_kwargs.setdefault("accel_unit", "g"),
+        self.acc_input_kwargs.setdefault("time_unit", "ms"),
+        self.acc_input_kwargs.setdefault("smooth", True),
+        self.acc_input_kwargs.setdefault("interpolate", True)
 
     def make(self) -> np.ndarray:
         accelerometer_inputs = []
         for sample in self.sample_list:
             acc_input = AccelerometerInput(
                 raw_accelerometer_input=sample.acc_df,
-                accel_column=self.acc_input_kwargs.setdefault('accel_column', 'z_G'),  # noqa
-                time_column=self.acc_input_kwargs.setdefault('time_column', 'time(ms)'),  # noqa
-                accel_unit=self.acc_input_kwargs.setdefault('accel_unit', 'g'),
-                time_unit=self.acc_input_kwargs.setdefault('time_unit', 'ms'),
-                smooth=self.acc_input_kwargs.setdefault('smooth', True),
-                interpolate=self.acc_input_kwargs.setdefault('interpolate', True)  # noqa
+                accel_column=self.acc_input_kwargs.setdefault(
+                    "accel_column", "z_G"
+                ),  # noqa
+                time_column=self.acc_input_kwargs.setdefault(
+                    "time_column", "time(ms)"
+                ),  # noqa
+                accel_unit=self.acc_input_kwargs.setdefault("accel_unit", "g"),
+                time_unit=self.acc_input_kwargs.setdefault("time_unit", "ms"),
+                smooth=self.acc_input_kwargs.setdefault("smooth", True),
+                interpolate=self.acc_input_kwargs.setdefault(
+                    "interpolate", True
+                ),  # noqa
             )
             accelerometer_inputs.append(acc_input)
         return np.array(accelerometer_inputs)
 
 
 class EvaluatorFactory:
-
-    def __init__(self,
-                 evaluator_cls: Any,
-                 expr_targets: List,
-                 time_targets: List,
-                 metrics: Dict[str, Callable],
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        evaluator_cls: Any,
+        expr_targets: List,
+        time_targets: List,
+        metrics: Dict[str, Callable],
+        **kwargs,
+    ) -> None:
         """Build a factory that produces fitted Evaluators
 
         Parameters
@@ -97,11 +105,12 @@ class EvaluatorFactory:
     def make(self) -> np.ndarray:
         """Return an array of Evaluator objects."""
         evaluator_list = []
-        for expr_target, time_target in zip(self.expr_targets, self.time_targets):  # noqa
-            evaluator = self.evaluator_cls(expr_target,
-                                           time_target,
-                                           self.metrics,
-                                           **self.evaluator_kwargs)
+        for expr_target, time_target in zip(
+            self.expr_targets, self.time_targets
+        ):  # noqa
+            evaluator = self.evaluator_cls(
+                expr_target, time_target, self.metrics, **self.evaluator_kwargs
+            )
             evaluator_list.append(evaluator)
         return np.array(evaluator_list)
 
@@ -122,16 +131,20 @@ class AbstractUnifiedModelFactory:
     mechanical_components
 
     """
-    def __init__(self,
-                 mechanical_components: List[Any],
-                 electrical_components: List[Any],
-                 coupling_models: List[Any],
-                 governing_equations: List[Any],
-                 ) -> None:
+
+    def __init__(
+        self,
+        mechanical_components: List[Any],
+        electrical_components: List[Any],
+        coupling_models: List[Any],
+        governing_equations: List[Any],
+    ) -> None:
         """Constructor"""
 
-        if 'input_excitation' in mechanical_components:
-            warnings.warn('input_excitation was specified in mechanical_components! This will break when `generate` is called!')  # noqa
+        if "input_excitation" in mechanical_components:
+            warnings.warn(
+                "input_excitation was specified in mechanical_components! This will break when `generate` is called!"
+            )  # noqa
 
         self.mechanical_components = mechanical_components
         self.electrical_components = electrical_components
@@ -141,8 +154,8 @@ class AbstractUnifiedModelFactory:
         self.combined: Dict[Any, Any] = {}
         self.combined.update(mechanical_components)
         self.combined.update(electrical_components)
-        self.combined['coupling_model'] = coupling_models
-        self.combined['governing_equations'] = self.governing_equations
+        self.combined["coupling_model"] = coupling_models
+        self.combined["governing_equations"] = self.governing_equations
 
     def generate(self) -> Generator:
         """Generate a UnifiedModelFactory for a combination of all components
@@ -161,7 +174,7 @@ class AbstractUnifiedModelFactory:
         param_product = product(*[v for v in self.combined.values()])
         for i, p_p in enumerate(param_product):
             new_kwargs = {k: v for k, v in zip(self.combined.keys(), p_p)}
-            new_kwargs['model_id'] = i
+            new_kwargs["model_id"] = i
             yield UnifiedModelFactory(**new_kwargs)
 
 
@@ -172,19 +185,21 @@ class UnifiedModelFactory:
     instead.
     """
 
-    def __init__(self,
-                 damper: Any,
-                 magnet_assembly: Any,
-                 magnetic_spring: Any,
-                 mechanical_spring: Any,
-                 coil_configuration: Any,
-                 rectification_drop: float,
-                 load_model: Any,
-                 flux_model: Any,
-                 dflux_model: Any,
-                 coupling_model: Any,
-                 governing_equations: Any,
-                 model_id: int = None) -> None:
+    def __init__(
+        self,
+        damper: Any,
+        magnet_assembly: Any,
+        magnetic_spring: Any,
+        mechanical_spring: Any,
+        coil_configuration: Any,
+        rectification_drop: float,
+        load_model: Any,
+        flux_model: Any,
+        dflux_model: Any,
+        coupling_model: Any,
+        governing_equations: Any,
+        model_id: int = None,
+    ) -> None:
         """Constructor"""
         self.damper = damper
         self.magnet_assembly = magnet_assembly
@@ -249,7 +264,7 @@ class UnifiedModelFactory:
             .set_electrical_model(electrical_model)
             .set_coupling_model(self.coupling_model)
             .set_governing_equations(self.governing_equations)
-            .set_post_processing_pipeline(pipeline.clip_x2, name='clip x2')
+            .set_post_processing_pipeline(pipeline.clip_x2, name="clip x2")
         )
         return unified_model
 
@@ -286,7 +301,7 @@ def _get_nested_param(obj: Any, path: str) -> Any:
     'some value'
 
     """
-    split_ = path.split('.')
+    split_ = path.split(".")
     temp = obj[split_[0]]
     for s in split_[1:]:
         if isinstance(temp, dict):  # If we have a dict
@@ -296,8 +311,9 @@ def _get_nested_param(obj: Any, path: str) -> Any:
     return temp
 
 
-def _get_params_of_interest(param_dict: Dict[Any, Any],
-                            params_of_interest: List[str]) -> Dict[str, Any]:
+def _get_params_of_interest(
+    param_dict: Dict[Any, Any], params_of_interest: List[str]
+) -> Dict[str, Any]:
     """Get a list of parameters from `param_dict`
 
     Parameters
@@ -319,9 +335,9 @@ def _get_params_of_interest(param_dict: Dict[Any, Any],
 
     """
     if not isinstance(param_dict, dict):
-        raise TypeError('param_dict is not a dict')
+        raise TypeError("param_dict is not a dict")
     if not isinstance(params_of_interest, list):
-        raise TypeError('params_of_interest is not a list')
+        raise TypeError("params_of_interest is not a list")
 
     result: Dict[str, Any] = {}
     try:
@@ -329,12 +345,13 @@ def _get_params_of_interest(param_dict: Dict[Any, Any],
             result[param] = _get_nested_param(param_dict, param)
         return result
     except KeyError as e:
-        raise KeyError(f'Attempted to lookup parameter {param} that could not be found!') from e  # noqa
+        raise KeyError(
+            f"Attempted to lookup parameter {param} that could not be found!"
+        ) from e  # noqa
 
 
 def _scores_to_dataframe(
-        grid_scores: List[Dict[str, Any]],
-        model_ids: List[int]
+    grid_scores: List[Dict[str, Any]], model_ids: List[int]
 ) -> pd.DataFrame:
     """Parse scores from a grid search into a pandas dataframe.
 
@@ -360,13 +377,12 @@ def _scores_to_dataframe(
         for key, val in score_dict.items():
             result[key].append(val)
 
-        result['model_id'].append(model_ids[i])
+        result["model_id"].append(model_ids[i])
     return pd.DataFrame(result)  # type: ignore
 
 
 def _calc_metrics_to_dataframe(
-        grid_calcs: List[Dict[str, Any]],
-        model_ids: List[int]
+    grid_calcs: List[Dict[str, Any]], model_ids: List[int]
 ) -> pd.DataFrame:
     """Parse calculated metrics from a grid search into a pandas dataframe.
 
@@ -392,14 +408,12 @@ def _calc_metrics_to_dataframe(
         for key, val in calc_dict.items():
             result[key].append(val)
 
-        result['model_id'].append(model_ids[i])
+        result["model_id"].append(model_ids[i])
     return pd.DataFrame(result)
 
 
 def _curves_to_dataframe(
-        grid_curves: List[Dict[str, Any]],
-        sample_rate: int,
-        model_ids: List[int]
+    grid_curves: List[Dict[str, Any]], sample_rate: int, model_ids: List[int]
 ) -> pd.DataFrame:
     """Parse the curve waveforms from a grid search into a pandas dataframe.
 
@@ -431,17 +445,15 @@ def _curves_to_dataframe(
             values_length = len(subsampled_values)
 
         model_id = np.full(values_length, model_ids[i], dtype=int)
-        result['model_id'] = np.concatenate([result['model_id'], model_id])
+        result["model_id"] = np.concatenate([result["model_id"], model_id])
 
     df = pd.DataFrame(result)
-    df['model_id'] = df['model_id'].astype('int')  # Force `model_id` to be int
+    df["model_id"] = df["model_id"].astype("int")  # Force `model_id` to be int
     return df
 
 
 def _param_dict_list_to_dataframe(
-        param_dict_list: List[Dict],
-        model_ids: List[int],
-        input_excitations: List[int]
+    param_dict_list: List[Dict], model_ids: List[int], input_excitations: List[int]
 ) -> pd.DataFrame:
     """Parse the parameter list into a pandas dataframe.
 
@@ -472,15 +484,14 @@ def _param_dict_list_to_dataframe(
         for key, value in param_dict.items():
             result[key].append(value)
 
-        result['model_id'].append(model_ids[i])
+        result["model_id"].append(model_ids[i])
         # A bit of a hack. Find another place to append the input excitations.
-        result['input_excitation'].append(input_excitations[i])
+        result["input_excitation"].append(input_excitations[i])
 
     return pd.DataFrame(result)
 
 
-def _chunk(array_like: Union[List, np.ndarray],
-           chunk_size: int) -> Generator:
+def _chunk(array_like: Union[List, np.ndarray], chunk_size: int) -> Generator:
     """Chunk up an array-like yielded chunks."""
     total_size = len(array_like)
     indexes = list(range(0, total_size, chunk_size))
@@ -494,11 +505,13 @@ def _chunk(array_like: Union[List, np.ndarray],
 
 
 @ray.remote
-def run_cell(unified_model_factory: UnifiedModelFactory,
-             input_excitation: AccelerometerInput,
-             curve_expressions: Dict[str, str] = None,
-             score_metrics: Dict[str, Any] = None,
-             calc_metrics: Dict[str, Any] = None) -> Tuple[Dict, Dict, Dict]:  # noqa
+def run_cell(
+    unified_model_factory: UnifiedModelFactory,
+    input_excitation: AccelerometerInput,
+    curve_expressions: Dict[str, str] = None,
+    score_metrics: Dict[str, Any] = None,
+    calc_metrics: Dict[str, Any] = None,
+) -> Tuple[Dict, Dict, Dict]:  # noqa
     """Execute a single cell of a grid search.
 
     This is designed to be executed in parallel using Ray.
@@ -543,11 +556,13 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
     """
 
     model = unified_model_factory.make(input_excitation)
-    model.solve(t_start=0,
-                t_end=8,
-                t_max_step=1e-2,
-                t_eval=np.arange(0., 8., 1e-3),
-                y0=[0.0, 0.0, 0.04, 0.0, 0.0])
+    model.solve(
+        t_start=0,
+        t_end=8,
+        t_max_step=1e-2,
+        t_eval=np.arange(0.0, 8.0, 1e-3),
+        y0=[0.0, 0.0, 0.04, 0.0, 0.0],
+    )
 
     curves: Dict[str, Any] = {}
     metric_scores: Dict[str, Any] = {}
@@ -558,14 +573,13 @@ def run_cell(unified_model_factory: UnifiedModelFactory,
         # interface
         swapped = {v: k for k, v in curve_expressions.items()}
         df_result: pd.DataFrame = model.get_result(**swapped)
-        curves = df_result.to_dict(orient='list')  # type: ignore
+        curves = df_result.to_dict(orient="list")  # type: ignore
 
     if score_metrics:
         metric_scores = {}
         for _, (expression, evaluator) in enumerate(score_metrics.items()):
-            df_result = model.get_result(time='t', target_value=expression)
-            evaluator.fit(df_result['target_value'].values,
-                          df_result['time'].values)
+            df_result = model.get_result(time="t", target_value=expression)
+            evaluator.fit(df_result["target_value"].values, df_result["time"].values)
             score = evaluator.score()
             metric_scores.update(score)
 
@@ -612,14 +626,17 @@ class GridsearchBatchExecutor:
         Additional parameters to be passed to `ray.init`.
 
     """
-    def __init__(self,
-                 abstract_unified_model_factory: AbstractUnifiedModelFactory,
-                 input_excitations: List[AccelerometerInput],
-                 curve_expressions: Dict[str, str] = None,
-                 score_metrics: Dict[str, List[Any]] = None,
-                 calc_metrics: Dict[str, Callable] = None,
-                 parameters_to_track: List[str] = None,
-                 **ray_kwargs) -> None:
+
+    def __init__(
+        self,
+        abstract_unified_model_factory: AbstractUnifiedModelFactory,
+        input_excitations: List[AccelerometerInput],
+        curve_expressions: Dict[str, str] = None,
+        score_metrics: Dict[str, List[Any]] = None,
+        calc_metrics: Dict[str, Callable] = None,
+        parameters_to_track: List[str] = None,
+        **ray_kwargs,
+    ) -> None:
         """Constructor"""
 
         if score_metrics:
@@ -627,7 +644,9 @@ class GridsearchBatchExecutor:
                 for _, v in score_metrics.items():
                     assert len(input_excitations) == len(v)
             except AssertionError as e:
-                raise AssertionError('len(input excitations) != len(score_metrics[x]) ') from e  # noqa
+                raise AssertionError(
+                    "len(input excitations) != len(score_metrics[x]) "
+                ) from e  # noqa
 
         self.input_excitations = input_excitations
         self.curve_expressions = curve_expressions
@@ -635,7 +654,7 @@ class GridsearchBatchExecutor:
         self.calc_metrics = calc_metrics
         self.abstract_unified_model_factory = abstract_unified_model_factory
         self.parameters_to_track = parameters_to_track
-        ray_kwargs.setdefault('ignore_reinit_error', True)
+        ray_kwargs.setdefault("ignore_reinit_error", True)
         self.ray_kwargs = ray_kwargs
         self.raw_grid_results = None
 
@@ -651,11 +670,7 @@ class GridsearchBatchExecutor:
         "Kill Ray."
         ray.shutdown()
 
-    def _execute_grid_search(
-            self,
-            output_file: str,
-            batch_size: int
-    ) -> None:
+    def _execute_grid_search(self, output_file: str, batch_size: int) -> None:
         """Execute the gridsearch."""
 
         # Convert to list since we may iterate over it multiple times
@@ -690,7 +705,9 @@ class GridsearchBatchExecutor:
                     # Get the model id
                     model_ids.append(model_factory.model_id)
                     # Record grid parameters
-                    grid_params.append(model_factory.get_args(self.parameters_to_track))  # noqa
+                    grid_params.append(
+                        model_factory.get_args(self.parameters_to_track)
+                    )  # noqa
                     # Record which input excitation
                     input_numbers.append(input_number)
 
@@ -700,25 +717,31 @@ class GridsearchBatchExecutor:
                         input_excitation=input_,
                         curve_expressions=self.curve_expressions,  # noqa
                         score_metrics=score_metric_dict_for_current_input,  # noqa
-                        calc_metrics=self.calc_metrics
+                        calc_metrics=self.calc_metrics,
                     )
 
                     task_queue.append(task_id)
 
                 ready: List[Any] = []
                 while len(ready) < len(task_queue):
-                    ready, _ = ray.wait(task_queue,
-                                        num_returns=len(task_queue),
-                                        timeout=2.)
+                    ready, _ = ray.wait(
+                        task_queue, num_returns=len(task_queue), timeout=2.0
+                    )
                     # Log output
-                    log_base = 'Progress: '
-                    input_log = f':: Input: {input_number+1}/{len(self.input_excitations)} '  # noqa
-                    grid_progress_log = f':: {len(ready)+total_completed}/{total_tasks}'  # noqa
+                    log_base = "Progress: "
+                    input_log = f":: Input: {input_number+1}/{len(self.input_excitations)} "  # noqa
+                    grid_progress_log = (
+                        f":: {len(ready)+total_completed}/{total_tasks}"  # noqa
+                    )
                     logging.info(log_base + input_log + grid_progress_log)
 
                 # Once all tasks are completed...
-                total_completed += len(ready)  # noqa: increment the total completed counter
-                results = [ray.get(task_id) for task_id in task_queue]  # noqa: ... and fetch results
+                total_completed += len(
+                    ready
+                )  # noqa: increment the total completed counter
+                results = [
+                    ray.get(task_id) for task_id in task_queue
+                ]  # noqa: ... and fetch results
 
                 # Parse the results
                 for result in results:
@@ -734,59 +757,58 @@ class GridsearchBatchExecutor:
                         grid_calcs,
                         grid_params,
                         model_ids,
-                        input_numbers
+                        input_numbers,
                     )
                 )
 
                 # Write out results to file
-                logging.info(f'Writing chunk to :: {output_file} ...')
+                logging.info(f"Writing chunk to :: {output_file} ...")
                 self._write_out_results(
                     df_results=df_results,
                     path=output_file,
-                    partition_cols=['input_excitation']
+                    partition_cols=["input_excitation"],
                 )
                 del results  # Remove reference so Ray can free memory as needed
                 del df_results
                 ray.internal.free(task_queue)  # type: ignore
 
     def _write_out_results(
-            self,
-            df_results: pd.DataFrame,
-            path: str,
-            partition_cols: List[str]
+        self, df_results: pd.DataFrame, path: str, partition_cols: List[str]
     ) -> None:
         """Write results to disk as parquet."""
 
         table = pa.Table.from_pandas(df_results)
         pq.write_to_dataset(
-            table,
-            path,
-            partition_cols=partition_cols,
-            compression='brotli'
+            table, path, partition_cols=partition_cols, compression="brotli"
         )
 
     def _process_results(
-            self,
-            grid_results: Tuple[List, List, List, List, List, List],
-            curve_subsample_rate: int = 3
+        self,
+        grid_results: Tuple[List, List, List, List, List, List],
+        curve_subsample_rate: int = 3,
     ) -> pd.DataFrame:
         """Process the gridsearch results into a single pandas Dataframe."""
-        grid_curves, grid_scores, grid_calcs, grid_params, model_ids, input_excitations = grid_results  # noqa
+        (
+            grid_curves,
+            grid_scores,
+            grid_calcs,
+            grid_params,
+            model_ids,
+            input_excitations,
+        ) = grid_results  # noqa
 
         # Some basic validation
-        assert(len(grid_calcs) == len(grid_curves))
-        assert(len(grid_scores) == len(grid_curves))
-        assert(len(grid_scores) == len(grid_params))
+        assert len(grid_calcs) == len(grid_curves)
+        assert len(grid_scores) == len(grid_curves)
+        assert len(grid_scores) == len(grid_params)
 
-        df_curves = _curves_to_dataframe(grid_curves,
-                                         sample_rate=curve_subsample_rate,
-                                         model_ids=model_ids)
+        df_curves = _curves_to_dataframe(
+            grid_curves, sample_rate=curve_subsample_rate, model_ids=model_ids
+        )
         df_scores = _scores_to_dataframe(grid_scores, model_ids=model_ids)
         df_calcs = _calc_metrics_to_dataframe(grid_calcs, model_ids=model_ids)
         df_params = _param_dict_list_to_dataframe(
-            grid_params,
-            model_ids=model_ids,
-            input_excitations=input_excitations
+            grid_params, model_ids=model_ids, input_excitations=input_excitations
         )
 
         # Merge dataframes
@@ -800,7 +822,7 @@ class GridsearchBatchExecutor:
 
             else:  # If we have our first defined dataframe ...
                 if df is not None:  # ... and the next one is defined ...
-                    result = result.merge(df, on=['model_id'])  # noqa ...merge
+                    result = result.merge(df, on=["model_id"])  # noqa ...merge
 
         results.append(result)
 
@@ -809,9 +831,9 @@ class GridsearchBatchExecutor:
     def _print_dict(self, dict_):
         if dict_ is not None:
             for key, value in dict_.items():
-                print(f'{key} --> {value}')
+                print(f"{key} --> {value}")
         else:
-            print('None')
+            print("None")
 
     def _print_list(self, list_: List[Any]):
         for x in list_:
@@ -823,48 +845,50 @@ class GridsearchBatchExecutor:
         factory_copy = copy(self.abstract_unified_model_factory)
         num_models = len(list(factory_copy.generate()))
 
-        print('Gridsearch Preview')
-        print('==================')
+        print("Gridsearch Preview")
+        print("==================")
         print()
 
-        print('Number of inputs:')
-        print('----------------')
-        print(f'Total # inputs --> {len(self.input_excitations)}')
+        print("Number of inputs:")
+        print("----------------")
+        print(f"Total # inputs --> {len(self.input_excitations)}")
         print()
 
-        print('Tracking the following parameters:')
-        print('----------------------------------')
+        print("Tracking the following parameters:")
+        print("----------------------------------")
         if self.parameters_to_track:
             self._print_list(self.parameters_to_track)
         print()
 
-        print('Saving the following curves:')
-        print('----------------------------')
+        print("Saving the following curves:")
+        print("----------------------------")
         self._print_dict(self.curve_expressions)
         print()
 
-        print('Scoring on the following expressions:')
-        print('---------------------------------------------')
+        print("Scoring on the following expressions:")
+        print("---------------------------------------------")
         if self.score_metrics:
             self._print_list(list(self.score_metrics.keys()))
         print()
 
-        print('Calculating the following metrics:')
-        print('----------------------------------')
+        print("Calculating the following metrics:")
+        print("----------------------------------")
         self._print_dict(self.calc_metrics)
         print()
 
-        print('Model parameters:')
-        print('---------------------------')
+        print("Model parameters:")
+        print("---------------------------")
 
-        print(f'Total # models per input --> {num_models}')
+        print(f"Total # models per input --> {num_models}")
         print()
         for param_path, param_values_list in factory_copy.combined.items():
-            print(f'{param_path} --> number: {len(param_values_list)}')
+            print(f"{param_path} --> number: {len(param_values_list)}")
         print()
-        print('==================')
-        print(f'Total # simulations --> {num_models*len(self.input_excitations)}')  # noqa
-        print('==================')
+        print("==================")
+        print(
+            f"Total # simulations --> {num_models*len(self.input_excitations)}"
+        )  # noqa
+        print("==================")
 
     def run(self, output_file, batch_size: int = 24) -> None:
         """Run the grid search and returns the results.
@@ -882,9 +906,9 @@ class GridsearchBatchExecutor:
             parameters.
 
         """
-        logging.info('Starting Ray...')
+        logging.info("Starting Ray...")
         self._start_ray(self.ray_kwargs)
-        logging.info('Running grid search...')
+        logging.info("Running grid search...")
         self._execute_grid_search(output_file, batch_size=batch_size)
-        logging.info('Gridsearch complete. Shutting down Ray...')
+        logging.info("Gridsearch complete. Shutting down Ray...")
         self._kill_ray()

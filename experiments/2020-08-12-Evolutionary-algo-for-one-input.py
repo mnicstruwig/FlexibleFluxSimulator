@@ -10,11 +10,21 @@ import matplotlib.pyplot as plt
 import nevergrad as ng
 import numpy as np
 from scipy.signal import savgol_filter
+
 # Local imports
-from unified_model import (CouplingModel, ElectricalModel, MechanicalModel,
-                           UnifiedModel, electrical_components, evaluate,
-                           governing_equations, gridsearch,
-                           mechanical_components, metrics, pipeline)
+from unified_model import (
+    CouplingModel,
+    ElectricalModel,
+    MechanicalModel,
+    UnifiedModel,
+    electrical_components,
+    evaluate,
+    governing_equations,
+    gridsearch,
+    mechanical_components,
+    metrics,
+    pipeline,
+)
 from unified_model.utils.utils import collect_samples
 
 from local_config import ABC_CONFIG
@@ -33,9 +43,9 @@ def smoothing_filter(x_arr):
 
 
 magnetic_spring = mechanical_components.MagneticSpringInterp(
-    fea_data_file='./data/magnetic-spring/10x10alt.csv',
-    magnet_length=l_m/1000,
-    filter_callable=smoothing_filter
+    fea_data_file="./data/magnetic-spring/10x10alt.csv",
+    magnet_length=l_m / 1000,
+    filter_callable=smoothing_filter,
 )
 
 magnet_assembly = mechanical_components.MagnetAssembly(
@@ -57,9 +67,7 @@ def make_damper(c):
 
 def make_mech_spring(c):
     return mechanical_components.MechanicalSpring(
-        position=110/1000,
-        magnet_length=l_m/1000,
-        damping_coefficient=c
+        position=110 / 1000, magnet_length=l_m / 1000, damping_coefficient=c
     )
 
 
@@ -70,22 +78,27 @@ def make_coupling(c):
 @dataclass
 class ModelComponents:
     """A class that holds unified model components"""
+
     flux_model: Any
     dflux_model: Any
     r_coil: float
 
+
 @dataclass
 class ModelPackage:
     """A model package consists of an input, evaluators and model components"""
+
     input_excitation: List[Any]
     score_metric_dict: Dict[str, Any]
     model_components: ModelComponents
 
 
-def build_model(model_package: ModelPackage,
-                fric_damp: float,
-                mech_spring_damp: float,
-                coupling_damp: float) -> UnifiedModel:
+def build_model(
+    model_package: ModelPackage,
+    fric_damp: float,
+    mech_spring_damp: float,
+    coupling_damp: float,
+) -> UnifiedModel:
     mechanical_model = (
         MechanicalModel()
         .set_damper(make_damper(fric_damp))
@@ -100,8 +113,10 @@ def build_model(model_package: ModelPackage,
         .set_coil_resistance(model_package.model_components.r_coil)
         .set_rectification_drop(v_rect_drop)
         .set_load_model(load)
-        .set_flux_model(model_package.model_components.flux_model,
-                        model_package.model_components.dflux_model)
+        .set_flux_model(
+            model_package.model_components.flux_model,
+            model_package.model_components.dflux_model,
+        )
     )
 
     unified_model = (
@@ -109,7 +124,7 @@ def build_model(model_package: ModelPackage,
         .set_mechanical_model(mechanical_model)
         .set_electrical_model(electrical_model)
         .set_coupling_model(make_coupling(coupling_damp))
-        .set_post_processing_pipeline(pipeline.clip_x2, name='')
+        .set_post_processing_pipeline(pipeline.clip_x2, name="")
         .set_governing_equations(governing_equations.unified_ode)
     )
 
@@ -118,11 +133,11 @@ def build_model(model_package: ModelPackage,
 
 def run_simulation(unified_model: UnifiedModel) -> UnifiedModel:
     y0 = [
-        0.0,   # x1 at t=0 -> tube displacement in m
-        0.0,   # x2 at t=0 -> tube velocity in m/s
+        0.0,  # x1 at t=0 -> tube displacement in m
+        0.0,  # x2 at t=0 -> tube velocity in m/s
         0.05,  # x3 at t=0 -> magnet displacement in m
-        0.0,   # x4 at t=0 -> magnet velocity in m/s
-        0.0    # x5 at t=0 -> flux linkage
+        0.0,  # x4 at t=0 -> magnet velocity in m/s
+        0.0,  # x5 at t=0 -> flux linkage
     ]
 
     unified_model.solve(  # This can take a little while...
@@ -130,10 +145,11 @@ def run_simulation(unified_model: UnifiedModel) -> UnifiedModel:
         t_end=8,
         y0=y0,  # Initial conditions we defined above
         t_eval=np.linspace(0, 8, 1000),
-        t_max_step=1e-3
+        t_max_step=1e-3,
     )
 
     return unified_model
+
 
 @dataclass
 class Groundtruth:
@@ -143,12 +159,10 @@ class Groundtruth:
     emf_time: Any
 
 
-
 class InputEvaluatorFactory:
-    def __init__(self,
-                 samples_list,  # acc_df, adc_df, video_labels_df
-                 lvp_kwargs,
-                 adc_kwargs):
+    def __init__(
+        self, samples_list, lvp_kwargs, adc_kwargs  # acc_df, adc_df, video_labels_df
+    ):
         self.samples_list = samples_list
         self.lvp_kwargs = lvp_kwargs
         self.adc_kwargs = adc_kwargs
@@ -159,31 +173,36 @@ class InputEvaluatorFactory:
     def _make_input_excitation(self, sample):
         input_excitation = mechanical_components.AccelerometerInput(
             raw_accelerometer_input=sample.acc_df,
-            accel_column='z_G',
-            time_column='time(ms)',
-            accel_unit='g',
-            time_unit='ms',
+            accel_column="z_G",
+            time_column="time(ms)",
+            accel_unit="g",
+            time_unit="ms",
             smooth=True,
-            interpolate=True
+            interpolate=True,
         )
 
         return input_excitation
 
     def _make_evaluator_dict(self, groundtruth):
         return {
-            'x3-x1': evaluate.MechanicalSystemEvaluator(groundtruth.y_target,
-                                                        groundtruth.y_time,
-                                                        {'y_diff_dtw_distance': metrics.dtw_euclid_distance}),
-            'g(t, x5)': evaluate.ElectricalSystemEvaluator(groundtruth.emf_target,
-                                                           groundtruth.emf_time,
-                                                           {'emf_dtw_distance': metrics.dtw_euclid_distance,
-                                                            'rms_perc_diff': metrics.root_mean_square_percentage_diff})
+            "x3-x1": evaluate.MechanicalSystemEvaluator(
+                groundtruth.y_target,
+                groundtruth.y_time,
+                {"y_diff_dtw_distance": metrics.dtw_euclid_distance},
+            ),
+            "g(t, x5)": evaluate.ElectricalSystemEvaluator(
+                groundtruth.emf_target,
+                groundtruth.emf_time,
+                {
+                    "emf_dtw_distance": metrics.dtw_euclid_distance,
+                    "rms_perc_diff": metrics.root_mean_square_percentage_diff,
+                },
+            ),
         }
 
     def _get_mech_groundtruth(self, sample):
         y_target, y_time_target = self.lvp.fit_transform(
-            sample.video_labels_df,
-            impute_missing_values=True
+            sample.video_labels_df, impute_missing_values=True
         )
         y_target = savgol_filter(y_target, 9, 3)
 
@@ -216,10 +235,12 @@ class InputEvaluatorFactory:
         return input_evaluator_list
 
 
-def calc_loss(model_package: ModelPackage,
-              fric_damp: float,
-              mech_spring_damp: float,
-              coupling_damp: float) -> float:
+def calc_loss(
+    model_package: ModelPackage,
+    fric_damp: float,
+    mech_spring_damp: float,
+    coupling_damp: float,
+) -> float:
     unified_model = build_model(
         model_package=model_package,
         fric_damp=fric_damp,
@@ -231,65 +252,70 @@ def calc_loss(model_package: ModelPackage,
 
     scores = {}
     for expr, evaluator in model_package.score_metric_dict.items():
-        results = unified_model.get_result(time='t', prediction=expr)
-        evaluator.fit(results['prediction'].values, results['time'].values)
+        results = unified_model.get_result(time="t", prediction=expr)
+        evaluator.fit(results["prediction"].values, results["time"].values)
         score = evaluator.score()
         scores.update(score)
 
     best_mech_score = 9.602
     worst_mech_score = 72.17
     best_elec_score = 80.203
-    worst_elec_score = 1600.
+    worst_elec_score = 1600.0
     best_abs_rms_score = 11.822
-    worst_abs_rms_score = 1816.
+    worst_abs_rms_score = 1816.0
     return (
-        + (scores['y_diff_dtw_distance'] - best_mech_score)/(worst_mech_score - best_mech_score)
-        + (scores['emf_dtw_distance'] - best_elec_score)/(worst_elec_score - best_elec_score)
-        + (np.abs(scores['rms_perc_diff']) - best_abs_rms_score)/(worst_abs_rms_score - best_abs_rms_score)
+        +(scores["y_diff_dtw_distance"] - best_mech_score)
+        / (worst_mech_score - best_mech_score)
+        + (scores["emf_dtw_distance"] - best_elec_score)
+        / (worst_elec_score - best_elec_score)
+        + (np.abs(scores["rms_perc_diff"]) - best_abs_rms_score)
+        / (worst_abs_rms_score - best_abs_rms_score)
     )
-
 
 
 def calc_loss_for_all(param_dict, model_package_list: List[ModelPackage]):
     losses = []
     for i, model_package in enumerate(model_package_list):  # noqa
-        loss = calc_loss(model_package,
-                         **param_dict)
+        loss = calc_loss(model_package, **param_dict)
         losses.append(loss)
     return np.mean(losses)
 
 
-base_groundtruth_path = './data/2019-05-23_D/'
+base_groundtruth_path = "./data/2019-05-23_D/"
 samples = {}
-samples['A'] = collect_samples(base_path=base_groundtruth_path,
-                               acc_pattern='A/*acc*.csv',
-                               adc_pattern='A/*adc*.csv',
-                               video_label_pattern='A/*labels*.csv')
-samples['B'] = collect_samples(base_path=base_groundtruth_path,
-                               acc_pattern='B/*acc*.csv',
-                               adc_pattern='B/*adc*.csv',
-                               video_label_pattern='B/*labels*.csv')
-samples['C'] = collect_samples(base_path=base_groundtruth_path,
-                               acc_pattern='C/*acc*.csv',
-                               adc_pattern='C/*adc*.csv',
-                               video_label_pattern='C/*labels*.csv')
+samples["A"] = collect_samples(
+    base_path=base_groundtruth_path,
+    acc_pattern="A/*acc*.csv",
+    adc_pattern="A/*adc*.csv",
+    video_label_pattern="A/*labels*.csv",
+)
+samples["B"] = collect_samples(
+    base_path=base_groundtruth_path,
+    acc_pattern="B/*acc*.csv",
+    adc_pattern="B/*adc*.csv",
+    video_label_pattern="B/*labels*.csv",
+)
+samples["C"] = collect_samples(
+    base_path=base_groundtruth_path,
+    acc_pattern="C/*acc*.csv",
+    adc_pattern="C/*adc*.csv",
+    video_label_pattern="C/*labels*.csv",
+)
 
 
 def build_model_packages(samples_list, model_components):
     input_evaluator_factory = InputEvaluatorFactory(
         samples_list,
-        lvp_kwargs=dict(mm=10,
-                        seconds_per_frame=1/60,
-                        pixel_scale=0.154508),
-        adc_kwargs=dict(voltage_division_ratio=1 / 0.342)  # noqa
+        lvp_kwargs=dict(mm=10, seconds_per_frame=1 / 60, pixel_scale=0.154508),
+        adc_kwargs=dict(voltage_division_ratio=1 / 0.342),  # noqa
     )
     input_evaluator_tuples = input_evaluator_factory.make()
 
     model_packages = []
     for input_excitation, score_metric_dict in input_evaluator_tuples:
-        model_packages.append(ModelPackage(input_excitation,
-                                           score_metric_dict,
-                                           model_components))
+        model_packages.append(
+            ModelPackage(input_excitation, score_metric_dict, model_components)
+        )
 
     return model_packages
 
@@ -298,22 +324,31 @@ def build_model_components(which_device):
     return ModelComponents(
         flux_model=ABC_CONFIG.flux_models[which_device],
         dflux_model=ABC_CONFIG.dflux_models[which_device],
-        r_coil=ABC_CONFIG.coil_resistance[which_device]
+        r_coil=ABC_CONFIG.coil_resistance[which_device],
     )
+
 
 to_keep_A = [0, 1, 3, 5, 6]
 to_keep_B = [0, 1, 3, 4, 5]
 to_keep_C = [0, 1, 3, 4, 5]
-model_package_list_A = build_model_packages(samples['A'][to_keep_A], build_model_components('A'))
-model_package_list_B = build_model_packages(samples['B'][to_keep_B], build_model_components('B'))
-model_package_list_C = build_model_packages(samples['C'][to_keep_C], build_model_components('C'))
+model_package_list_A = build_model_packages(
+    samples["A"][to_keep_A], build_model_components("A")
+)
+model_package_list_B = build_model_packages(
+    samples["B"][to_keep_B], build_model_components("B")
+)
+model_package_list_C = build_model_packages(
+    samples["C"][to_keep_C], build_model_components("C")
+)
 
-model_package_list = model_package_list_A + model_package_list_B + model_package_list_C  # noq a
+model_package_list = (
+    model_package_list_A + model_package_list_B + model_package_list_C
+)  # noq a
 
 instrumentation = ng.p.Instrumentation(
     fric_damp=ng.p.Scalar(0.0406837, lower=0, upper=0.1),
     mech_spring_damp=ng.p.Scalar(3.9272, lower=0, upper=10),
-    coupling_damp=ng.p.Scalar(3.49686, lower=0, upper=5)
+    coupling_damp=ng.p.Scalar(3.49686, lower=0, upper=5),
 )
 
 
@@ -321,25 +356,24 @@ instrumentation = ng.p.Instrumentation(
 def callback(optimizer, candidate, value):
     values_dict = candidate.value[1]
     output_values = {k: np.round(v, 4) for k, v in values_dict.items()}
-    print(f'Values: {output_values} :: Loss: {np.round(value, 5)}')
+    print(f"Values: {output_values} :: Loss: {np.round(value, 5)}")
 
 
-optimizer = ng.optimizers.TwoPointsDE(parametrization=instrumentation,
-                                      budget=400,
-                                      num_workers=6)
-optimizer.register_callback('tell', callback)
+optimizer = ng.optimizers.TwoPointsDE(
+    parametrization=instrumentation, budget=400, num_workers=6
+)
+optimizer.register_callback("tell", callback)
 
 
 def wrapper(fric_damp, mech_spring_damp, coupling_damp):
     param_dict = {
-        'fric_damp': fric_damp,
-        'mech_spring_damp': mech_spring_damp,
-        'coupling_damp': coupling_damp
+        "fric_damp": fric_damp,
+        "mech_spring_damp": mech_spring_damp,
+        "coupling_damp": coupling_damp,
     }
 
     return calc_loss_for_all(
-        param_dict=param_dict,
-        model_package_list=model_package_list  # Global variable
+        param_dict=param_dict, model_package_list=model_package_list  # Global variable
     )
 
 

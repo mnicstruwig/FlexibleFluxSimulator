@@ -56,28 +56,33 @@ def apply_rectification(emf_values, v=0.2):
 
 
 # TODO: Add Docstring
-def simulate_electrical_system(rel_mag_pos,
-                               rel_mag_vel,
-                               timestamps,
-                               flux_model,
-                               dflux_model,
-                               load_model=None,
-                               coil_resistance=np.inf):
+def simulate_electrical_system(
+    rel_mag_pos,
+    rel_mag_vel,
+    timestamps,
+    flux_model,
+    dflux_model,
+    load_model=None,
+    coil_resistance=np.inf,
+):
     """Simulate the electrical system using pre-calculated input vectors.
 
     i.e. By avoiding integration / solving the numerical system.
 
     """
 
-    electrical_model = ElectricalModel(name='debug')
+    electrical_model = ElectricalModel(name="debug")
     electrical_model.set_flux_model(flux_model, dflux_model)
     electrical_model.set_load_model(load_model)
     electrical_model.set_coil_resistance(coil_resistance)
 
-    emf_values = np.array([np.abs(electrical_model.get_emf(rmp, rmv))
-                           for rmp, rmv
-                           in zip(rel_mag_pos, rel_mag_vel)])
+    emf_values = np.array(
+        [
+            np.abs(electrical_model.get_emf(rmp, rmv))
+            for rmp, rmv in zip(rel_mag_pos, rel_mag_vel)
+        ]
+    )
 
     if np.isinf(coil_resistance):
         return timestamps, emf_values
-    return timestamps, emf_values * load_model.R/(load_model.R+coil_resistance)
+    return timestamps, emf_values * load_model.R / (load_model.R + coil_resistance)

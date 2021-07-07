@@ -5,6 +5,7 @@ Constant input excitations that will always return a constant acceleration.
 
 class ConstantAcceleration:
     """A constant acceleration input excitation."""
+
     def __init__(self, c=0):
         """Constructor.
 

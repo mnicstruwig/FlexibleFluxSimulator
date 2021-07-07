@@ -5,7 +5,7 @@ class CouplingModel:
         self.coupling_constant = None
 
     def __repr__(self):
-        return f'CouplingModel(coupling_constant={self.coupling_constant})'
+        return f"CouplingModel(coupling_constant={self.coupling_constant})"
 
     def set_coupling_constant(self, coupling_constant):
         self.coupling_constant = coupling_constant

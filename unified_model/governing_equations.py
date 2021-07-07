@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     magnetic_spring = mechanical_model.magnetic_spring
     mechanical_spring = mechanical_model.mechanical_spring
@@ -26,12 +27,12 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     coupling_force = np.sign(x4 - x2) * coupling_model.get_mechanical_force(current)
 
     try:
-        mechanical_spring_force = mechanical_spring.get_force(x3-x1, x4-x2)
+        mechanical_spring_force = mechanical_spring.get_force(x3 - x1, x4 - x2)
     except AttributeError as e:
         mechanical_spring_force = 0
         raise e
     except TypeError:
-        print('Type Error')
+        print("Type Error")
         mechanical_spring_force = 0
 
     magnetic_spring_force = magnetic_spring.get_force(x3 - x1)
@@ -39,11 +40,13 @@ def unified_ode(t, y, mechanical_model, electrical_model, coupling_model):
     assembly_weight = magnet_assembly.get_weight()
     damper_force = damper.get_force(x4 - x2)
 
-    x4_dot = (+ magnetic_spring_force
-              - mechanical_spring_force
-              - assembly_weight
-              - damper_force
-              - coupling_force) / assembly_mass
+    x4_dot = (
+        +magnetic_spring_force
+        - mechanical_spring_force
+        - assembly_weight
+        - damper_force
+        - coupling_force
+    ) / assembly_mass
 
     x5_dot = load_voltage  # NB <-- we want the EMF 'output' to be the load voltage
 

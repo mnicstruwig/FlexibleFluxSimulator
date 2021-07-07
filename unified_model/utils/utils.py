@@ -34,15 +34,15 @@ class FastInterpolator:
 
 def rms(x):
     """Calculate the RMS of a signal."""
-    return np.sqrt(np.mean(x**2))
+    return np.sqrt(np.mean(x ** 2))
 
 
 def pretty_str(dict_, level=0):
     """Get a pretty string representation of a dictionary."""
     str_ = ""
-    spaces = '    '*level
+    spaces = "    " * level
     for key, val in dict_.items():
-        str_ = str_ + f'\n  {spaces}{key}: {val}'
+        str_ = str_ + f"\n  {spaces}{key}: {val}"
     return str_
 
 
@@ -59,8 +59,7 @@ def get_sample_delay(x, y):
     """Calculate the delay (in samples) between two signals."""
     corr_1 = signal.correlate(x, y)
     corr_2 = signal.correlate(y, x)
-    sample_delay = int((np.abs(np.argmax(corr_1) -
-                        np.argmax(corr_2))) / 2)
+    sample_delay = int((np.abs(np.argmax(corr_1) - np.argmax(corr_2))) / 2)
     return sample_delay
 
 
@@ -89,9 +88,9 @@ def smooth_butterworth(values, critical_frequency, **kwargs):
     scipy.signal.butter : module
 
     """
-    if 'N' not in kwargs:
+    if "N" not in kwargs:
         N = 9
-    b, a = signal.butter(N, Wn=critical_frequency, btype='low', output='ba')
+    b, a = signal.butter(N, Wn=critical_frequency, btype="low", output="ba")
     filtered_values = signal.lfilter(b, a, values)
     return filtered_values
 
@@ -118,17 +117,20 @@ def smooth_savgol(values, **kwargs):
 
     """
     try:
-        if 'window_length' in kwargs and 'polyorder' in kwargs:
+        if "window_length" in kwargs and "polyorder" in kwargs:
             return signal.savgol_filter(values, **kwargs)
         return signal.savgol_filter(values, 101, 2)
     except ValueError:
-        warnings.warn('Filter window length exceeds signal length. No filtering is being applied.', RuntimeWarning)
+        warnings.warn(
+            "Filter window length exceeds signal length. No filtering is being applied.",
+            RuntimeWarning,
+        )
         return values
 
 
 def grad(func, x, dx=1e-5):
     """Compute the gradient of function `func` at point `x` relative to `dx`"""
-    dfunc_dx = (func(x + dx) - func(x - dx))/(2*dx)
+    dfunc_dx = (func(x + dx) - func(x - dx)) / (2 * dx)
     if np.isinf(dfunc_dx):
         return 0.0
     return dfunc_dx
@@ -148,22 +150,22 @@ def parse_output_expression(t, raw_output, **kwargs):
     df_out = pd.DataFrame()
 
     def gradient_function(x, y):
-        return np.gradient(y)/np.gradient(x)
+        return np.gradient(y) / np.gradient(x)
 
     def _populate_asteval_symbol_table(ast_eval_interpretor):
-        ast_eval_interpretor.symtable['t'] = t
+        ast_eval_interpretor.symtable["t"] = t
         for i in range(raw_output.shape[0]):
-            ast_eval_interpretor.symtable['x' + str(i + 1)] = raw_output[i, :]
+            ast_eval_interpretor.symtable["x" + str(i + 1)] = raw_output[i, :]
         return ast_eval_interpretor
 
     aeval = Interpreter()
     aeval = _populate_asteval_symbol_table(aeval)
 
     for key, expr in kwargs.items():
-        if 'g(' in expr:
-            split = expr.split(',')
-            x = split[0].split('(')[1]
-            y = split[1].split(')')[0]
+        if "g(" in expr:
+            split = expr.split(",")
+            x = split[0].split("(")[1]
+            y = split[1].split(")")[0]
             y = y.strip()
             x = aeval(x)
             y = aeval(y)
@@ -175,10 +177,9 @@ def parse_output_expression(t, raw_output, **kwargs):
     return df_out
 
 
-def warp_signals(x1,
-                 x2,
-                 return_distance=False
-                 ) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, float]]:  # noqa
+def warp_signals(
+    x1, x2, return_distance=False
+) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, float]]:  # noqa
     """Warp and align two signals using dynamic time warping.
 
     Parameters
@@ -212,33 +213,33 @@ def warp_signals(x1,
 def interpolate_and_resample(x, y, num_samples=10000, new_x_range=None):
     """Resample a signal using interpolation.
 
-        This is useful for resampling two different signals with different
-        sampling frequencies so that they have the same sampling frequency,
-        which can be achieved by resampling both signals to have the same
-        `num_samples` and `new_x_range`.
+    This is useful for resampling two different signals with different
+    sampling frequencies so that they have the same sampling frequency,
+    which can be achieved by resampling both signals to have the same
+    `num_samples` and `new_x_range`.
 
-        Parameters
-        ----------
-        x : array_like
-            The input values that correspond to output values `y`.
-        y : array_like
-            The output values to be interpolated.
-        num_samples : int
-            The number of sampling points that should be used in the resampled
-            signal.
-        new_x_range : tuple(int, int)
-            The range of x values for which the resampled values should be
-            returned.
+    Parameters
+    ----------
+    x : array_like
+        The input values that correspond to output values `y`.
+    y : array_like
+        The output values to be interpolated.
+    num_samples : int
+        The number of sampling points that should be used in the resampled
+        signal.
+    new_x_range : tuple(int, int)
+        The range of x values for which the resampled values should be
+        returned.
 
-        Returns
-        -------
-        new_x : array
-            The new x values.
-        interp: array
-            The new resampled values of `y` corresponding to `new_x`.
+    Returns
+    -------
+    new_x : array
+        The new x values.
+    interp: array
+        The new resampled values of `y` corresponding to `new_x`.
 
-        """
-    interp = UnivariateSpline(x, y, s=0, ext='zeros')
+    """
+    interp = UnivariateSpline(x, y, s=0, ext="zeros")
 
     if new_x_range is not None:
         x_start = new_x_range[0]
@@ -252,11 +253,7 @@ def interpolate_and_resample(x, y, num_samples=10000, new_x_range=None):
 
 
 def align_signals_in_time(
-        t_1,
-        y_1,
-        t_2,
-        y_2,
-        num_samples=10000
+    t_1, y_1, t_2, y_2, num_samples=10000
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Align two signals in time.
 
@@ -294,16 +291,10 @@ def align_signals_in_time(
     stop_time = np.max([t_1[-1], t_2[-1]])
 
     resampled_t, resampled_y_1 = interpolate_and_resample(
-        x=t_1,
-        y=y_1,
-        num_samples=num_samples,
-        new_x_range=(0, stop_time)
+        x=t_1, y=y_1, num_samples=num_samples, new_x_range=(0, stop_time)
     )
     _, resampled_y_2 = interpolate_and_resample(
-        x=t_2,
-        y=y_2,
-        num_samples=num_samples,
-        new_x_range=(0, stop_time)
+        x=t_2, y=y_2, num_samples=num_samples, new_x_range=(0, stop_time)
     )
 
     def get_sample_shift(ref, sig):
@@ -330,8 +321,7 @@ def find_signal_limits(target: Any, threshold: float = 0.05) -> Tuple[int, int]:
     """Find the beginning and end of a signal"""
 
     def _calc_threshold_mask(arr, threshold):
-        above_threshold_mask = [1 if x > np.max(arr) * threshold else 0
-                                for x in arr]
+        above_threshold_mask = [1 if x > np.max(arr) * threshold else 0 for x in arr]
         return np.array(above_threshold_mask)
 
     def _find_start_index(arr, threshold):
@@ -355,7 +345,9 @@ def find_signal_limits(target: Any, threshold: float = 0.05) -> Tuple[int, int]:
         start_index_candidates = np.array(start_index_candidates)
         mask = np.where(start_index_candidates < max_index)[0]
         try:
-            start_index = start_index_candidates[mask][-1]  # First index *before* the peak of the signal.
+            start_index = start_index_candidates[mask][
+                -1
+            ]  # First index *before* the peak of the signal.
             return int(start_index - 1)
         except IndexError:
             return 0  # If we can't find the start before the maximum value, then we start at the beginning.
@@ -363,12 +355,11 @@ def find_signal_limits(target: Any, threshold: float = 0.05) -> Tuple[int, int]:
     def _find_end_index(arr, threshold):
         end_index = _find_start_index(arr[::-1], threshold)
         end_index = len(arr) - end_index
-        return int(end_index)  # Don't need to subtract 1 since it's already subtracted in `_find_start_index`
+        return int(
+            end_index
+        )  # Don't need to subtract 1 since it's already subtracted in `_find_start_index`
 
-    return (
-        _find_start_index(target, threshold),
-        _find_end_index(target, threshold)
-    )
+    return (_find_start_index(target, threshold), _find_end_index(target, threshold))
 
 
 def apply_scalar_functions(x1, x2, **func) -> dict:
@@ -393,13 +384,16 @@ def apply_scalar_functions(x1, x2, **func) -> dict:
         functions.
 
     """
-    results = {name: function(x1, x2) for (name, function) in zip(func.keys(), func.values())}
+    results = {
+        name: function(x1, x2) for (name, function) in zip(func.keys(), func.values())
+    }
     return results
 
 
 @dataclass
 class Sample:
     """A class for holding groundtruth sample data"""
+
     acc_df: pd.DataFrame
     adc_df: pd.DataFrame
     video_labels_df: pd.DataFrame
@@ -407,10 +401,9 @@ class Sample:
 
 
 # TODO: Add test (might need to be a bit creative)
-def collect_samples(base_path: str,
-                    acc_pattern: str,
-                    adc_pattern: str,
-                    video_label_pattern: str) -> np.ndarray:
+def collect_samples(
+    base_path: str, acc_pattern: str, adc_pattern: str, video_label_pattern: str
+) -> np.ndarray:
     """Collect groundtruth samples from a directory with filename matching.
 
     Parameters
@@ -446,30 +439,32 @@ def collect_samples(base_path: str,
 
     # TODO: Move these sanity checks to /after/ reading in the files.
     if len(acc_paths) != len(adc_paths):
-        warnings.warn('Different number of acc and adc files. Things might break as a result.')
+        warnings.warn(
+            "Different number of acc and adc files. Things might break as a result."
+        )
 
-    if len(labeled_video_paths) != len(acc_paths) or len(labeled_video_paths) != len(adc_paths):
-        warnings.warn('There are a different number of groundtruth files, or some of them could not be found.')
+    if len(labeled_video_paths) != len(acc_paths) or len(labeled_video_paths) != len(
+        adc_paths
+    ):
+        warnings.warn(
+            "There are a different number of groundtruth files, or some of them could not be found."
+        )
 
     if len(labeled_video_paths) == 0 and len(acc_paths) == 0 and len(adc_paths) == 0:
-        warnings.warn('No groundtruth files were found.')
+        warnings.warn("No groundtruth files were found.")
 
     acc_dfs = [pd.read_csv(acc_path) for acc_path in acc_paths]
     adc_dfs = [pd.read_csv(adc_path) for adc_path in adc_paths]
     lvp_dfs = [pd.read_csv(lvp_path) for lvp_path in labeled_video_paths]
 
-    paths = zip_longest(acc_paths,
-                        adc_paths,
-                        labeled_video_paths,
-                        fillvalue=None)
+    paths = zip_longest(acc_paths, adc_paths, labeled_video_paths, fillvalue=None)
 
-    sample_collection = [Sample(acc, adc, lvp, path)
-                         for acc, adc, lvp, path
-                         in zip_longest(acc_dfs,
-                                        adc_dfs,
-                                        lvp_dfs,
-                                        paths,
-                                        fillvalue=None)]
+    sample_collection = [
+        Sample(acc, adc, lvp, path)
+        for acc, adc, lvp, path in zip_longest(
+            acc_dfs, adc_dfs, lvp_dfs, paths, fillvalue=None
+        )
+    ]
     return np.array(sample_collection)
 
 
@@ -508,15 +503,15 @@ def build_paramater_grid(param_dict: dict, func_dict: dict = None) -> Tuple:
         try:
             assert list(param_dict.keys()) == list(func_dict.keys())
         except AssertionError:
-            raise AssertionError('The parameter keys and the function keys do\
-            not match.')
+            raise AssertionError(
+                "The parameter keys and the function keys do\
+            not match."
+            )
 
         processed_param_dict = {}
         for key, values in param_dict.items():
             # Apply functions to parameter grid
-            processed_param_dict[key] = [func_dict[key](value)
-                                         for value
-                                         in values]
+            processed_param_dict[key] = [func_dict[key](value) for value in values]
 
         parameter_product = list(product(*processed_param_dict.values()))
         value_product = list(product(*param_dict.values()))
@@ -526,24 +521,19 @@ def build_paramater_grid(param_dict: dict, func_dict: dict = None) -> Tuple:
             grid = []
             for set_of_values in product:
                 try:
-                    assert(len(keys) == len(set_of_values))
+                    assert len(keys) == len(set_of_values)
                 except AssertionError:
-                    raise AssertionError('Nr. of keys != Nr. values in the set')
+                    raise AssertionError("Nr. of keys != Nr. values in the set")
 
-                dict_ = {key: value
-                         for key, value
-                         in zip(keys, set_of_values)}
+                dict_ = {key: value for key, value in zip(keys, set_of_values)}
                 grid.append(dict_)
             return grid
 
-        value_grid = product_to_dict_list(param_dict.keys(),
-                                          value_product)
+        value_grid = product_to_dict_list(param_dict.keys(), value_product)
 
         parameter_grid = []
         for param_set in parameter_product:  # Convert to dictionary
-            dict_ = {key: param
-                     for key, param
-                     in zip(param_dict.keys(), param_set)}
+            dict_ = {key: param for key, param in zip(param_dict.keys(), param_set)}
 
             parameter_grid.append(dict_)
 
@@ -574,9 +564,7 @@ def update_nested_attributes(primary, update_dict):
     """
     new_primary = copy.deepcopy(primary)
     for key, val in update_dict.items():
-        new_primary = update_attribute(new_primary,
-                                       key,
-                                       val)
+        new_primary = update_attribute(new_primary, key, val)
     return new_primary
 
 
@@ -615,7 +603,7 @@ def update_attribute(primary, key_expr, value):
     """
     new_primary = copy.deepcopy(primary)
     new_primary_dict = new_primary.__dict__
-    keys = key_expr.split('.')
+    keys = key_expr.split(".")
 
     if len(keys) == 1:
         new_primary_dict[keys[0]] = value

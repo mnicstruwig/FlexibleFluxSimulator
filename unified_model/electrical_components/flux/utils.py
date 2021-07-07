@@ -1,6 +1,9 @@
 import pandas as pd
 
-from unified_model.electrical_components.flux.model import interpolate_flux, flux_univariate_spline
+from unified_model.electrical_components.flux.model import (
+    interpolate_flux,
+    flux_univariate_spline,
+)
 from unified_model.utils.utils import fetch_key_from_dictionary
 
 
@@ -85,10 +88,11 @@ class FluxDatabase:
 
         """
         split_ = str_.split()
-        unprocessed_params = [s for s in split_ if '=' in s]
-        param_names = [param.split('=')[0] for param in unprocessed_params]
-        param_values = [param.split('=')[1].replace("'", '')
-                        for param in unprocessed_params]
+        unprocessed_params = [s for s in split_ if "=" in s]
+        param_names = [param.split("=")[0] for param in unprocessed_params]
+        param_values = [
+            param.split("=")[1].replace("'", "") for param in unprocessed_params
+        ]
 
         param_dict = {}
         for name, value in zip(param_names, param_values):
@@ -99,10 +103,12 @@ class FluxDatabase:
         """Build the flux database."""
 
         # TODO: Put in separate preprocessing function
-        self.time = self.raw_database.iloc[:, 0].values/1000
+        self.time = self.raw_database.iloc[:, 0].values / 1000
         self.z = self.time * self.velocity
 
-        self._create_index(self._extract_parameter_from_str(self.raw_database.columns[1]).keys())
+        self._create_index(
+            self._extract_parameter_from_str(self.raw_database.columns[1]).keys()
+        )
 
         # Add flux curves to database
         for col in self.raw_database.columns[1:]:  # First column is time info
@@ -115,7 +121,7 @@ class FluxDatabase:
         for key in kwargs:
             db_key[self.lut[key]] = kwargs[key]
         if None in db_key:
-            raise KeyError('Not all keys specified')
+            raise KeyError("Not all keys specified")
         return tuple(db_key)
 
     def add(self, key_dict, value):
@@ -153,10 +159,7 @@ class FluxDatabase:
         db_key = self._make_db_key(**key_dict)
         self.database[db_key] = value
 
-    def query_to_model(self,
-                       model_cls,
-                       model_kwargs,
-                       **kwargs):
+    def query_to_model(self, model_cls, model_kwargs, **kwargs):
         """Query the database and return a flux model.
 
         This is intended to be a convenience function. It works identically
@@ -234,7 +237,7 @@ class FluxDatabase:
             for i, k in enumerate(key_list):
                 self.lut[k] = i
         else:
-            raise ValueError('Index cannot be created more than once.')
+            raise ValueError("Index cannot be created more than once.")
 
     def itervalues(self):
         """Iterate through the values in the database."""

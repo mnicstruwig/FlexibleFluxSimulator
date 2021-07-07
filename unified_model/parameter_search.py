@@ -11,17 +11,21 @@ from halo import Halo
 from .coupling import CouplingModel
 from .evaluate import Measurement
 from .mechanical_components import MassProportionalDamper, MechanicalSpring
-from .metrics import (dtw_euclid_norm_by_length, power_difference_perc,
-                      root_mean_square_percentage_diff)
+from .metrics import (
+    dtw_euclid_norm_by_length,
+    power_difference_perc,
+    root_mean_square_percentage_diff,
+)
 from .unified import UnifiedModel
 
 
 def _in_notebook() -> bool:
     # https://stackoverflow.com/a/22424821
     import sys
+
     try:
-        get_ipython = sys.modules['IPython'].get_ipython  # type: ignore
-        if 'IPKernelApp' in get_ipython().config:
+        get_ipython = sys.modules["IPython"].get_ipython  # type: ignore
+        if "IPKernelApp" in get_ipython().config:
             return True
     except KeyError:
         return False
@@ -41,11 +45,11 @@ class NotebookSpinner:
         self.stop()
 
     def _print(self):
-        print(self.text, end='\r')
+        print(self.text, end="\r")
 
     def _clear(self):
         try:
-            print(' ' * len(self.text), end='\r')
+            print(" " * len(self.text), end="\r")
         except AttributeError:
             pass
 
@@ -53,7 +57,7 @@ class NotebookSpinner:
         self.running = False
 
     def __setattr__(self, key, value):
-        if key == 'text':
+        if key == "text":
             super().__setattr__(key, value)
             if self.running:
                 self._print()  # Print after updating the text attribute
@@ -65,16 +69,18 @@ class NotebookSpinner:
 
 
 def _assert_valid_cost_metric(cost_metric: str) -> None:
-    if cost_metric not in ['dtw', 'power', 'combined']:
-        raise ValueError("`cost_metric` must be one of 'dtw', 'power' or 'combined'.")  # noqa
+    if cost_metric not in ["dtw", "power", "combined"]:
+        raise ValueError(
+            "`cost_metric` must be one of 'dtw', 'power' or 'combined'."
+        )  # noqa
 
 
 def mean_of_votes(
-        model_prototype: UnifiedModel,
-        measurements: List[Measurement],
-        instruments: Dict[str, ng.p.Scalar],
-        cost_metric: str,
-        budget: int = 500
+    model_prototype: UnifiedModel,
+    measurements: List[Measurement],
+    instruments: Dict[str, ng.p.Scalar],
+    cost_metric: str,
+    budget: int = 500,
 ) -> Dict[str, List[float]]:
     """Perform the `mean of votes` evolutionary parameter search optimization.
 
@@ -147,25 +153,25 @@ def mean_of_votes(
     """
 
     # Some quick validation.
-    if 'damping_coefficient' not in instruments:
-        raise KeyError('damping_coefficient must be present in `instruments`')
-    if 'coupling_constant' not in instruments:
-        raise KeyError('coupling_constant must be present in `instruments`')
-    if 'mech_spring_constant' not in instruments:
-        raise KeyError('mech_spring_constant must be present in `instruments`')
+    if "damping_coefficient" not in instruments:
+        raise KeyError("damping_coefficient must be present in `instruments`")
+    if "coupling_constant" not in instruments:
+        raise KeyError("coupling_constant must be present in `instruments`")
+    if "mech_spring_constant" not in instruments:
+        raise KeyError("mech_spring_constant must be present in `instruments`")
 
     if not measurements:
-        raise ValueError('No measurements were passed.')
+        raise ValueError("No measurements were passed.")
 
     _assert_valid_cost_metric(cost_metric)
 
     model = copy.deepcopy(model_prototype)
 
     recommended_params: Dict[str, List[float]] = {
-        'damping_coefficient': [],
-        'coupling_constant': [],
-        'mech_spring_constant': [],
-        'loss': []
+        "damping_coefficient": [],
+        "coupling_constant": [],
+        "mech_spring_constant": [],
+        "loss": [],
     }
     ray.init()
     tasks = []
@@ -177,57 +183,60 @@ def mean_of_votes(
                 model_prototype=model,
                 measurement=m,
                 cost_metric=cost_metric,
-                damping_coefficient=instruments['damping_coefficient'],
-                coupling_constant=instruments['coupling_constant'],
-                mech_spring_constant=instruments['mech_spring_constant']
+                damping_coefficient=instruments["damping_coefficient"],
+                coupling_constant=instruments["coupling_constant"],
+                mech_spring_constant=instruments["mech_spring_constant"],
             )
 
-            optimizer = ng.optimizers.PSO(
-                parametrization=instrum,
-                budget=budget
-            )
-            recommendation = optimizer.minimize(
-                _calculate_cost_for_single_measurement
-            )
+            optimizer = ng.optimizers.PSO(parametrization=instrum, budget=budget)
+            recommendation = optimizer.minimize(_calculate_cost_for_single_measurement)
             return recommendation
 
         ref = wrapper.remote()
         tasks.append(ref)
 
     if _in_notebook():
-        spinner = Halo(text=f'Running :: 0 / {len(tasks)}', spinner='dots', color='red')  # noqa
+        spinner = Halo(
+            text=f"Running :: 0 / {len(tasks)}", spinner="dots", color="red"
+        )  # noqa
     else:
-        spinner = NotebookSpinner(text=f'Running :: 0 / {len(tasks)}')
+        spinner = NotebookSpinner(text=f"Running :: 0 / {len(tasks)}")
 
     spinner.start()
     ready: List[Any] = []
     while len(ready) < len(tasks):
         ready, _ = ray.wait(tasks, num_returns=len(tasks), timeout=30)
-        spinner.text = f'Running :: {len(ready)} / {len(tasks)}'
+        spinner.text = f"Running :: {len(ready)} / {len(tasks)}"
 
-    spinner.succeed('Simulation complete!')
+    spinner.succeed("Simulation complete!")
     results = ray.get(tasks)
 
     for recommendation in results:
-        recommended_params['damping_coefficient'].append(recommendation.value[1]['damping_coefficient'])  # noqa
-        recommended_params['coupling_constant'].append(recommendation.value[1]['coupling_constant'])  # noqa
-        recommended_params['mech_spring_constant'].append(recommendation.value[1]['mech_spring_constant'])  # noqa
+        recommended_params["damping_coefficient"].append(
+            recommendation.value[1]["damping_coefficient"]
+        )  # noqa
+        recommended_params["coupling_constant"].append(
+            recommendation.value[1]["coupling_constant"]
+        )  # noqa
+        recommended_params["mech_spring_constant"].append(
+            recommendation.value[1]["mech_spring_constant"]
+        )  # noqa
 
         if recommendation.loss:
-            recommended_params['loss'].append(recommendation.loss)
+            recommended_params["loss"].append(recommendation.loss)
         else:
-            raise ValueError('A loss could not be computed.')
+            raise ValueError("A loss could not be computed.")
 
     ray.shutdown()
     return recommended_params
 
 
 def mean_of_scores(
-        models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
-        instruments: Dict[str, ng.p.Scalar],
-        cost_metric: str,
-        budget: int = 500,
-        verbose: bool = True
+    models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
+    instruments: Dict[str, ng.p.Scalar],
+    cost_metric: str,
+    budget: int = 500,
+    verbose: bool = True,
 ) -> Dict[str, float]:
     """Perform the `mean of scores` evolutionary parameter search optimization.
 
@@ -304,15 +313,12 @@ def mean_of_scores(
     instrum = ng.p.Instrumentation(
         models_and_measurements=models_and_measurements,
         cost_metric=cost_metric,
-        damping_coefficient=instruments['damping_coefficient'],
-        coupling_constant=instruments['coupling_constant'],
-        mech_spring_constant=instruments['mech_spring_constant']
+        damping_coefficient=instruments["damping_coefficient"],
+        coupling_constant=instruments["coupling_constant"],
+        mech_spring_constant=instruments["mech_spring_constant"],
     )
 
-    optimizer = ng.optimizers.PSO(
-        parametrization=instrum,
-        budget=budget
-    )
+    optimizer = ng.optimizers.PSO(parametrization=instrum, budget=budget)
 
     def callback(optimizer, candidate, value):
         try:
@@ -320,11 +326,11 @@ def mean_of_scores(
         except TypeError:
             best_score = None
         latest_score = np.round(value, 5)
-        text = f'{optimizer.num_ask} / {budget} - latest: {latest_score} - best: {best_score}'  # noqa
-        print(text, end='\r')
+        text = f"{optimizer.num_ask} / {budget} - latest: {latest_score} - best: {best_score}"  # noqa
+        print(text, end="\r")
 
     if verbose:
-        optimizer.register_callback('tell', callback)
+        optimizer.register_callback("tell", callback)
 
     ray.init()
     recommendation = optimizer.minimize(
@@ -332,10 +338,10 @@ def mean_of_scores(
     )
 
     recommended_params = {
-        'damping_coefficient': recommendation.value[1]['damping_coefficient'],
-        'coupling_constant': recommendation.value[1]['coupling_constant'],
-        'mech_spring_constant': recommendation.value[1]['mech_spring_constant'],
-        'loss': recommendation.loss
+        "damping_coefficient": recommendation.value[1]["damping_coefficient"],
+        "coupling_constant": recommendation.value[1]["coupling_constant"],
+        "mech_spring_constant": recommendation.value[1]["mech_spring_constant"],
+        "loss": recommendation.loss,
     }
 
     ray.shutdown()
@@ -343,12 +349,12 @@ def mean_of_scores(
 
 
 def _calculate_cost_for_single_measurement(
-        model_prototype: UnifiedModel,
-        measurement: Measurement,
-        cost_metric: str,
-        damping_coefficient: float,
-        coupling_constant: float,
-        mech_spring_constant: float
+    model_prototype: UnifiedModel,
+    measurement: Measurement,
+    cost_metric: str,
+    damping_coefficient: float,
+    coupling_constant: float,
+    mech_spring_constant: float,
 ) -> float:
     """Return the cost of a unified model for a single ground truth measurement.
 
@@ -369,7 +375,7 @@ def _calculate_cost_for_single_measurement(
     model.mechanical_model.set_damper(
         MassProportionalDamper(
             damping_coefficient=damping_coefficient,
-            magnet_assembly=model.mechanical_model.magnet_assembly
+            magnet_assembly=model.mechanical_model.magnet_assembly,
         )
     )
 
@@ -378,7 +384,7 @@ def _calculate_cost_for_single_measurement(
         MechanicalSpring(
             magnet_assembly=model.mechanical_model.magnet_assembly,
             position=model.mechanical_model.mechanical_spring.position,
-            damping_coefficient=mech_spring_constant
+            damping_coefficient=mech_spring_constant,
         )
     )
 
@@ -386,40 +392,44 @@ def _calculate_cost_for_single_measurement(
     model.mechanical_model.set_input(measurement.input_)
 
     # Coupling model
-    model.set_coupling_model(
-        CouplingModel().set_coupling_constant(coupling_constant)
-    )
+    model.set_coupling_model(CouplingModel().set_coupling_constant(coupling_constant))
 
     model.solve(
         t_start=0,
-        t_end=8.,
-        y0=[0., 0., 0.04, 0., 0.],
+        t_end=8.0,
+        y0=[0.0, 0.0, 0.04, 0.0, 0.0],
         t_eval=np.linspace(0, 8, 1000),
-        t_max_step=1e-2
+        t_max_step=1e-2,
     )
 
     # Score the solved model against the ground truth.
     mech_result = _score_mechanical_model(model, measurement)
     elec_result = _score_electrical_model(model, measurement)
 
-    if cost_metric == 'dtw':
-        return mech_result['dtw_distance'] + elec_result['dtw_distance']
-    elif cost_metric == 'power':
-        return np.abs(elec_result['watt_perc_diff'])
-    elif cost_metric == 'combined':
-        return mech_result['dtw_distance'] + elec_result['dtw_distance'] + np.abs(elec_result['watt_perc_diff'])  # noqa
+    if cost_metric == "dtw":
+        return mech_result["dtw_distance"] + elec_result["dtw_distance"]
+    elif cost_metric == "power":
+        return np.abs(elec_result["watt_perc_diff"])
+    elif cost_metric == "combined":
+        return (
+            mech_result["dtw_distance"]
+            + elec_result["dtw_distance"]
+            + np.abs(elec_result["watt_perc_diff"])
+        )  # noqa
     else:
-        raise ValueError("`cost_metric` must be one of 'dtw', 'power' or 'combined'.")  # noqa
+        raise ValueError(
+            "`cost_metric` must be one of 'dtw', 'power' or 'combined'."
+        )  # noqa
 
 
 @ray.remote
 def _calculate_cost_for_single_measurement_remote(
-        model_prototype: UnifiedModel,
-        measurement: Measurement,
-        cost_metric: str,
-        damping_coefficient: float,
-        coupling_constant: float,
-        mech_spring_constant: float
+    model_prototype: UnifiedModel,
+    measurement: Measurement,
+    cost_metric: str,
+    damping_coefficient: float,
+    coupling_constant: float,
+    mech_spring_constant: float,
 ) -> float:
     """A ray-wrapped version to calculate the cost if a single measurement."""
     return _calculate_cost_for_single_measurement(
@@ -428,16 +438,16 @@ def _calculate_cost_for_single_measurement_remote(
         cost_metric=cost_metric,
         damping_coefficient=damping_coefficient,
         coupling_constant=coupling_constant,
-        mech_spring_constant=mech_spring_constant
+        mech_spring_constant=mech_spring_constant,
     )
 
 
 def _calculate_cost_for_multiple_devices_multiple_measurements(
-        models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
-        cost_metric: str,
-        damping_coefficient: float,
-        coupling_constant: float,
-        mech_spring_constant: float
+    models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
+    cost_metric: str,
+    damping_coefficient: float,
+    coupling_constant: float,
+    mech_spring_constant: float,
 ) -> float:
     """Return cost of multiple unified models with multiple measurements.
 
@@ -457,7 +467,7 @@ def _calculate_cost_for_multiple_devices_multiple_measurements(
                 cost_metric=cost_metric,
                 damping_coefficient=damping_coefficient,
                 coupling_constant=coupling_constant,
-                mech_spring_constant=mech_spring_constant
+                mech_spring_constant=mech_spring_constant,
             )
             tasks.append(task_id)
 
@@ -471,8 +481,7 @@ def _calculate_cost_for_multiple_devices_multiple_measurements(
 
 
 def _score_mechanical_model(
-        model: UnifiedModel,
-        measurement: Measurement
+    model: UnifiedModel, measurement: Measurement
 ) -> Dict[str, float]:
     """Score the unified model against a ground truth measurement.
 
@@ -480,18 +489,17 @@ def _score_mechanical_model(
 
     """
     mech_result, _ = model.score_mechanical_model(
-        y_target=measurement.groundtruth.mech['y_diff'],
-        time_target=measurement.groundtruth.mech['time'],
-        metrics_dict={'dtw_distance': dtw_euclid_norm_by_length},
-        prediction_expr='x3-x1',
-        return_evaluator=False
+        y_target=measurement.groundtruth.mech["y_diff"],
+        time_target=measurement.groundtruth.mech["time"],
+        metrics_dict={"dtw_distance": dtw_euclid_norm_by_length},
+        prediction_expr="x3-x1",
+        return_evaluator=False,
     )
     return mech_result
 
 
 def _score_electrical_model(
-        model: UnifiedModel,
-        measurement: Measurement
+    model: UnifiedModel, measurement: Measurement
 ) -> Dict[str, float]:
     """Score the unified model against a ground truth measurement.
 
@@ -499,12 +507,14 @@ def _score_electrical_model(
 
     """
     elec_result, _ = model.score_electrical_model(
-        emf_target=measurement.groundtruth.elec['emf'],
-        time_target=measurement.groundtruth.elec['time'],
-        metrics_dict={'rms_perc_diff': root_mean_square_percentage_diff,
-                      'dtw_distance': dtw_euclid_norm_by_length,
-                      'watt_perc_diff': power_difference_perc},
-        prediction_expr='g(t, x5)',
-        return_evaluator=False
+        emf_target=measurement.groundtruth.elec["emf"],
+        time_target=measurement.groundtruth.elec["time"],
+        metrics_dict={
+            "rms_perc_diff": root_mean_square_percentage_diff,
+            "dtw_distance": dtw_euclid_norm_by_length,
+            "watt_perc_diff": power_difference_perc,
+        },
+        prediction_expr="g(t, x5)",
+        return_evaluator=False,
     )
     return elec_result

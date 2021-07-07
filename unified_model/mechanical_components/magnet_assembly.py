@@ -1,8 +1,7 @@
 import numpy as np
 from unified_model.utils.utils import fetch_key_from_dictionary
 
-MATERIAL_DICT = {'NdFeB': 7.5e-6,
-                 'iron': 7.5e-6}
+MATERIAL_DICT = {"NdFeB": 7.5e-6, "iron": 7.5e-6}
 
 
 def _get_material_density(material_dict, material_key):
@@ -12,11 +11,7 @@ def _get_material_density(material_dict, material_key):
     :param material_key: Material key
     :return: Density of material in kg/mm^3
     """
-    return fetch_key_from_dictionary(
-        material_dict,
-        material_key,
-        'Material not found!'
-    )
+    return fetch_key_from_dictionary(material_dict, material_key, "Material not found!")
 
 
 class MagnetAssembly:
@@ -45,14 +40,15 @@ class MagnetAssembly:
     """
 
     def __init__(
-            self,
-            m: int,
-            l_m_mm: float,
-            l_mcd_mm: float,
-            dia_magnet_mm: float,
-            dia_spacer_mm: float,
-            mat_magnet='NdFeB',
-            mat_spacer='iron'):
+        self,
+        m: int,
+        l_m_mm: float,
+        l_mcd_mm: float,
+        dia_magnet_mm: float,
+        dia_spacer_mm: float,
+        mat_magnet="NdFeB",
+        mat_spacer="iron",
+    ):
         """Constructor"""
 
         self.m = m
@@ -68,14 +64,14 @@ class MagnetAssembly:
 
     def __repr__(self):
         to_print_dict = {
-            'n_magnet': self.m,
-            'l_m_mm': self.l_m_mm,
-            'l_mcd_mm': self.l_mcd_mm,
-            'dia_magnet_mm': self.dia_magnet_mm,
-            'dia_spacer_mm': self.dia_spacer_mm
+            "n_magnet": self.m,
+            "l_m_mm": self.l_m_mm,
+            "l_mcd_mm": self.l_mcd_mm,
+            "dia_magnet_mm": self.dia_magnet_mm,
+            "dia_spacer_mm": self.dia_spacer_mm,
         }
-        to_print = ', '.join([f'{k}={v}' for k, v in to_print_dict.items()])
-        return f'MagnetAssembly({to_print})'
+        to_print = ", ".join([f"{k}={v}" for k, v in to_print_dict.items()])
+        return f"MagnetAssembly({to_print})"
 
     @staticmethod
     def _calc_volume_cylinder(diameter, length):
@@ -100,11 +96,7 @@ class MagnetAssembly:
         weight_magnet = volume_magnet * self.density_magnet * 9.81
         weight_spacer = volume_spacer * self.density_spacer * 9.81
 
-        return (
-            self.m
-            * weight_magnet
-            + (self.m - 1) * weight_spacer
-        )
+        return self.m * weight_magnet + (self.m - 1) * weight_spacer
 
     def get_length(self) -> float:
         """Get the length of the assembly in mm."""

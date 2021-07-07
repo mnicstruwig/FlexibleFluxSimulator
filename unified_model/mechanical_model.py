@@ -1,4 +1,3 @@
-
 import warnings
 
 from unified_model.utils.utils import pretty_str
@@ -48,27 +47,29 @@ class MechanicalModel:
         try:
             assert self.magnetic_spring is not None
         except AssertionError:
-            raise ModelError('A magnetic spring model must be specified.')  # noqa
+            raise ModelError("A magnetic spring model must be specified.")  # noqa
         try:
             assert self.mechanical_spring is not None
         except AssertionError:
-            warnings.warn("""A mechanical spring, simulating the impact dynamics
+            warnings.warn(
+                """A mechanical spring, simulating the impact dynamics
                           of the magnet assembly impacting the top of the
                           microgenerator device, has not been set. The resulting
                           simulation will assume an infinitely-long
-                          microgenerator tube.""")
+                          microgenerator tube."""
+            )
         try:
             assert self.damper is not None
         except AssertionError:
-            raise ModelError('A friction damper model must be specified.')
+            raise ModelError("A friction damper model must be specified.")
         try:
             assert self.magnet_assembly is not None
         except AssertionError:
-            raise ModelError('A magnet assembly model must be specified.')
+            raise ModelError("A magnet assembly model must be specified.")
         try:
             assert self.input_ is not None
         except AssertionError:
-            raise ModelError('An input excitation must be specified.')
+            raise ModelError("An input excitation must be specified.")
 
     def set_magnetic_spring(self, spring):
         """Add a magnetic spring to the mechanical system.
@@ -145,4 +146,4 @@ class MechanicalModel:
         # Make sure not attributes are None
         for k, v in self.__dict__.items():
             if v is None:
-                warnings.warn(f'{k} has not been defined!')
+                warnings.warn(f"{k} has not been defined!")

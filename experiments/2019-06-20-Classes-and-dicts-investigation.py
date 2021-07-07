@@ -3,5 +3,5 @@ class MyClass(object):
         self.x = x
         self.y = y
 
-    def get_value(self, which='x'):
+    def get_value(self, which="x"):
         return self.__dict__[which]

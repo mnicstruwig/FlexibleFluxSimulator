@@ -19,9 +19,11 @@ from scipy import integrate
 
 from unified_model.coupling import CouplingModel
 from unified_model.electrical_model import ElectricalModel
-from unified_model.evaluate import (ElectricalSystemEvaluator,
-                                    MechanicalSystemEvaluator,
-                                    Measurement)
+from unified_model.evaluate import (
+    ElectricalSystemEvaluator,
+    MechanicalSystemEvaluator,
+    Measurement,
+)
 from unified_model.mechanical_model import MechanicalModel
 from unified_model.utils.utils import parse_output_expression, pretty_str
 from unified_model.local_exceptions import ModelError
@@ -57,6 +59,7 @@ class UnifiedModel:
         The time steps of the solution to the governing equations.
 
     """
+
     def __init__(self) -> None:
         """Constructor."""
         self.mechanical_model: Optional[MechanicalModel] = None
@@ -69,12 +72,12 @@ class UnifiedModel:
 
     def __str__(self) -> str:
         """Return string representation of the UnifiedModel"""
-        return f'Unified Model: {pretty_str(self.__dict__)}'
+        return f"Unified Model: {pretty_str(self.__dict__)}"
 
     def set_mechanical_model(
-            self,
-            mechanical_model: MechanicalModel,
-        ) -> UnifiedModel:
+        self,
+        mechanical_model: MechanicalModel,
+    ) -> UnifiedModel:
 
         """Add a mechanical model to the unified model
 
@@ -89,10 +92,7 @@ class UnifiedModel:
         self.mechanical_model = mechanical_model
         return self
 
-    def set_electrical_model(
-            self,
-            electrical_model: ElectricalModel
-    ) -> UnifiedModel:
+    def set_electrical_model(self, electrical_model: ElectricalModel) -> UnifiedModel:
         """Add an electrical model to the unified model
 
         Parameters
@@ -106,10 +106,7 @@ class UnifiedModel:
         self.electrical_model = electrical_model
         return self
 
-    def set_coupling_model(
-            self,
-            coupling_model: CouplingModel
-    ) -> UnifiedModel:
+    def set_coupling_model(self, coupling_model: CouplingModel) -> UnifiedModel:
         """Add the electro-mechanical coupling to the unified model.
 
         Parameters
@@ -123,10 +120,7 @@ class UnifiedModel:
         self.coupling_model = coupling_model
         return self
 
-    def set_governing_equations(
-            self,
-            governing_equations: Callable
-    ) -> UnifiedModel:
+    def set_governing_equations(self, governing_equations: Callable) -> UnifiedModel:
         """Add a set of governing equations to the unified model.
 
         The governing equations describe the behaviour of the entire system,
@@ -155,9 +149,7 @@ class UnifiedModel:
         return self
 
     def set_post_processing_pipeline(
-            self,
-            pipeline: Callable,
-            name: str
+        self, pipeline: Callable, name: str
     ) -> UnifiedModel:
         """Add a post-processing pipeline to the unified model
 
@@ -186,12 +178,14 @@ class UnifiedModel:
         self.post_processing_pipeline[name] = pipeline
         return self
 
-    def solve(self,
-              t_start: float,
-              t_end: float,
-              y0: List[float],
-              t_eval: Union[List, np.ndarray],
-              t_max_step: float = 1e-5) -> None:
+    def solve(
+        self,
+        t_start: float,
+        t_end: float,
+        y0: List[float],
+        t_eval: Union[List, np.ndarray],
+        t_max_step: float = 1e-5,
+    ) -> None:
         """Solve the unified model.
 
         Parameters
@@ -218,9 +212,9 @@ class UnifiedModel:
         self._validate()
 
         high_level_models = {
-            'mechanical_model': self.mechanical_model,
-            'electrical_model': self.electrical_model,
-            'coupling_model': self.coupling_model
+            "mechanical_model": self.mechanical_model,
+            "electrical_model": self.electrical_model,
+            "coupling_model": self.coupling_model,
         }
 
         psoln = integrate.solve_ivp(
@@ -228,9 +222,10 @@ class UnifiedModel:
             t_span=[t_start, t_end],
             y0=y0,
             t_eval=t_eval,
-            method='RK45',
+            method="RK45",
             rtol=1e-4,
-            max_step=t_max_step)
+            max_step=t_max_step,
+        )
 
         self.time = psoln.t
         self.raw_solution = psoln.y
@@ -283,13 +278,11 @@ class UnifiedModel:
 
         """
         try:
-            return parse_output_expression(
-                self.time,
-                self.raw_solution,
-                **kwargs
-            )
+            return parse_output_expression(self.time, self.raw_solution, **kwargs)
         except AssertionError as e:
-            raise ValueError('Raw solution is not found. Did you run .solve?') from e  # noqa
+            raise ValueError(
+                "Raw solution is not found. Did you run .solve?"
+            ) from e  # noqa
 
     def get_quick_results(self) -> pd.DataFrame:
         """Get a table of commonly used results.
@@ -298,20 +291,17 @@ class UnifiedModel:
         relative magnet velocity and load voltage.
         """
         return self.get_result(
-            time='t',
-            rel_pos_mag='x3-x1',
-            rel_pos_vel='x4-x2',
-            v_load='g(t, x5)'
+            time="t", rel_pos_mag="x3-x1", rel_pos_vel="x4-x2", v_load="g(t, x5)"
         )
 
     def score_mechanical_model(
-            self,
-            y_target: np.ndarray,
-            time_target: np.ndarray,
-            metrics_dict: Dict[str, Callable],
-            prediction_expr: str,
-            warp: bool = False,
-            **kwargs
+        self,
+        y_target: np.ndarray,
+        time_target: np.ndarray,
+        metrics_dict: Dict[str, Callable],
+        prediction_expr: str,
+        warp: bool = False,
+        **kwargs,
     ) -> Tuple[Dict[str, float], Any]:
         """Evaluate the mechanical model using a selection of metrics.
 
@@ -398,18 +388,17 @@ class UnifiedModel:
         """
 
         # Calculate prediction using expression
-        df_result = self.get_result(time='t',
-                                    prediction=prediction_expr)
-        y_predict = df_result['prediction'].values
-        time_predict = df_result['time'].values
+        df_result = self.get_result(time="t", prediction=prediction_expr)
+        y_predict = df_result["prediction"].values
+        time_predict = df_result["time"].values
 
         # Scoring
         mechanical_evaluator = MechanicalSystemEvaluator(
             y_target,
             time_target,
             metrics=metrics_dict,
-            clip=kwargs.get('clip', True),
-            warp=warp
+            clip=kwargs.get("clip", True),
+            warp=warp,
         )
         mechanical_evaluator.fit(y_predict, time_predict)
         mechanical_scores = mechanical_evaluator.score()
@@ -417,13 +406,13 @@ class UnifiedModel:
         return mechanical_scores, mechanical_evaluator
 
     def score_electrical_model(
-            self,
-            emf_target: np.ndarray,
-            time_target: np.ndarray,
-            metrics_dict: Dict,
-            prediction_expr: str,
-            warp: bool = False,
-            **kwargs
+        self,
+        emf_target: np.ndarray,
+        time_target: np.ndarray,
+        metrics_dict: Dict,
+        prediction_expr: str,
+        warp: bool = False,
+        **kwargs,
     ) -> Tuple[Dict[str, float], Any]:
         """Evaluate the electrical model using a selection of metrics.
 
@@ -482,31 +471,28 @@ class UnifiedModel:
 
         """
         # calculate prediction using expression
-        df_result = self.get_result(time='t',
-                                    prediction=prediction_expr)
-        emf_predict = df_result['prediction'].values
-        time_predict = df_result['time'].values
+        df_result = self.get_result(time="t", prediction=prediction_expr)
+        emf_predict = df_result["prediction"].values
+        time_predict = df_result["time"].values
 
         # Scoring
-        electrical_evaluator = ElectricalSystemEvaluator(emf_target,
-                                                         time_target,
-                                                         metrics_dict,
-                                                         warp)
+        electrical_evaluator = ElectricalSystemEvaluator(
+            emf_target, time_target, metrics_dict, warp
+        )
 
-        electrical_evaluator.fit(emf_predict,
-                                 time_predict)
+        electrical_evaluator.fit(emf_predict, time_predict)
 
         electrical_scores = electrical_evaluator.score()
 
         return electrical_scores, electrical_evaluator
 
     def score_measurement(
-            self,
-            measurement: Measurement,
-            mech_pred_expr: Optional[str] = None,
-            mech_metrics_dict: Optional[Dict[str, Callable]] = None,
-            elec_pred_expr: Optional[str] = None,
-            elec_metrics_dict: Optional[Dict[str, Callable]] = None,
+        self,
+        measurement: Measurement,
+        mech_pred_expr: Optional[str] = None,
+        mech_metrics_dict: Optional[Dict[str, Callable]] = None,
+        elec_pred_expr: Optional[str] = None,
+        elec_metrics_dict: Optional[Dict[str, Callable]] = None,
     ) -> Tuple[Dict[str, float], Dict[str, Any]]:
         """Score against a single measurement.
 
@@ -562,48 +548,44 @@ class UnifiedModel:
         """
 
         result = {}
-        evaluators: Dict[str, Any] = {'mech': None, 'elec': None}
+        evaluators: Dict[str, Any] = {"mech": None, "elec": None}
 
         mech_result: Dict[str, float] = {}
         elec_result: Dict[str, float] = {}
 
         if mech_pred_expr is not None and mech_metrics_dict is not None:
             mech_result, mech_eval = self.score_mechanical_model(
-                y_target=measurement.groundtruth.mech['y_diff'],
-                time_target=measurement.groundtruth.mech['time'],
+                y_target=measurement.groundtruth.mech["y_diff"],
+                time_target=measurement.groundtruth.mech["time"],
                 metrics_dict=mech_metrics_dict,
                 prediction_expr=mech_pred_expr,
-                return_evaluator=True
+                return_evaluator=True,
             )
-            evaluators['mech'] = mech_eval
+            evaluators["mech"] = mech_eval
 
         if elec_pred_expr is not None and elec_metrics_dict is not None:
             elec_result, elec_eval = self.score_electrical_model(
-                emf_target=measurement.groundtruth.elec['emf'],
-                time_target=measurement.groundtruth.elec['time'],
+                emf_target=measurement.groundtruth.elec["emf"],
+                time_target=measurement.groundtruth.elec["time"],
                 metrics_dict=elec_metrics_dict,
                 prediction_expr=elec_pred_expr,
-                return_evaluator=True
+                return_evaluator=True,
             )
-            evaluators['elec'] = elec_eval
+            evaluators["elec"] = elec_eval
 
         result.update(mech_result)
         result.update(elec_result)
 
         return result, evaluators
 
-    def calculate_metrics(
-            self,
-            prediction_expr: str,
-            metric_dict: Dict
-    ) -> Dict:
+    def calculate_metrics(self, prediction_expr: str, metric_dict: Dict) -> Dict:
         """Calculate metrics on a prediction expressions."""
 
         df_result = self.get_result(expr=prediction_expr)
 
         results = {}
         for name, metric_func in metric_dict.items():
-            results[name] = metric_func(df_result['expr'].values)
+            results[name] = metric_func(df_result["expr"].values)
         return results
 
     def reset(self) -> None:
@@ -623,11 +605,11 @@ class UnifiedModel:
         if not os.path.exists(path):
             os.makedirs(path)
         else:
-            raise FileExistsError('The path already exists.')
+            raise FileExistsError("The path already exists.")
 
         for key, val in self.__dict__.items():
-            component_path = path + key + '.pkl'
-            with open(component_path, 'wb') as f:
+            component_path = path + key + ".pkl"
+            with open(component_path, "wb") as f:
                 cloudpickle.dump(val, f)
 
     @staticmethod
@@ -638,14 +620,14 @@ class UnifiedModel:
         try:
             assert os.path.isdir(path)
         except AssertionError:
-            raise FileNotFoundError('Path to model does not exist')
+            raise FileNotFoundError("Path to model does not exist")
 
-        files = glob(path + '*')
+        files = glob(path + "*")
         # TODO: Use regex instead
-        keys = [f.split('.pkl')[0].split('/')[-1] for f in files]
+        keys = [f.split(".pkl")[0].split("/")[-1] for f in files]
 
         for key, file_ in zip(keys, files):
-            with open(file_, 'rb') as f:
+            with open(file_, "rb") as f:
                 unified_model.__dict__[key] = cloudpickle.load(f)
 
         return unified_model
@@ -655,21 +637,19 @@ class UnifiedModel:
             assert self.mechanical_model is not None
             self.mechanical_model._validate()
         except AssertionError:
-            raise ModelError('A mechanical model must be specified.')
+            raise ModelError("A mechanical model must be specified.")
         try:
             assert self.electrical_model is not None
             self.electrical_model._validate()
         except AssertionError:
-            raise ModelError('A electrical model must be specified.')
+            raise ModelError("A electrical model must be specified.")
         try:
             assert self.coupling_model is not None
         except AssertionError:
-            raise ModelError('A coupling model must be specified.')
+            raise ModelError("A coupling model must be specified.")
 
     def _apply_pipeline(self) -> None:
         """Execute the post-processing pipelines on the raw solution.."""
         for _, pipeline in self.post_processing_pipeline.items():
             # raw solution has dimensions d, n rather than n, d
-            self.raw_solution = np.array([pipeline(y)
-                                          for y
-                                          in self.raw_solution.T]).T
+            self.raw_solution = np.array([pipeline(y) for y in self.raw_solution.T]).T

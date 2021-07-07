@@ -8,20 +8,21 @@ import pandas as pd
 
 from scipy.signal import savgol_filter
 
-from unified_model.utils.utils import (align_signals_in_time,
-                                       apply_scalar_functions,
-                                       find_signal_limits, smooth_butterworth,
-                                       warp_signals,
-                                       Sample)
+from unified_model.utils.utils import (
+    align_signals_in_time,
+    apply_scalar_functions,
+    find_signal_limits,
+    smooth_butterworth,
+    warp_signals,
+    Sample,
+)
 
 
 class Groundtruth:
     """Compute and hold experimental ground truth data."""
+
     def __init__(
-            self,
-            sample: Sample,
-            lvp_kwargs: dict,
-            adc_kwargs: dict=None
+        self, sample: Sample, lvp_kwargs: dict, adc_kwargs: dict = None
     ) -> None:
         """Constructor."""
 
@@ -31,10 +32,7 @@ class Groundtruth:
         self.lvp_kwargs = lvp_kwargs
         self.adc_kwargs = adc_kwargs
         if not adc_kwargs:
-            self.adc_kwargs = dict(
-                voltage_division_ratio=1 / 0.342,
-                smooth=True
-            )
+            self.adc_kwargs = dict(voltage_division_ratio=1 / 0.342, smooth=True)
         self._make()
 
     def _make(self) -> None:
@@ -43,20 +41,20 @@ class Groundtruth:
 
         y_target, y_time_target = self.lvp.fit_transform(self._sample.video_labels_df)
         y_target = savgol_filter(y_target, 9, 3)  # addtional filtering on `y_target`
-        self.mech['y_diff'] = y_target
-        self.mech['time'] = y_time_target
+        self.mech["y_diff"] = y_target
+        self.mech["time"] = y_time_target
 
         emf_target, emf_time_target = self.adc.fit_transform(self._sample.adc_df)
-        self.elec['emf'] = emf_target
-        self.elec['time'] = emf_time_target
+        self.elec["emf"] = emf_target
+        self.elec["time"] = emf_time_target
 
 
 class GroundTruthFactory:
     """Collect groundtruth data and prepare evaluators in a batch."""
-    def __init__(self,
-                 samples_list: np.ndarray,
-                 lvp_kwargs: Dict,
-                 adc_kwargs: Dict) -> None:
+
+    def __init__(
+        self, samples_list: np.ndarray, lvp_kwargs: Dict, adc_kwargs: Dict
+    ) -> None:
         """Constructor.
 
         Parameters
@@ -79,9 +77,7 @@ class GroundTruthFactory:
 
     def _make_single_groundtruth(self, sample: Sample) -> Groundtruth:
         ground_truth = Groundtruth(
-            sample=sample,
-            lvp_kwargs=self.lvp_kwargs,
-            adc_kwargs=self.adc_kwargs
+            sample=sample, lvp_kwargs=self.lvp_kwargs, adc_kwargs=self.adc_kwargs
         )
         return ground_truth
 
@@ -109,22 +105,22 @@ class Measurement:
     def _make_measurement(self, sample):
         acc_input = mechanical_components.AccelerometerInput(
             raw_accelerometer_input=sample.acc_df,
-            accel_column='z_G',
-            time_column='time(ms)',
-            accel_unit='g',
-            time_unit='ms',
+            accel_column="z_G",
+            time_column="time(ms)",
+            accel_unit="g",
+            time_unit="ms",
             smooth=True,
-            interpolate=True
+            interpolate=True,
         )
 
         ground_truth = Groundtruth(
             sample=sample,
             lvp_kwargs={
-                'magnet_assembly': self._model_prototype.mechanical_model.magnet_assembly,
-                'seconds_per_frame': 1/60,
-                'pixel_scale': 0.154508
+                "magnet_assembly": self._model_prototype.mechanical_model.magnet_assembly,
+                "seconds_per_frame": 1 / 60,
+                "pixel_scale": 0.154508,
             },
-            adc_kwargs=None
+            adc_kwargs=None,
         )
 
         return acc_input, ground_truth
@@ -147,10 +143,12 @@ class AdcProcessor:
 
     """
 
-    def __init__(self,
-                 voltage_division_ratio: float=1.,
-                 smooth: bool=True,
-                 **smooth_kwargs: dict) -> None:
+    def __init__(
+        self,
+        voltage_division_ratio: float = 1.0,
+        smooth: bool = True,
+        **smooth_kwargs: dict
+    ) -> None:
         """Constructor
 
         Parameters
@@ -175,10 +173,9 @@ class AdcProcessor:
         self.smooth = smooth
         self.smooth_kwargs = smooth_kwargs if not None else None
 
-    def fit_transform(self,
-                      groundtruth_dataframe,
-                      voltage_col='V',
-                      time_col='time(ms)'):
+    def fit_transform(
+        self, groundtruth_dataframe, voltage_col="V", time_col="time(ms)"
+    ):
         """
         Extract and transform the voltage in pandas dataframe
         `groundtruth_dataframe` into a clean signal and normalize to the correct
@@ -204,15 +201,18 @@ class AdcProcessor:
 
         """
         if isinstance(groundtruth_dataframe, str):
-            groundtruth_dataframe = cast(pd.DataFrame, pd.read_csv(groundtruth_dataframe))
+            groundtruth_dataframe = cast(
+                pd.DataFrame, pd.read_csv(groundtruth_dataframe)
+            )
 
         voltage_readings = groundtruth_dataframe[voltage_col].values
 
         if self.smooth:
-            critical_frequency = self.smooth_kwargs.get('critical_frequency', 1/5)  # noqa
+            critical_frequency = self.smooth_kwargs.get(
+                "critical_frequency", 1 / 5
+            )  # noqa
             self.critical_frequency = critical_frequency
-            voltage_readings = smooth_butterworth(voltage_readings,
-                                                  critical_frequency)
+            voltage_readings = smooth_butterworth(voltage_readings, critical_frequency)
 
         voltage_readings = voltage_readings * self.voltage_division_ratio  # type: ignore
         voltage_readings = self._detrend(voltage_readings, (100, 700))
@@ -220,7 +220,7 @@ class AdcProcessor:
 
     @staticmethod
     def _detrend(x, noise_window):
-        noise_mean = np.mean(x[noise_window[0]: noise_window[1]])
+        noise_mean = np.mean(x[noise_window[0] : noise_window[1]])
         return x - noise_mean
 
 
@@ -296,12 +296,12 @@ class MechanicalSystemEvaluator:
     """
 
     def __init__(
-            self,
-            y_target: np.ndarray,
-            time_target: np.ndarray,
-            metrics: Dict[str, Callable],
-            clip: bool = True,
-            warp: bool = False
+        self,
+        y_target: np.ndarray,
+        time_target: np.ndarray,
+        metrics: Dict[str, Callable],
+        clip: bool = True,
+        warp: bool = False,
     ) -> None:
         """Constructor"""
         self.metrics = metrics
@@ -309,7 +309,9 @@ class MechanicalSystemEvaluator:
         self.warp = warp
 
         if len(y_target) != len(time_target):
-            raise ValueError('`y_target` and `time_target` must be equal in length.')  # noqa
+            raise ValueError(
+                "`y_target` and `time_target` must be equal in length."
+            )  # noqa
 
         # Holds original values
         self.y_target = y_target
@@ -359,7 +361,7 @@ class MechanicalSystemEvaluator:
             t_1=self.time_target,
             y_1=self.y_target,
             t_2=self.time_predict,
-            y_2=self.y_predict
+            y_2=self.y_predict,
         )
 
         resampled_time: np.ndarray = resampled_signals[0]
@@ -384,8 +386,7 @@ class MechanicalSystemEvaluator:
 
         # Exclude trailing (i.e. steady state) portion of the predicted waveform
         self.y_predict_warped_, self.y_target_warped_ = warp_signals(
-            self.y_predict_[self._clip_index],
-            self.y_target_[self._clip_index]
+            self.y_predict_[self._clip_index], self.y_target_[self._clip_index]
         )
 
     def score(self) -> Dict[str, Any]:
@@ -406,9 +407,10 @@ class MechanicalSystemEvaluator:
         """Calculate the score of the predicted y values."""
 
         metric_results = apply_scalar_functions(
-            self.y_predict_[:self._clip_index],
-            self.y_target_[:self._clip_index],
-            **metrics)
+            self.y_predict_[: self._clip_index],
+            self.y_target_[: self._clip_index],
+            **metrics
+        )
 
         return metric_results
 
@@ -425,14 +427,16 @@ class MechanicalSystemEvaluator:
 
         """
         plt.figure(**kwargs)
-        plt.plot(self.time_, self.y_target_, label='Target')
-        plt.plot(self.time_, self.y_predict_, label='Prediction')
+        plt.plot(self.time_, self.y_target_, label="Target")
+        plt.plot(self.time_, self.y_predict_, label="Prediction")
 
         # Show the clip marks
-        plt.plot([0, 0], [0, max(self.y_target_)], 'k--')  # start
-        plt.plot([self.time_[self._clip_index], self.time_[self._clip_index]],
-                 [0, max(self.y_target_)],
-                 'k--')  # end
+        plt.plot([0, 0], [0, max(self.y_target_)], "k--")  # start
+        plt.plot(
+            [self.time_[self._clip_index], self.time_[self._clip_index]],
+            [0, max(self.y_target_)],
+            "k--",
+        )  # end
 
         plt.legend()
 
@@ -440,8 +444,8 @@ class MechanicalSystemEvaluator:
             if self.y_predict_warped_ is None:
                 self._calc_dtw()
 
-            plt.plot(self.y_target_warped_, label='Target, time-warped')
-            plt.plot(self.y_predict_warped_, label='Prediction, time-warped')
+            plt.plot(self.y_target_warped_, label="Target, time-warped")
+            plt.plot(self.y_predict_warped_, label="Prediction, time-warped")
             plt.legend()
 
         plt.show()
@@ -505,15 +509,15 @@ class ElectricalSystemEvaluator:
 
     """
 
-    def __init__(self,
-                 emf_target: np.ndarray,
-                 time_target: np.ndarray,
-                 metrics: Dict[str, Callable],
-                 warp: bool = False,
-                 clip_threshold: float = 0.125) -> None:
-        """Constructor.
-
-        """
+    def __init__(
+        self,
+        emf_target: np.ndarray,
+        time_target: np.ndarray,
+        metrics: Dict[str, Callable],
+        warp: bool = False,
+        clip_threshold: float = 0.125,
+    ) -> None:
+        """Constructor."""
 
         self.metrics = metrics
         self.warp = warp
@@ -540,12 +544,12 @@ class ElectricalSystemEvaluator:
         self.emf_target_warped_ = None
         self.emf_predict_warped_ = None
 
-    def _make_clipped_signals(self,
-                              target,
-                              predict) -> None:
+    def _make_clipped_signals(self, target, predict) -> None:
 
         emf_predict_start, emf_predict_end = find_signal_limits(predict)
-        emf_target_start, emf_target_end = find_signal_limits(target, self.clip_threshold) # 0.075)
+        emf_target_start, emf_target_end = find_signal_limits(
+            target, self.clip_threshold
+        )  # 0.075)
 
         start_index = np.min([emf_predict_start, emf_target_start])
         end_index = np.max([emf_predict_end, emf_target_end])
@@ -558,14 +562,12 @@ class ElectricalSystemEvaluator:
         self.time_clipped_ = time_clipped_
 
         self._clip_indexes = {
-            'predict': (emf_predict_start, emf_predict_end),
-            'target': (emf_target_start, emf_target_end),
-            'used_for_scoring': (start_index, end_index)
+            "predict": (emf_predict_start, emf_predict_end),
+            "target": (emf_target_start, emf_target_end),
+            "used_for_scoring": (start_index, end_index),
         }
 
-    def fit(self,
-            emf_predict,
-            time_predict):
+    def fit(self, emf_predict, time_predict):
         """Align `emf_predict` with `emf_target` in time.
 
         This allows the target and prediction to later be compared by plotting
@@ -600,7 +602,7 @@ class ElectricalSystemEvaluator:
             y_1=self.emf_target,
             t_2=self.time_predict,
             y_2=self.emf_predict,
-            num_samples=len(self.time_target)
+            num_samples=len(self.time_target),
         )
 
         resampled_time = resampled_signals[0]
@@ -611,8 +613,7 @@ class ElectricalSystemEvaluator:
         self.emf_predict_ = resampled_emf_predict
         self.time_ = resampled_time
 
-        self._make_clipped_signals(target=self.emf_target_,
-                                   predict=self.emf_predict_)
+        self._make_clipped_signals(target=self.emf_target_, predict=self.emf_predict_)
 
         # emf_predict_start, emf_predict_end = find_signal_limits(resampled_emf_predict)
         # emf_target_start, emf_target_end = find_signal_limits(resampled_emf_target, 0.075)
@@ -644,8 +645,7 @@ class ElectricalSystemEvaluator:
 
         # Exclude trailing (i.e. steady state) portion of the predicted waveform
         self.emf_predict_warped_, self.emf_target_warped_ = warp_signals(
-            self.emf_predict_clipped_,
-            self.emf_target_clipped_
+            self.emf_predict_clipped_, self.emf_target_clipped_
         )
 
     def score(self) -> Dict[str, Any]:
@@ -684,9 +684,9 @@ class ElectricalSystemEvaluator:
 
         """
 
-        metric_results = apply_scalar_functions(self.emf_predict_clipped_,
-                                                self.emf_target_clipped_,
-                                                **self.metrics)
+        metric_results = apply_scalar_functions(
+            self.emf_predict_clipped_, self.emf_target_clipped_, **self.metrics
+        )
 
         return metric_results
 
@@ -709,15 +709,30 @@ class ElectricalSystemEvaluator:
         max_y = np.max([target, predict])
 
         plt.figure(**kwargs)
-        plt.plot(time, target, 'k', label='Target')
-        plt.plot(time, predict, 'r', label='Predictions')
+        plt.plot(time, target, "k", label="Target")
+        plt.plot(time, predict, "r", label="Predictions")
 
         # Show the clip marks
 
-        plt.vlines(time[self._clip_indexes['used_for_scoring'][0]], 0, max_y, color='k', linestyle='--')
-        plt.vlines(time[self._clip_indexes['used_for_scoring'][1]], 0, max_y, color='k', linestyle='--')
+        plt.vlines(
+            time[self._clip_indexes["used_for_scoring"][0]],
+            0,
+            max_y,
+            color="k",
+            linestyle="--",
+        )
+        plt.vlines(
+            time[self._clip_indexes["used_for_scoring"][1]],
+            0,
+            max_y,
+            color="k",
+            linestyle="--",
+        )
 
-        plt.xlim(time[self._clip_indexes['used_for_scoring'][0]] - 0.5, time[self._clip_indexes['used_for_scoring'][1]] + 0.5)
+        plt.xlim(
+            time[self._clip_indexes["used_for_scoring"][0]] - 0.5,
+            time[self._clip_indexes["used_for_scoring"][1]] + 0.5,
+        )
 
         # plt.vlines(time[self._clip_indexes['predict'][0]], 0, max_y, color='r', linestyle='--')
         # plt.vlines(time[self._clip_indexes['predict'][1]], 0, max_y, color='r', linestyle='--')
@@ -728,19 +743,19 @@ class ElectricalSystemEvaluator:
             plt.figure()
             if self.emf_target_warped_ is None:
                 self._calc_dtw()
-            plt.plot(self.emf_target_warped_, label='Target, time-warped')
-            plt.plot(self.emf_predict_warped_, label='Predictions, time-warped')
+            plt.plot(self.emf_target_warped_, label="Target, time-warped")
+            plt.plot(self.emf_predict_warped_, label="Predictions, time-warped")
             plt.legend()
         plt.show()
 
 
 class LabeledVideoProcessor:
     def __init__(
-            self,
-            magnet_assembly: mechanical_components.MagnetAssembly,
-            seconds_per_frame: float,
-            pixel_scale: Optional[float]=None,
-            impute_missing_values: bool=True
+        self,
+        magnet_assembly: mechanical_components.MagnetAssembly,
+        seconds_per_frame: float,
+        pixel_scale: Optional[float] = None,
+        impute_missing_values: bool = True,
     ) -> None:
         """Post-processor for labeled magnet-assembly data.
 
@@ -796,30 +811,40 @@ class LabeledVideoProcessor:
         try:
             assert df is not None
         except AssertionError:
-            raise AssertionError('Groundtruth dataframe is `None`.'
-                                 + 'Was the groundtruth file parsed correctly? Does it exist?')  # noqa
+            raise AssertionError(
+                "Groundtruth dataframe is `None`."
+                + "Was the groundtruth file parsed correctly? Does it exist?"
+            )  # noqa
 
         if self.pixel_scale is None:  # If we don't manually set pixel scale
-            if np.any(df['y_pixel_scale'] == -1):  # ... and it isn't in the parsed file.  # noqa
-                raise ValueError('Dataframe contains missing pixel scale values and the pixel scale has not been '  # noqa
-                                 'manually specified.')
+            if np.any(
+                df["y_pixel_scale"] == -1
+            ):  # ... and it isn't in the parsed file.  # noqa
+                raise ValueError(
+                    "Dataframe contains missing pixel scale values and the pixel scale has not been "  # noqa
+                    "manually specified."
+                )
         else:
-            df['y_pixel_scale'] = self.pixel_scale
+            df["y_pixel_scale"] = self.pixel_scale
 
-        df['y'] = np.abs(df['end_y'] - df['start_y'])  # Calculate position
-        df['y_mm'] = df['y'] * df['y_pixel_scale']  # Adjust with pixel scale
-        df['y_prime_mm'] = df['y_mm']  # Get actual position
+        df["y"] = np.abs(df["end_y"] - df["start_y"])  # Calculate position
+        df["y_mm"] = df["y"] * df["y_pixel_scale"]  # Adjust with pixel scale
+        df["y_prime_mm"] = df["y_mm"]  # Get actual position
         # Adjust for top / bottom of magnet during labeling process
-        df.loc[df['top_of_magnet'] == 1, 'y_prime_mm'] = df['y_prime_mm'] - self.magnet_assembly.get_length()  # noqa
+        df.loc[df["top_of_magnet"] == 1, "y_prime_mm"] = (
+            df["y_prime_mm"] - self.magnet_assembly.get_length()
+        )  # noqa
 
         # Correct calculations made with missing values, if they exist.
         if self.impute_missing_values:
-            missing_indexes = df.query('start_y == -1').index.values
+            missing_indexes = df.query("start_y == -1").index.values
             df = impute_missing(df, missing_indexes)
 
-        timestamps = np.linspace(0, (len(df)-1)*self.spf, len(df))
+        timestamps = np.linspace(0, (len(df) - 1) * self.spf, len(df))
 
-        return (df['y_prime_mm'].values + self.magnet_assembly.l_m_mm / 2) / 1000, timestamps  # noqa
+        return (
+            df["y_prime_mm"].values + self.magnet_assembly.l_m_mm / 2
+        ) / 1000, timestamps  # noqa
 
 
 def impute_missing(df_missing, indexes):
@@ -875,17 +900,27 @@ def impute_missing(df_missing, indexes):
             # `-1` indicates missing values. Check if our points used for
             # imputing are _also_ unlabelled.
             # TODO: Turn this check into a function w/ tests
-            if df_missing.loc[end_velocity_calc, 'start_y'] == -1:
-                raise ValueError('Too few many sequential missing values to be able to impute all missing values.')  # noqa
-            if df_missing.loc[start_velocity_calc, 'start_y'] == -1:
+            if df_missing.loc[end_velocity_calc, "start_y"] == -1:
+                raise ValueError(
+                    "Too few many sequential missing values to be able to impute all missing values."
+                )  # noqa
+            if df_missing.loc[start_velocity_calc, "start_y"] == -1:
                 start_velocity_calc = start_velocity_calc - 1
-                if df_missing.loc[start_velocity_calc, 'start_y'] == -1:
-                    raise ValueError('Too many sequential missing values to be able to impute all missing values.')  # noqa
+                if df_missing.loc[start_velocity_calc, "start_y"] == -1:
+                    raise ValueError(
+                        "Too many sequential missing values to be able to impute all missing values."
+                    )  # noqa
         except KeyError:
-            raise IndexError('Too few points available to calculate velocity and impute missing values.')  # noqa
+            raise IndexError(
+                "Too few points available to calculate velocity and impute missing values."
+            )  # noqa
 
-        velocity = (df_missing.loc[end_velocity_calc, 'y_prime_mm']
-                    - df_missing.loc[start_velocity_calc, 'y_prime_mm'])
+        velocity = (
+            df_missing.loc[end_velocity_calc, "y_prime_mm"]
+            - df_missing.loc[start_velocity_calc, "y_prime_mm"]
+        )
 
-        df_missing.loc[index, 'y_prime_mm'] = df_missing.loc[index - 1, 'y_prime_mm'] + velocity  # noqa
+        df_missing.loc[index, "y_prime_mm"] = (
+            df_missing.loc[index - 1, "y_prime_mm"] + velocity
+        )  # noqa
     return df_missing

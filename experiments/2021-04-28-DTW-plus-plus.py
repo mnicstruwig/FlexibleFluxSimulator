@@ -7,8 +7,8 @@ from fastdtw import fastdtw
 # Let's calculate the trend sequence of a time series
 
 t = np.linspace(0, 1, 1000)
-X = np.sin(30*t) + np.cos(20*t)
-Y = np.sin(32*t) + np.cos(20*t)
+X = np.sin(30 * t) + np.cos(20 * t)
+Y = np.sin(32 * t) + np.cos(20 * t)
 
 
 def get_trend(X):
@@ -49,12 +49,15 @@ def ts_dtw(X, Y):
     P_prime = calc_trend_warping_path(X_prime, Y_prime)
     arr = get_window_arr(P_prime, len(X))
 
-    alignment = dtw(X,
-                    Y,
-                    window_type=ts_window_function,
-                    window_args={'arr': arr},
-                    keep_internals=False)
+    alignment = dtw(
+        X,
+        Y,
+        window_type=ts_window_function,
+        window_args={"arr": arr},
+        keep_internals=False,
+    )
     return alignment.distance
+
 
 # Run DTW again
 alignment_ref = dtw(X, Y, keep_internals=True)

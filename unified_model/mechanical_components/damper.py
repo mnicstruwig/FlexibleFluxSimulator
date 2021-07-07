@@ -5,16 +5,19 @@ from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 
 
 def _sigmoid_shifted(x, x0=0):
-    return 1 / (1 + np.exp(-(5*x - x0))) - 0.5
+    return 1 / (1 + np.exp(-(5 * x - x0))) - 0.5
 
 
 class QuasiKarnoppDamper:
     """A damper that is based on a modified Karnopp friction model."""
-    def __init__(self,
-                 coulomb_damping_coefficient: float,
-                 motional_damping_coefficient: float,
-                 magnet_assembly: MagnetAssembly,
-                 tube_inner_radius_mm: float) -> None:
+
+    def __init__(
+        self,
+        coulomb_damping_coefficient: float,
+        motional_damping_coefficient: float,
+        magnet_assembly: MagnetAssembly,
+        tube_inner_radius_mm: float,
+    ) -> None:
         """Constructor
 
         Parameters
@@ -40,12 +43,16 @@ class QuasiKarnoppDamper:
         self.angle_friction_factor = 2 * self.r_t / self.magnet_assembly_length
 
     def __repr__(self):
-        return f'QuasiKarnoppDamper(\n  coulomb_damping_coefficient={self.cdc},\n  motional_damping_coefficient={self.mdc},\n  tube_inner_radius_mm={self.r_t}\n)'  # noqa
+        return f"QuasiKarnoppDamper(\n  coulomb_damping_coefficient={self.cdc},\n  motional_damping_coefficient={self.mdc},\n  tube_inner_radius_mm={self.r_t}\n)"  # noqa
 
     def get_force(self, velocity, velocity_threshold=0.01):
         """Get the force exerted by the damper."""
         coulomb_contribution = self.cdc * velocity * self.magnet_assembly_mass
-        shape_contribution = self.mdc * self.angle_friction_factor * _sigmoid_shifted(velocity, velocity_threshold)
+        shape_contribution = (
+            self.mdc
+            * self.angle_friction_factor
+            * _sigmoid_shifted(velocity, velocity_threshold)
+        )
         return coulomb_contribution + shape_contribution
 
 
@@ -55,10 +62,9 @@ class MassProportionalDamper:
     The force is equal to the damping coefficient multiplied by the velocity,
     proportional to the mass of the magnet assembly.
     """
+
     def __init__(
-            self,
-            damping_coefficient: float,
-            magnet_assembly: MagnetAssembly
+        self, damping_coefficient: float, magnet_assembly: MagnetAssembly
     ) -> None:
         """Constructor.
 
@@ -70,14 +76,10 @@ class MassProportionalDamper:
             The MagnetAssembly whose mass directly proportions the force of the damper.
 
         """
-        self.damping_coefficient=damping_coefficient
+        self.damping_coefficient = damping_coefficient
         self.magnet_assembly_mass = magnet_assembly.get_mass()
 
-
-    def get_force(
-            self,
-            velocity: float
-    ) -> float:
+    def get_force(self, velocity: float) -> float:
         """Get the force exerted by the damper.
 
         Parameters
@@ -95,7 +97,7 @@ class MassProportionalDamper:
         return self.magnet_assembly_mass * self.damping_coefficient * velocity
 
     def __repr__(self) -> str:
-        return f'MassProportionalDamper(damping_coefficient={self.damping_coefficient}, magnet_assembly_mass={self.magnet_assembly_mass})'  # noqa
+        return f"MassProportionalDamper(damping_coefficient={self.damping_coefficient}, magnet_assembly_mass={self.magnet_assembly_mass})"  # noqa
 
 
 class ConstantDamper:
@@ -134,7 +136,7 @@ class ConstantDamper:
         return self.damping_coefficient * velocity
 
     def __repr__(self):
-        return f'ConstantDamper(damping_coefficient={self.damping_coefficient})'
+        return f"ConstantDamper(damping_coefficient={self.damping_coefficient})"
 
     def __str__(self):
         """Return string representation of the Damper."""
