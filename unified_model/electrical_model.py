@@ -59,7 +59,7 @@ class ElectricalModel:
             assert self.rectification_drop is not None
         except AssertionError:
             warnings.warn(
-                "Rectification drop not specified. Assuming no loss due to rectification."
+                "Rectification drop not specified. Assuming no loss due to rectification."  # noqa
             )  # noqa
         try:
             assert self.load_model is not None

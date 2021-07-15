@@ -308,8 +308,3 @@ grid_executor = gridsearch.GridsearchBatchExecutor(
 
 grid_executor.preview()
 grid_executor.run(f"/output/{which_device}.parquet", batch_size=24)  # Execute
-
-# DEBUG
-# import pyarrow.parquet as pq
-# df = pq.read_table('A.parquet').to_pandas()
-# print(df.groupby('model_id').mean().sort_values(by='y_diff_dtw_distance').reset_index()[['model_id', 'y_diff_dtw_distance', 'damper.damping_coefficient']])

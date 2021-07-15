@@ -8,6 +8,10 @@ ignore =
     # Continuation line under-indented for hanging inddent [E121]
     E121,
     E203
+
+exclude = experiments
+
 per-file-ignores=
     unified_model/mechanical_components/__init__.py:F401
     unified_model/electrical_components/__init__.py:F401
+    __init__.py:F401

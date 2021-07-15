@@ -3,25 +3,18 @@ A module for finding the optimal energy harvester
 """
 import copy
 from itertools import product
-from typing import Any, Dict, List, Tuple, Union, cast
+from typing import Any, Dict, List, Tuple, Union
 
-import nevergrad as ng
 import numpy as np
 import pandas as pd
 import ray
 from flux_modeller.model import CurveModel
 from tqdm import tqdm
 
-from unified_model import metrics
-from unified_model.coupling import CouplingModel
 from unified_model.electrical_components.coil import CoilConfiguration
 from unified_model.electrical_components.flux.model import FluxModelInterp
-from unified_model.evaluate import Measurement
 from unified_model.gridsearch import UnifiedModelFactory
-from unified_model.mechanical_components.damper import (
-    MassProportionalDamper,
-    QuasiKarnoppDamper,
-)
+from unified_model.mechanical_components.damper import MassProportionalDamper
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_components.mechanical_spring import MechanicalSpring
 from unified_model.unified import UnifiedModel
@@ -241,7 +234,7 @@ def evolve_simulation_set(
     magnet_assembly = MagnetAssembly(**magnet_assembly_params)
 
     damper_model_params["magnet_assembly"] = magnet_assembly
-    damper = QuasiKarnoppDamper(**damper_model_params)
+    damper = MassProportionalDamper(**damper_model_params)
 
     mech_spring_params["magnet_assembly"] = magnet_assembly
     new_mech_spring = MechanicalSpring(**mech_spring_params)

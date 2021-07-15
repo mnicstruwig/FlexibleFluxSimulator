@@ -1,6 +1,5 @@
 from typing import Any, Callable, Dict, Optional, Union, List, cast
 from unified_model import mechanical_components
-from unified_model.utils.utils import Sample
 
 import matplotlib.pyplot as plt
 import numpy as np

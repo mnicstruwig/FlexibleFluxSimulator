@@ -51,7 +51,7 @@ abc_spring = MagneticSpringInterp(
 
 abc_flux_database_path = os.path.join(
     base_dir,
-    "../flux_modeller/data/fea-flux-curves-numr[5,15]-numz[17,33,66]-wdiam[0.15]-cheight[8,12,14]-2019-04-11.csv",
+    "../flux_modeller/data/fea-flux-curves-numr[5,15]-numz[17,33,66]-wdiam[0.15]-cheight[8,12,14]-2019-04-11.csv",  # noqa
 )
 abc_flux_database = FluxDatabase(
     csv_database_path=abc_flux_database_path, fixed_velocity=0.35

@@ -358,9 +358,7 @@ def find_signal_limits(target: Any, threshold: float = 0.05) -> Tuple[int, int]:
         end_index = len(arr) - end_index
         # Don't need to subtract 1 since it's already subtracted in
         # `_find_start_index`
-        return int(
-            end_index
-        )
+        return int(end_index)
 
     return (_find_start_index(target, threshold), _find_end_index(target, threshold))
 
