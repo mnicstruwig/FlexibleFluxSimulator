@@ -25,8 +25,8 @@ from unified_model import (
 # PARAMETERS
 n_z_arr = np.arange(6, 201, 2)
 n_w_arr = np.arange(6, 201, 2)
-c = 2
-m = 2
+c = 1
+m = 1
 
 # Mechanical components
 magnetic_spring = mechanical_components.MagneticSpringInterp(
@@ -36,16 +36,14 @@ magnetic_spring = mechanical_components.MagneticSpringInterp(
 )
 
 damper_model_params: Dict[str, Any] = {
-    "coulomb_damping_coefficient": 5.742857,
-    "motional_damping_coefficient": 0.006667,
+    "damping_coefficient": 4.272,
     "magnet_assembly": None,
-    "tube_inner_radius_mm": 5.5,
 }
 
 # Electrical Components
 load = electrical_components.SimpleLoad(R=30)
 v_rect_drop = 0.1
-coupling_model = CouplingModel().set_coupling_constant(4.1667)
+coupling_model = CouplingModel().set_coupling_constant(5.096)
 
 coil_model_params: Dict[str, Any] = {
     "c": None,
@@ -55,7 +53,7 @@ coil_model_params: Dict[str, Any] = {
     "ohm_per_mm": 1079 / 1000 / 1000,
     "tube_wall_thickness_mm": 2,
     "coil_wire_radius_mm": 0.143 / 2,
-    "coil_center_mm": 60,
+    "coil_center_mm": 60,  # <-- for Simon, we need to vary this as well
     "inner_tube_radius_mm": 5.5,
 }
 
@@ -71,7 +69,7 @@ mech_spring_params: Dict[str, Any] = {
     "magnet_assembly": None,
     "position": 135 / 1000,
     "strength": 1e7,
-    "damping_coefficient": 2.5,
+    "damping_coefficient": 3.108,
 }
 
 curve_model = CurveModel.load(
@@ -206,7 +204,7 @@ for batch_num, batch in enumerate(batches):
         }
     )
     table = pa.Table.from_pandas(df)
-    pq.write_to_dataset(table, f"/output/{c}c{m}m.parquet")
+    pq.write_to_dataset(table, f"./output/{c}c{m}m.parquet")
 
     # Clear
     del results

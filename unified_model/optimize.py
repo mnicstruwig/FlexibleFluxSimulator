@@ -219,6 +219,7 @@ def calc_p_load_avg(x, r_load):
     return v_rms * v_rms / r_load
 
 
+# TODO: Docstring
 def evolve_simulation_set(
     unified_model_factory: UnifiedModelFactory,
     input_excitations: List[Any],
@@ -228,7 +229,7 @@ def evolve_simulation_set(
     mech_spring_params: Dict,
     damper_model_params: Dict,
 ) -> List[UnifiedModel]:
-    """Update the simulation set with new flux and coil resistance models."""
+    """Update the simulation set with new subsidiary models."""
 
     coil_configuration = CoilConfiguration(**coil_config_params)
     magnet_assembly = MagnetAssembly(**magnet_assembly_params)

@@ -27,6 +27,7 @@ def _in_notebook() -> bool:
         get_ipython = sys.modules["IPython"].get_ipython  # type: ignore
         if "IPKernelApp" in get_ipython().config:
             return True
+        return False
     except KeyError:
         return False
 

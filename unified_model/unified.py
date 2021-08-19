@@ -594,6 +594,21 @@ class UnifiedModel:
         self.time = None
         self.raw_solution = None
 
+    def update_params(self, config: List[Tuple[str, Any]]):
+        """Update the parameters of the unified model."""
+        for path, value in config:
+            sub_paths = path.split('.')
+            if len(sub_paths) == 2:  # TODO: Make this less hardcoded
+                self.__dict__[sub_paths[0]][sub_paths[1]] = value
+            if len(sub_paths) == 3:  # TODO: Make this less hardcoded
+                # Check we're not setting something that doesn't exist
+                try:
+                    assert sub_paths[-1] in self.__dict__[sub_paths[0]].__dict__[sub_paths[1]].__dict__  # noqa
+                except AssertionError as e:
+                    raise ValueError(f'The path to the parameter "{path}" does not exist.') from e  # noqa
+
+                self.__dict__[sub_paths[0]].__dict__[sub_paths[1]].__dict__[sub_paths[2]] = value
+
     def save_to_disk(self, path: str, overwrite=False) -> None:
         """Persists a unified model to disk"""
         if overwrite:
