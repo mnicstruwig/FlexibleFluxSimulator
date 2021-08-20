@@ -8,6 +8,7 @@ describes their interaction.
 from __future__ import annotations
 
 import os
+import copy
 import shutil
 import warnings
 from glob import glob
@@ -657,27 +658,53 @@ class UnifiedModel:
         self.time = None
         self.raw_solution = None
 
-    def update_params(self, config: List[Tuple[str, Any]]):
-        """Update the parameters of the unified model."""
+    def update_params(self, config: List[Tuple[str, Any]]) -> UnifiedModel:
+        """Update the parameters and return a new copy of the unified model."""
+
+        new_model = copy.deepcopy(self)
+
         for path, value in config:
             sub_paths = path.split(".")
-            if len(sub_paths) == 2:  # TODO: Make this less hardcoded
-                self.__dict__[sub_paths[0]][sub_paths[1]] = value
-            if len(sub_paths) == 3:  # TODO: Make this less hardcoded
-                # Check we're not setting something that doesn't exist
-                try:
-                    assert (
-                        sub_paths[-1]
-                        in self.__dict__[sub_paths[0]].__dict__[sub_paths[1]].__dict__
-                    )  # noqa
-                except AssertionError as e:
-                    raise ValueError(
-                        f'The path to the parameter "{path}" does not exist.'
-                    ) from e  # noqa
 
-                self.__dict__[sub_paths[0]].__dict__[sub_paths[1]].__dict__[
-                    sub_paths[2]
-                ] = value
+            try:  # Check the base component exists
+                assert sub_paths[0] in self.__dict__
+                assert self.__dict__[sub_paths[0]] is not None
+            except AssertionError as e:
+                raise ValueError(
+                    f"The component `{sub_paths[0]}` is not defined or present."
+                ) from e  # noqa
+
+            try:
+                if len(sub_paths) == 2:  # TODO: Make this less hardcoded
+                    try:
+                        assert (
+                            sub_paths[-1] in new_model.__dict__[sub_paths[0]].__dict__
+                        )
+                        new_model.__dict__[sub_paths[0]].__dict__[sub_paths[1]] = value
+                    except AssertionError as e:
+                        raise ValueError(
+                            f"The parameter `{path}` does not exist."
+                        ) from e
+                if len(sub_paths) == 3:  # TODO: Make this less hardcoded
+                    try:  # Check we're not setting something that doesn't exist
+                        assert (
+                            sub_paths[-1]
+                            in new_model.__dict__[sub_paths[0]]
+                            .__dict__[sub_paths[1]]
+                            .__dict__
+                        )  # noqa
+                        new_model.__dict__[sub_paths[0]].__dict__[
+                            sub_paths[1]
+                        ].__dict__[sub_paths[2]] = value
+                    except AssertionError as e:
+                        raise ValueError(
+                            f"The parameter `{path}` does not exist."
+                        ) from e  # noqa
+
+            except AttributeError as ae:
+                raise AttributeError(f'"{path}" could not be found.') from ae
+
+        return new_model
 
     def save_to_disk(self, path: str, overwrite=False) -> None:
         """Persists a unified model to disk"""

@@ -1,6 +1,5 @@
 from typing import Any, Callable, Dict, Optional, Union, List, cast
 from unified_model import mechanical_components
-from unified_model.unified import UnifiedModel
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -99,7 +98,7 @@ class GroundTruthFactory:
 class Measurement:
     """A measurement coupled to a reference device."""
 
-    def __init__(self, sample: Sample, model_prototype: UnifiedModel) -> None:
+    def __init__(self, sample: Sample, model_prototype: Any) -> None:
         """
         Parameters
         ----------
