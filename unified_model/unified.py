@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import warnings
 from glob import glob
 from typing import Any, Callable, Dict, List, Tuple, Union, Optional
 
@@ -294,6 +295,29 @@ class UnifiedModel:
             time="t", rel_pos_mag="x3-x1", rel_pos_vel="x4-x2", v_load="g(t, x5)"
         )
 
+    def score_mechanical_model(
+        self,
+        y_target: np.ndarray,
+        time_target: np.ndarray,
+        metrics_dict: Dict[str, Callable],
+        prediction_expr: str,
+        warp: bool = False,
+        **kwargs,
+    ):
+        warnings.warn(
+            "`score_mechanical_model has been deprecated.` Please use `score_measurement` instead.",  # noqa
+            DeprecationWarning,
+        )
+
+        return self._score_mechanical_model(
+            y_target,
+            time_target,
+            metrics_dict,
+            prediction_expr,
+            warp,
+            **kwargs,
+        )
+
     def _score_mechanical_model(
         self,
         y_target: np.ndarray,
@@ -404,6 +428,29 @@ class UnifiedModel:
         mechanical_scores = mechanical_evaluator.score()
 
         return mechanical_scores, mechanical_evaluator
+
+    def score_electrical_model(
+        self,
+        emf_target: np.ndarray,
+        time_target: np.ndarray,
+        metrics_dict: Dict,
+        prediction_expr: str,
+        warp: bool = False,
+        **kwargs,
+    ):
+        warnings.warn(
+            "`score_electrical_model has been deprecated.` Please use `score_measurement` instead.",  # noqa
+            DeprecationWarning,
+        )
+
+        return self._score_electrical_model(
+            emf_target,
+            time_target,
+            metrics_dict,
+            prediction_expr,
+            warp,
+            **kwargs,
+        )
 
     def _score_electrical_model(
         self,
