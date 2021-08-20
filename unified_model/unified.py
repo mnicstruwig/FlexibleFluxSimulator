@@ -294,7 +294,7 @@ class UnifiedModel:
             time="t", rel_pos_mag="x3-x1", rel_pos_vel="x4-x2", v_load="g(t, x5)"
         )
 
-    def score_mechanical_model(
+    def _score_mechanical_model(
         self,
         y_target: np.ndarray,
         time_target: np.ndarray,
@@ -405,7 +405,7 @@ class UnifiedModel:
 
         return mechanical_scores, mechanical_evaluator
 
-    def score_electrical_model(
+    def _score_electrical_model(
         self,
         emf_target: np.ndarray,
         time_target: np.ndarray,
@@ -554,7 +554,7 @@ class UnifiedModel:
         elec_result: Dict[str, float] = {}
 
         if mech_pred_expr is not None and mech_metrics_dict is not None:
-            mech_result, mech_eval = self.score_mechanical_model(
+            mech_result, mech_eval = self._score_mechanical_model(
                 y_target=measurement.groundtruth.mech["y_diff"],
                 time_target=measurement.groundtruth.mech["time"],
                 metrics_dict=mech_metrics_dict,
@@ -564,7 +564,7 @@ class UnifiedModel:
             evaluators["mech"] = mech_eval
 
         if elec_pred_expr is not None and elec_metrics_dict is not None:
-            elec_result, elec_eval = self.score_electrical_model(
+            elec_result, elec_eval = self._score_electrical_model(
                 emf_target=measurement.groundtruth.elec["emf"],
                 time_target=measurement.groundtruth.elec["time"],
                 metrics_dict=elec_metrics_dict,
@@ -597,17 +597,24 @@ class UnifiedModel:
     def update_params(self, config: List[Tuple[str, Any]]):
         """Update the parameters of the unified model."""
         for path, value in config:
-            sub_paths = path.split('.')
+            sub_paths = path.split(".")
             if len(sub_paths) == 2:  # TODO: Make this less hardcoded
                 self.__dict__[sub_paths[0]][sub_paths[1]] = value
             if len(sub_paths) == 3:  # TODO: Make this less hardcoded
                 # Check we're not setting something that doesn't exist
                 try:
-                    assert sub_paths[-1] in self.__dict__[sub_paths[0]].__dict__[sub_paths[1]].__dict__  # noqa
+                    assert (
+                        sub_paths[-1]
+                        in self.__dict__[sub_paths[0]].__dict__[sub_paths[1]].__dict__
+                    )  # noqa
                 except AssertionError as e:
-                    raise ValueError(f'The path to the parameter "{path}" does not exist.') from e  # noqa
+                    raise ValueError(
+                        f'The path to the parameter "{path}" does not exist.'
+                    ) from e  # noqa
 
-                self.__dict__[sub_paths[0]].__dict__[sub_paths[1]].__dict__[sub_paths[2]] = value
+                self.__dict__[sub_paths[0]].__dict__[sub_paths[1]].__dict__[
+                    sub_paths[2]
+                ] = value
 
     def save_to_disk(self, path: str, overwrite=False) -> None:
         """Persists a unified model to disk"""
