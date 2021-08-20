@@ -536,21 +536,27 @@ class UnifiedModel:
     def score_measurement(
         self,
         measurement: Measurement,
+        solve_kwargs: Dict,
         mech_pred_expr: Optional[str] = None,
         mech_metrics_dict: Optional[Dict[str, Callable]] = None,
         elec_pred_expr: Optional[str] = None,
         elec_metrics_dict: Optional[Dict[str, Callable]] = None,
     ) -> Tuple[Dict[str, float], Dict[str, Any]]:
-        """Score against a single measurement.
+        """Score against a single measurement using its input excitation.
 
         The mechanical and electrical (or both) can be scored against. This
-        function is a convenience wrapper around the `.score_mechanical_system`
-        and `.score_electrical_system` methods.
+        function is a convenience wrapper around the `_score_mechanical_system`
+        and `_score_electrical_system` methods.
+
+        Note, that this explicitly calls a `solve` after updating the model to
+        use the `measurement` input excitation.
 
         Parameters
         ----------
         measurement : Measurement
             The measurement object containing the groundtruth data.
+        solve_kwargs : Dict
+            The keyword arguments to pass to the `solve` method.
         mech_pred_expr : str
             Optional. The mechanical expression to score.
         mech_metrics_dict : Dict[str, Callable]
@@ -600,6 +606,16 @@ class UnifiedModel:
         mech_result: Dict[str, float] = {}
         elec_result: Dict[str, float] = {}
 
+        if self.mechanical_model:
+            self.mechanical_model.set_input(measurement.input_)
+        else:
+            raise ValueError("Mechanical model has not been specified.")
+
+        # Run the solver
+        self.reset()
+        self.solve(**solve_kwargs)
+
+        # Do the scoring
         if mech_pred_expr is not None and mech_metrics_dict is not None:
             mech_result, mech_eval = self._score_mechanical_model(
                 y_target=measurement.groundtruth.mech["y_diff"],
