@@ -111,23 +111,27 @@ class CoilConfiguration:  # pylint: disable=too-many-instance-attributes
     def _calc_hovering_height(
         self, magnet_assembly: MagnetAssembly, magnetic_spring: MagneticSpringInterp
     ) -> float:
-        target_force = magnet_assembly.get_weight()
-        z_arr = np.linspace(0, 0.1, 1000)
-        predict_force = magnetic_spring.get_force(z_arr)
-        search_arr = np.abs(predict_force - target_force)
-        idx = np.argmin(search_arr)
-        hover_height = z_arr[idx]
+        hover_height_m = magnetic_spring.get_hover_height(
+            magnet_assembly=magnet_assembly
+        )
 
-        return hover_height * 1000  # Must be in mm
+        return hover_height_m * 1000  # Must be in mm
+
+    def get_height(self) -> float:
+        """Get the height of the coil in metres."""
+        assert self.n_z is not None
+        return self.coil_wire_radius_mm * 2 * self.n_z
 
     def set_optimal_coil_center(
-        self, magnet_assembly: MagnetAssembly, magnetic_spring: MagneticSpringInterp
+        self,
+        magnet_assembly: MagnetAssembly,
+        magnetic_spring: MagneticSpringInterp,
+        l_eps: float = 5.0,
     ) -> None:
 
         hover_height = self._calc_hovering_height(magnet_assembly, magnetic_spring)
         hover_height = hover_height
-        l_eps = 5
-        coil_height = self.coil_wire_radius_mm * 2 * self.n_z
+        coil_height = self.get_height()
         new_coil_center_mm = (
             hover_height + magnet_assembly.get_length() + l_eps + coil_height / 2
         )

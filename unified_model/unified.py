@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 import copy
 import shutil
+from unified_model.electrical_components.coil import CoilConfiguration
+from unified_model.mechanical_components import magnet_assembly
 import warnings
 from glob import glob
 from typing import Any, Callable, Dict, List, Tuple, Union, Optional
@@ -64,6 +66,7 @@ class UnifiedModel:
 
     def __init__(self) -> None:
         """Constructor."""
+        self.max_height_m: Optional[float] = None
         self.mechanical_model: Optional[MechanicalModel] = None
         self.electrical_model: Optional[ElectricalModel] = None
         self.coupling_model: Optional[CouplingModel] = None
@@ -75,6 +78,27 @@ class UnifiedModel:
     def __str__(self) -> str:
         """Return string representation of the UnifiedModel"""
         return f"Unified Model: {pretty_str(self.__dict__)}"
+
+    def set_maximum_height(self, max_height_mm: float) -> None:
+        """Constrain the microgenerator to a maximum vertical height.
+
+        This constraint will be validated before solving for a solution.
+
+        Parameters
+        ----------
+        max_height_mm : float
+            The maximum allowed height, in mm, of the final device.
+
+        Returns
+        -------
+        None
+
+        """
+        self.max_height_m = max_height_mm / 1000
+
+    def summarize(self) -> None:
+        """Summarize and validate the microgenerator design."""
+        pass
 
     def set_mechanical_model(
         self,
@@ -760,8 +784,46 @@ class UnifiedModel:
         except AssertionError:
             raise ModelError("A coupling model must be specified.")
 
+        # Check that our mechanical spring at the top of the mechanical model
+        # lies within our required height.
+        required_height_m = self._calculate_required_vertical_space()
+        mech_spring_pos_m = self.mechanical_model.mechanical_spring.position
+        try:
+            assert mech_spring_pos_m <= required_height_m
+        except AssertionError:
+            raise ModelError(
+                f"The device will have a height of {required_height_m}m, but the mechanical spring position is {mech_spring_pos_m}m."
+            )
+
     def _apply_pipeline(self) -> None:
         """Execute the post-processing pipelines on the raw solution.."""
         for _, pipeline in self.post_processing_pipeline.items():
             # raw solution has dimensions d, n rather than n, d
             self.raw_solution = np.array([pipeline(y) for y in self.raw_solution.T]).T
+
+    def _calculate_required_vertical_space(self):
+        """Calculate the vertical space that the microgenerator will require."""
+        # TODO: Make these overridable from args.
+        l_th = 0
+        l_bth = 3
+        l_eps = 5
+        mag_assembly: magnet_assembly.MagnetAssembly = (
+            self.mechanical_model.magnet_assembly
+        )
+        coil_config: CoilConfiguration = self.electrical_model.coil_config
+        l_hover = self.mechanical_model.magnetic_spring.get_hover_height(
+            magnet_assembly=mag_assembly
+        )
+
+        l_L = (
+            l_bth
+            + l_hover
+            + 2 * l_eps
+            + 2 * (mag_assembly.l_mcd_mm / 1000) * (mag_assembly.m - 1)
+            + 2 * (mag_assembly.m * mag_assembly.l_m_mm / 1000)
+            + coil_config.l_ccd_mm / 1000 * (coil_config.c - 1)
+            + coil_config.get_height()
+            + l_th
+        )
+
+        return l_L

@@ -157,6 +157,7 @@ class MagneticSpringInterp:
         l_hover = y_diff[idx]
         return l_hover
 
+
 # TODO: Update to match latest version in paper.
 class MagnetSpringAnalytic:
     """
