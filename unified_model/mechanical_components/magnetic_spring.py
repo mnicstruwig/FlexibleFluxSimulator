@@ -6,6 +6,7 @@ from scipy import interpolate, optimize
 from scipy.signal import savgol_filter
 
 from unified_model.utils.utils import FastInterpolator
+from .magnet_assembly import MagnetAssembly
 
 
 def _model_savgol_smoothing(z_arr, force_arr):
@@ -134,6 +135,27 @@ class MagneticSpringInterp:
             fea_dataframe.z.values + magnet_length / 2, fea_dataframe.force.values
         )
 
+    def get_hover_height(self, magnet_assembly: MagnetAssembly) -> float:
+        """Get the predicted rest hover height of the magnet assembly.
+
+        Parameters
+        ----------
+        magnet_assembly : MagnetAssembly
+            The magnet assembly whose hover height must be predicted.
+
+        Returns
+        -------
+        float
+            The predicted hover height, at rest, for the magnet asembly in
+            metres.
+        """
+        y_diff = np.linspace(0, 0.5, 3000)
+
+        difference = np.abs(self.get_force(y_diff) - magnet_assembly.get_weight())
+        idx = np.argmin(difference)
+
+        l_hover = y_diff[idx]
+        return l_hover
 
 # TODO: Update to match latest version in paper.
 class MagnetSpringAnalytic:
