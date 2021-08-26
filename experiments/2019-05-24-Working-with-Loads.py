@@ -124,7 +124,7 @@ labeled_video_processor = LabeledVideoProcessor(
 mechanical_metrics = {"dtw_dist": dtw_euclid_distance}
 
 
-mech_scores, m_eval = unified_model.score_mechanical_model(
+mech_scores, m_eval = unified_model._score_mechanical_model(
     metrics_dict=mechanical_metrics,
     video_labels_df=a_samples[which_sample].video_labels_df,
     labeled_video_processor=labeled_video_processor,
@@ -146,7 +146,7 @@ voltage_division_ratio = 1 / 0.342
 
 adc_processor = AdcProcessor(voltage_division_ratio=voltage_division_ratio, smooth=True)
 
-emf_scores, e_eval = unified_model.score_electrical_model(
+emf_scores, e_eval = unified_model._score_electrical_model(
     metrics_dict=electrical_metrics,
     adc_df=a_samples[which_sample].adc_df,
     adc_processor=adc_processor,

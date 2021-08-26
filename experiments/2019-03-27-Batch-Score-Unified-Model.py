@@ -200,7 +200,7 @@ for sample_collection in ["A"]:
             "max": max_err,
         }
 
-        mech_scores, m_eval = unified_model.score_mechanical_model(
+        mech_scores, m_eval = unified_model._score_mechanical_model(
             metrics_dict=mechanical_metrics,
             video_labels_df=sample.video_labels_df,
             labeled_video_processor=labeled_video_processor,
@@ -222,7 +222,7 @@ for sample_collection in ["A"]:
             "rms_err_perc": root_mean_square_percentage_diff,
         }
 
-        elec_scores, e_eval = unified_model.score_electrical_model(
+        elec_scores, e_eval = unified_model._score_electrical_model(
             metrics_dict=electrical_metrics,
             adc_df=sample.adc_df,
             adc_processor=adc_processor,

@@ -96,7 +96,22 @@ class GroundTruthFactory:
 
 
 class Measurement:
-    def __init__(self, sample, model_prototype):
+    """A measurement coupled to a reference device."""
+
+    def __init__(self, sample: Sample, model_prototype: Any) -> None:
+        """
+        Parameters
+        ----------
+        sample : Sample
+            A measurement sample countaining groundtruth measurements.
+        model_prototype : UnifiedModel
+            A UnifiedModel that, at least, contains a magnet assembly that is
+            attached to the mechanical model. This is used to post-process the
+            sample data to match the architecture of the microgenerator. It is
+            highly-recommended that `model_prototype` matches the device that
+            was used to take the groundtruth measurements in `sample`.
+
+        """
         self.sample = sample
         # We need some information from prototype to process our groundtruth data
         self._model_prototype = model_prototype
@@ -882,10 +897,10 @@ def impute_missing(df_missing, indexes):
                     raise ValueError(
                         "Too many sequential missing values to be able to impute all missing values."  # noqa
                     )  # noqa
-        except KeyError:
+        except KeyError as e:
             raise IndexError(
                 "Too few points available to calculate velocity and impute missing values."  # noqa
-            )  # noqa
+            ) from e  # noqa
 
         velocity = (
             df_missing.loc[end_velocity_calc, "y_prime_mm"]

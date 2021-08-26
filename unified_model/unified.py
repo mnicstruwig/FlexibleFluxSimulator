@@ -8,7 +8,11 @@ describes their interaction.
 from __future__ import annotations
 
 import os
+import copy
 import shutil
+from unified_model.electrical_components.coil import CoilConfiguration
+from unified_model.mechanical_components import magnet_assembly
+import warnings
 from glob import glob
 from typing import Any, Callable, Dict, List, Tuple, Union, Optional
 
@@ -62,6 +66,7 @@ class UnifiedModel:
 
     def __init__(self) -> None:
         """Constructor."""
+        self.max_height_m: Optional[float] = None
         self.mechanical_model: Optional[MechanicalModel] = None
         self.electrical_model: Optional[ElectricalModel] = None
         self.coupling_model: Optional[CouplingModel] = None
@@ -73,6 +78,71 @@ class UnifiedModel:
     def __str__(self) -> str:
         """Return string representation of the UnifiedModel"""
         return f"Unified Model: {pretty_str(self.__dict__)}"
+
+    def set_maximum_height(self, max_height_mm: float) -> None:
+        """Constrain the microgenerator to a maximum vertical height.
+
+        This constraint will be validated before solving for a solution.
+
+        Parameters
+        ----------
+        max_height_mm : float
+            The maximum allowed height, in mm, of the final device.
+
+        Returns
+        -------
+        None
+
+        """
+        self.max_height_m = max_height_mm / 1000
+
+    def summarize(self) -> None:
+        """Summarize and validate the microgenerator design."""
+        ma = self.mechanical_model.magnet_assembly
+        cc = self.electrical_model.coil_config
+        ms = self.mechanical_model.mechanical_spring
+        mag_spring = self.mechanical_model.magnetic_spring
+        load = self.electrical_model.load_model
+
+        header_str = "Device Summary\n"
+        top_rule = "==============\n"
+        mid_rule = "-----------\n"
+
+        magnet_assembly_str = f"🧲 The magnet assembly consists of {ma.m} magnets," \
+            f" that are {ma.l_m_mm}mm long and have a diameter of {ma.dia_magnet_mm}mm,"\
+            f" and whose centers are {ma.l_mcd_mm}mm apart.\n"\
+            f" The entire magnet assembly has a weight of {np.round(ma.get_weight(), 4)}N.\n"\
+            f" The magnet assembly hovers {np.round(mag_spring.get_hover_height(ma) * 1000, 3)}mm above the fixed magnet.\n"
+
+        coil_config_str = f"⚡ There are {cc.c} coils,"\
+            f" each with {cc.n_z * cc.n_w} windings ({cc.n_z} vertical X {cc.n_w} horizontal)"\
+            f" whose centers are {cc.l_ccd_mm}mm apart.\n"\
+            f" The first coil's center is {cc.coil_center_mm}mm *above* the fixed magnet.\n"\
+            f" The total microgenerator resistance is {cc.coil_resistance}Ω.\n"
+
+        mech_spring_str = f"📏 The device is modelled with a height of {ms.position * 1000}mm.\n"
+
+        max_height_str = f" The maximum allowed height of the device is {self.max_height_m * 1000}mm,"\
+            f" while the minimum required height is {np.round(self._calculate_required_vertical_space() * 1000, 3)}mm.\n"
+
+        load_str = f"🎯 The device is powering a {load.R}Ω load.\n"
+
+        final_str = (
+            top_rule
+            + header_str
+            + top_rule
+            + magnet_assembly_str
+            + mid_rule
+            + coil_config_str
+            + mid_rule
+            + mech_spring_str
+            + max_height_str
+            + mid_rule
+            + load_str
+            + top_rule
+        )
+
+        print(final_str)
 
     def set_mechanical_model(
         self,
@@ -302,6 +372,29 @@ class UnifiedModel:
         prediction_expr: str,
         warp: bool = False,
         **kwargs,
+    ):
+        warnings.warn(
+            "`score_mechanical_model has been deprecated.` Please use `score_measurement` instead.",  # noqa
+            DeprecationWarning,
+        )
+
+        return self._score_mechanical_model(
+            y_target,
+            time_target,
+            metrics_dict,
+            prediction_expr,
+            warp,
+            **kwargs,
+        )
+
+    def _score_mechanical_model(
+        self,
+        y_target: np.ndarray,
+        time_target: np.ndarray,
+        metrics_dict: Dict[str, Callable],
+        prediction_expr: str,
+        warp: bool = False,
+        **kwargs,
     ) -> Tuple[Dict[str, float], Any]:
         """Evaluate the mechanical model using a selection of metrics.
 
@@ -413,6 +506,29 @@ class UnifiedModel:
         prediction_expr: str,
         warp: bool = False,
         **kwargs,
+    ):
+        warnings.warn(
+            "`score_electrical_model has been deprecated.` Please use `score_measurement` instead.",  # noqa
+            DeprecationWarning,
+        )
+
+        return self._score_electrical_model(
+            emf_target,
+            time_target,
+            metrics_dict,
+            prediction_expr,
+            warp,
+            **kwargs,
+        )
+
+    def _score_electrical_model(
+        self,
+        emf_target: np.ndarray,
+        time_target: np.ndarray,
+        metrics_dict: Dict,
+        prediction_expr: str,
+        warp: bool = False,
+        **kwargs,
     ) -> Tuple[Dict[str, float], Any]:
         """Evaluate the electrical model using a selection of metrics.
 
@@ -489,21 +605,27 @@ class UnifiedModel:
     def score_measurement(
         self,
         measurement: Measurement,
+        solve_kwargs: Dict,
         mech_pred_expr: Optional[str] = None,
         mech_metrics_dict: Optional[Dict[str, Callable]] = None,
         elec_pred_expr: Optional[str] = None,
         elec_metrics_dict: Optional[Dict[str, Callable]] = None,
     ) -> Tuple[Dict[str, float], Dict[str, Any]]:
-        """Score against a single measurement.
+        """Score against a single measurement using its input excitation.
 
         The mechanical and electrical (or both) can be scored against. This
-        function is a convenience wrapper around the `.score_mechanical_system`
-        and `.score_electrical_system` methods.
+        function is a convenience wrapper around the `_score_mechanical_system`
+        and `_score_electrical_system` methods.
+
+        Note, that this explicitly calls a `solve` after updating the model to
+        use the `measurement` input excitation.
 
         Parameters
         ----------
         measurement : Measurement
             The measurement object containing the groundtruth data.
+        solve_kwargs : Dict
+            The keyword arguments to pass to the `solve` method.
         mech_pred_expr : str
             Optional. The mechanical expression to score.
         mech_metrics_dict : Dict[str, Callable]
@@ -553,8 +675,18 @@ class UnifiedModel:
         mech_result: Dict[str, float] = {}
         elec_result: Dict[str, float] = {}
 
+        if self.mechanical_model:
+            self.mechanical_model.set_input(measurement.input_)
+        else:
+            raise ValueError("Mechanical model has not been specified.")
+
+        # Run the solver
+        self.reset()
+        self.solve(**solve_kwargs)
+
+        # Do the scoring
         if mech_pred_expr is not None and mech_metrics_dict is not None:
-            mech_result, mech_eval = self.score_mechanical_model(
+            mech_result, mech_eval = self._score_mechanical_model(
                 y_target=measurement.groundtruth.mech["y_diff"],
                 time_target=measurement.groundtruth.mech["time"],
                 metrics_dict=mech_metrics_dict,
@@ -564,7 +696,7 @@ class UnifiedModel:
             evaluators["mech"] = mech_eval
 
         if elec_pred_expr is not None and elec_metrics_dict is not None:
-            elec_result, elec_eval = self.score_electrical_model(
+            elec_result, elec_eval = self._score_electrical_model(
                 emf_target=measurement.groundtruth.elec["emf"],
                 time_target=measurement.groundtruth.elec["time"],
                 metrics_dict=elec_metrics_dict,
@@ -594,20 +726,53 @@ class UnifiedModel:
         self.time = None
         self.raw_solution = None
 
-    def update_params(self, config: List[Tuple[str, Any]]):
-        """Update the parameters of the unified model."""
-        for path, value in config:
-            sub_paths = path.split('.')
-            if len(sub_paths) == 2:  # TODO: Make this less hardcoded
-                self.__dict__[sub_paths[0]][sub_paths[1]] = value
-            if len(sub_paths) == 3:  # TODO: Make this less hardcoded
-                # Check we're not setting something that doesn't exist
-                try:
-                    assert sub_paths[-1] in self.__dict__[sub_paths[0]].__dict__[sub_paths[1]].__dict__  # noqa
-                except AssertionError as e:
-                    raise ValueError(f'The path to the parameter "{path}" does not exist.') from e  # noqa
+    def update_params(self, config: List[Tuple[str, Any]]) -> UnifiedModel:
+        """Update the parameters and return a new copy of the unified model."""
 
-                self.__dict__[sub_paths[0]].__dict__[sub_paths[1]].__dict__[sub_paths[2]] = value
+        new_model = copy.deepcopy(self)
+
+        for path, value in config:
+            sub_paths = path.split(".")
+
+            try:  # Check the base component exists
+                assert sub_paths[0] in self.__dict__
+                assert self.__dict__[sub_paths[0]] is not None
+            except AssertionError as e:
+                raise ValueError(
+                    f"The component `{sub_paths[0]}` is not defined or present."
+                ) from e  # noqa
+
+            try:
+                if len(sub_paths) == 2:  # TODO: Make this less hardcoded
+                    try:
+                        assert (
+                            sub_paths[-1] in new_model.__dict__[sub_paths[0]].__dict__
+                        )
+                        new_model.__dict__[sub_paths[0]].__dict__[sub_paths[1]] = value
+                    except AssertionError as e:
+                        raise ValueError(
+                            f"The parameter `{path}` does not exist."
+                        ) from e
+                if len(sub_paths) == 3:  # TODO: Make this less hardcoded
+                    try:  # Check we're not setting something that doesn't exist
+                        assert (
+                            sub_paths[-1]
+                            in new_model.__dict__[sub_paths[0]]
+                            .__dict__[sub_paths[1]]
+                            .__dict__
+                        )  # noqa
+                        new_model.__dict__[sub_paths[0]].__dict__[
+                            sub_paths[1]
+                        ].__dict__[sub_paths[2]] = value
+                    except AssertionError as e:
+                        raise ValueError(
+                            f"The parameter `{path}` does not exist."
+                        ) from e  # noqa
+
+            except AttributeError as ae:
+                raise AttributeError(f'"{path}" could not be found.') from ae
+
+        return new_model
 
     def save_to_disk(self, path: str, overwrite=False) -> None:
         """Persists a unified model to disk"""
@@ -663,8 +828,51 @@ class UnifiedModel:
         except AssertionError:
             raise ModelError("A coupling model must be specified.")
 
+        # Check that our mechanical spring at the top of the mechanical model
+        # lies within our required height.
+        required_height_m = self._calculate_required_vertical_space()
+        mech_spring_pos_m = self.mechanical_model.mechanical_spring.position
+        try:
+            assert mech_spring_pos_m <= required_height_m
+        except AssertionError:
+            raise ModelError(
+                f"The device will have a height of {required_height_m}m, but the mechanical spring position is {mech_spring_pos_m}m."
+            )
+
     def _apply_pipeline(self) -> None:
         """Execute the post-processing pipelines on the raw solution.."""
         for _, pipeline in self.post_processing_pipeline.items():
             # raw solution has dimensions d, n rather than n, d
             self.raw_solution = np.array([pipeline(y) for y in self.raw_solution.T]).T
+
+    def _calculate_required_vertical_space(self) -> float:
+        """Calculate the vertical space that the microgenerator will require.
+
+        Returns
+        -------
+        The required vertical height of the device in metres.
+        """
+        # TODO: Make these overridable from args.
+        l_th = 0
+        l_bth = 3 / 1000
+        l_eps = 5 / 1000
+        mag_assembly: magnet_assembly.MagnetAssembly = (
+            self.mechanical_model.magnet_assembly
+        )
+        coil_config: CoilConfiguration = self.electrical_model.coil_config
+        l_hover = self.mechanical_model.magnetic_spring.get_hover_height(
+            magnet_assembly=mag_assembly
+        )
+
+        l_L = (
+            l_bth
+            + l_hover
+            + 2 * l_eps
+            + 2 * (mag_assembly.l_mcd_mm / 1000) * (mag_assembly.m - 1)
+            + 2 * (mag_assembly.m * mag_assembly.l_m_mm / 1000)
+            + coil_config.l_ccd_mm / 1000 * (coil_config.c - 1)
+            + coil_config.get_height()
+            + l_th
+        )
+
+        return l_L

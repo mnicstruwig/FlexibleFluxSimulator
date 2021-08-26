@@ -489,7 +489,7 @@ def _score_mechanical_model(
     This function scores the mechanical component of the model.
 
     """
-    mech_result, _ = model.score_mechanical_model(
+    mech_result, _ = model._score_mechanical_model(
         y_target=measurement.groundtruth.mech["y_diff"],
         time_target=measurement.groundtruth.mech["time"],
         metrics_dict={"dtw_distance": dtw_euclid_norm_by_length},
@@ -507,7 +507,7 @@ def _score_electrical_model(
     This function scores the electrical component of the model.
 
     """
-    elec_result, _ = model.score_electrical_model(
+    elec_result, _ = model._score_electrical_model(
         emf_target=measurement.groundtruth.elec["emf"],
         time_target=measurement.groundtruth.elec["time"],
         metrics_dict={
