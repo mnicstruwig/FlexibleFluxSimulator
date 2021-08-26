@@ -98,7 +98,51 @@ class UnifiedModel:
 
     def summarize(self) -> None:
         """Summarize and validate the microgenerator design."""
-        pass
+        ma = self.mechanical_model.magnet_assembly
+        cc = self.electrical_model.coil_config
+        ms = self.mechanical_model.mechanical_spring
+        mag_spring = self.mechanical_model.magnetic_spring
+        load = self.electrical_model.load_model
+
+        header_str = "Device Summary\n"
+        top_rule = "==============\n"
+        mid_rule = "-----------\n"
+
+        magnet_assembly_str = f"🧲 The magnet assembly consists of {ma.m} magnets," \
+            f" that are {ma.l_m_mm}mm long and have a diameter of {ma.dia_magnet_mm}mm,"\
+            f" and whose centers are {ma.l_mcd_mm}mm apart.\n"\
+            f" The entire magnet assembly has a weight of {np.round(ma.get_weight(), 4)}N.\n"\
+            f" The magnet assembly hovers {np.round(mag_spring.get_hover_height(ma) * 1000, 3)}mm above the fixed magnet.\n"
+
+        coil_config_str = f"⚡ There are {cc.c} coils,"\
+            f" each with {cc.n_z * cc.n_w} windings ({cc.n_z} vertical X {cc.n_w} horizontal)"\
+            f" whose centers are {cc.l_ccd_mm}mm apart.\n"\
+            f" The first coil's center is {cc.coil_center_mm}mm *above* the fixed magnet.\n"\
+            f" The total microgenerator resistance is {cc.coil_resistance}Ω.\n"
+
+        mech_spring_str = f"📏 The device is modelled with a height of {ms.position * 1000}mm.\n"
+
+        max_height_str = f" The maximum allowed height of the device is {self.max_height_m * 1000}mm,"\
+            f" while the minimum required height is {np.round(self._calculate_required_vertical_space() * 1000, 3)}mm.\n"
+
+        load_str = f"🎯 The device is powering a {load.R}Ω load.\n"
+
+        final_str = (
+            top_rule
+            + header_str
+            + top_rule
+            + magnet_assembly_str
+            + mid_rule
+            + coil_config_str
+            + mid_rule
+            + mech_spring_str
+            + max_height_str
+            + mid_rule
+            + load_str
+            + top_rule
+        )
+
+        print(final_str)
 
     def set_mechanical_model(
         self,
@@ -801,12 +845,17 @@ class UnifiedModel:
             # raw solution has dimensions d, n rather than n, d
             self.raw_solution = np.array([pipeline(y) for y in self.raw_solution.T]).T
 
-    def _calculate_required_vertical_space(self):
-        """Calculate the vertical space that the microgenerator will require."""
+    def _calculate_required_vertical_space(self) -> float:
+        """Calculate the vertical space that the microgenerator will require.
+
+        Returns
+        -------
+        The required vertical height of the device in metres.
+        """
         # TODO: Make these overridable from args.
         l_th = 0
-        l_bth = 3
-        l_eps = 5
+        l_bth = 3 / 1000
+        l_eps = 5 / 1000
         mag_assembly: magnet_assembly.MagnetAssembly = (
             self.mechanical_model.magnet_assembly
         )

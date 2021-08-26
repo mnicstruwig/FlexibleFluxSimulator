@@ -120,7 +120,7 @@ class CoilConfiguration:  # pylint: disable=too-many-instance-attributes
     def get_height(self) -> float:
         """Get the height of the coil in metres."""
         assert self.n_z is not None
-        return self.coil_wire_radius_mm * 2 * self.n_z
+        return self.coil_wire_radius_mm * 2 * self.n_z / 1000
 
     def set_optimal_coil_center(
         self,
