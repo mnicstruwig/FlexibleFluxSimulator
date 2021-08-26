@@ -7,14 +7,12 @@ describes their interaction.
 
 from __future__ import annotations
 
-import os
 import copy
+import os
 import shutil
-from unified_model.electrical_components.coil import CoilConfiguration
-from unified_model.mechanical_components import magnet_assembly
 import warnings
 from glob import glob
-from typing import Any, Callable, Dict, List, Tuple, Union, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import cloudpickle
 import numpy as np
@@ -22,15 +20,18 @@ import pandas as pd
 from scipy import integrate
 
 from unified_model.coupling import CouplingModel
+from unified_model.electrical_components.coil import CoilConfiguration
 from unified_model.electrical_model import ElectricalModel
 from unified_model.evaluate import (
     ElectricalSystemEvaluator,
-    MechanicalSystemEvaluator,
     Measurement,
+    MechanicalSystemEvaluator,
 )
+from unified_model.local_exceptions import ModelError
+from unified_model.mechanical_components import magnet_assembly
 from unified_model.mechanical_model import MechanicalModel
 from unified_model.utils.utils import parse_output_expression, pretty_str
-from unified_model.local_exceptions import ModelError
+from unified_model.utils.paint import paint_device
 
 
 class UnifiedModel:
@@ -96,6 +97,24 @@ class UnifiedModel:
         """
         self.max_height_m = max_height_mm / 1000
 
+    def _print_device(self):
+        ma = self.mechanical_model.magnet_assembly
+        mag_spring = self.mechanical_model.magnetic_spring
+        cc = self.electrical_model.coil_config
+
+        paint_device(
+            step=5,
+            m=ma.m,
+            l_m_mm=ma.l_m_mm,
+            l_mcd_mm=ma.l_mcd_mm,
+            l_hover=np.round(mag_spring.get_hover_height(ma) * 1000, 3),
+            c=cc.c,
+            l_c_mm=np.round(cc.get_height() * 1000, 3),
+            l_ccd_mm=cc.l_ccd_mm,
+            l_center=cc.coil_center_mm,
+            l_L=self.max_height_m * 1000
+        )
+
     def summarize(self) -> None:
         """Summarize and validate the microgenerator design."""
         ma = self.mechanical_model.magnet_assembly
@@ -104,39 +123,43 @@ class UnifiedModel:
         mag_spring = self.mechanical_model.magnetic_spring
         load = self.electrical_model.load_model
 
+        self._print_device()
+
         header_str = "Device Summary\n"
-        top_rule = "==============\n"
+        top_rule = "====================\n"
         mid_rule = "-----------\n"
 
-        magnet_assembly_str = f"🧲 The magnet assembly consists of {ma.m} magnets," \
-            f" that are {ma.l_m_mm}mm long and have a diameter of {ma.dia_magnet_mm}mm,"\
-            f" and whose centers are {ma.l_mcd_mm}mm apart.\n"\
-            f" The entire magnet assembly has a weight of {np.round(ma.get_weight(), 4)}N.\n"\
-            f" The magnet assembly hovers {np.round(mag_spring.get_hover_height(ma) * 1000, 3)}mm above the fixed magnet.\n"
+        magnet_assembly_str = (
+            f"🧲 The magnet assembly consists of {ma.m} magnet(s)"
+            f" that are {ma.l_m_mm}mm long and have a diameter of {ma.dia_magnet_mm}mm.\n"
+            f"🧲 The magnets' centers are {ma.l_mcd_mm}mm apart.\n"
+            f"🧲 The magnet assembly has a weight of {np.round(ma.get_weight(), 4)}N.\n"
+            f"🧲 The magnet assembly hovers {np.round(mag_spring.get_hover_height(ma) * 1000, 3)}mm above the fixed magnet.\n"
+        )
 
-        coil_config_str = f"⚡ There are {cc.c} coils,"\
-            f" each with {cc.n_z * cc.n_w} windings ({cc.n_z} vertical X {cc.n_w} horizontal)"\
-            f" whose centers are {cc.l_ccd_mm}mm apart.\n"\
-            f" The first coil's center is {cc.coil_center_mm}mm *above* the fixed magnet.\n"\
-            f" The total microgenerator resistance is {cc.coil_resistance}Ω.\n"
+        coil_config_str = (
+            f"⚡ There are {cc.c} coils,"
+            f" each with {cc.n_z * cc.n_w} windings ({cc.n_z} vertical X {cc.n_w} horizontal).\n"
+            f"⚡ The coils' centers are {cc.l_ccd_mm}mm apart.\n"
+            f"⚡ The first coil's center is {cc.coil_center_mm}mm above the fixed magnet.\n"
+            f"⚡ The total microgenerator resistance is {cc.coil_resistance}Ω.\n"
+        )
 
-        mech_spring_str = f"📏 The device is modelled with a height of {ms.position * 1000}mm.\n"
+        mech_spring_str = (
+            f"📏 The device has a height of {ms.position * 1000}mm.\n"\
+            f"📏 The minimum required height is {np.round(self._calculate_required_vertical_space() * 1000, 3)}mm.\n"
 
-        max_height_str = f" The maximum allowed height of the device is {self.max_height_m * 1000}mm,"\
-            f" while the minimum required height is {np.round(self._calculate_required_vertical_space() * 1000, 3)}mm.\n"
+        )
 
         load_str = f"🎯 The device is powering a {load.R}Ω load.\n"
 
         final_str = (
             top_rule
-            + header_str
-            + top_rule
             + magnet_assembly_str
             + mid_rule
             + coil_config_str
             + mid_rule
             + mech_spring_str
-            + max_height_str
             + mid_rule
             + load_str
             + top_rule

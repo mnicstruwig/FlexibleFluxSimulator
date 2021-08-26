@@ -56,11 +56,9 @@ class MagnetAssembly:
         self.l_mcd_mm = l_mcd_mm
         self.dia_magnet_mm = dia_magnet_mm
         self.dia_spacer_mm = dia_spacer_mm
-        self.weight = None
         self.surface_area = None
         self.density_magnet = _get_material_density(MATERIAL_DICT, mat_magnet)
         self.density_spacer = _get_material_density(MATERIAL_DICT, mat_spacer)
-        self.weight = self._calculate_weight()
 
     def __repr__(self):
         to_print_dict = {
@@ -84,7 +82,7 @@ class MagnetAssembly:
         spacer_length = self.l_mcd_mm - self.l_m_mm
         return self._calc_volume_cylinder(self.dia_spacer_mm, spacer_length)
 
-    def _calculate_weight(self):
+    def get_weight(self):
         """Calculate the weight of the magnet assembly (in Newtons)."""
         volume_magnet = self._calc_volume_magnet()
 
@@ -106,10 +104,6 @@ class MagnetAssembly:
     def get_mass(self):
         """Get the mass of the magnet assembly."""
         return self.weight / 9.81
-
-    def get_weight(self):
-        """Get the weight of the magnet assembly."""
-        return self.weight
 
     def get_contact_surface_area(self):
         """Get the contact surface area of the magnet assembly in mm^2."""
