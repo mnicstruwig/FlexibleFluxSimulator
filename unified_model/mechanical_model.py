@@ -2,6 +2,7 @@ import warnings
 
 from unified_model.utils.utils import pretty_str
 from unified_model.local_exceptions import ModelError
+from .mechanical_components.mechanical_spring import MechanicalSpring
 
 
 # TODO: Add example once interface is more stable
@@ -71,12 +72,12 @@ class MechanicalModel:
         except AssertionError:
             raise ModelError("An input excitation must be specified.")
 
-    def set_magnetic_spring(self, spring):
+    def set_magnetic_spring(self, spring: MechanicalSpring):
         """Add a magnetic spring to the mechanical system.
 
         Parameters
         ----------
-        spring : obj
+        spring : MagneticSpring
             The magnetic spring model attached to the magnet assembly and the
             tube.
 
