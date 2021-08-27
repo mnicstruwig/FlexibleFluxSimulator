@@ -1,8 +1,11 @@
 """Various mechanical springs for use in the mechanical model."""
 
+from typing import Optional
+
 import numpy as np
 
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
+from ..local_exceptions import ModelError
 
 
 class MechanicalSpring:
@@ -11,7 +14,6 @@ class MechanicalSpring:
     def __init__(
         self,
         magnet_assembly: MagnetAssembly,
-        position: float,
         strength: float = 1e7,
         damping_coefficient: float = 0,
     ) -> None:
@@ -21,8 +23,6 @@ class MechanicalSpring:
         ----------
         magnet_assembly: MagnetAssembly
             The magnet assembly that will be moving in the microgenerator.
-        position : float
-            The height at which the mechanical spring acts. In metres.
         strength : float
             The "strength" of the mechanical spring. It is recommended to use a
             large value, or to leave this at the default value. Default value
@@ -32,7 +32,7 @@ class MechanicalSpring:
             indicates an ideal spring.
 
         """
-        self.position = position
+        self.position: Optional[float] = None
         self.magnet_length = magnet_assembly.l_m_mm / 1000  # Must be in metres
         self.magnet_assembly_length = magnet_assembly.get_length() / 1000
         self.strength = strength
@@ -44,6 +44,10 @@ class MechanicalSpring:
     def _heaviside_step_function(self, x, boundary):
         """Compute the output of a Heaviside step function"""
         return 0.5 * (np.sign(x - boundary) + 1)
+
+    def set_position(self, position: float) -> None:
+        """Set the height at which the mechanical spring acts, in metres."""
+        self.position = position
 
     def get_force(self, x: float, x_dot: float) -> float:
         """Get the force exerted by the spring.
@@ -61,6 +65,13 @@ class MechanicalSpring:
             The force exerted by the mechanical spring. In Newtons.
 
         """
+        try:
+            assert self.position is not None
+        except AssertionError as e:
+            raise ModelError(
+                "The position of the mechanical spring has not been defined. Did you call `.set_height` on the UnifiedModel?"  # noqa
+            ) from e
+
         offset = self.magnet_assembly_length - (self.magnet_length / 2)
         force = self._heaviside_step_function(x + offset, self.position) * (
             self.strength * (x - self.position + offset)

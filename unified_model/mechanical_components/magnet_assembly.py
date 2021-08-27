@@ -103,7 +103,7 @@ class MagnetAssembly:
 
     def get_mass(self):
         """Get the mass of the magnet assembly."""
-        return self.weight / 9.81
+        return self.get_weight() / 9.81
 
     def get_contact_surface_area(self):
         """Get the contact surface area of the magnet assembly in mm^2."""

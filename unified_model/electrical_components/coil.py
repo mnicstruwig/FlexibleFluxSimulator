@@ -122,6 +122,11 @@ class CoilConfiguration:  # pylint: disable=too-many-instance-attributes
         assert self.n_z is not None
         return self.coil_wire_radius_mm * 2 * self.n_z / 1000
 
+    def get_width(self) -> float:
+        """Get the width of the coil in metres."""
+        assert self.n_w is not None
+        return self.coil_wire_radius_mm * 2 * self.n_w / 1000
+
     def set_optimal_coil_center(
         self,
         magnet_assembly: MagnetAssembly,

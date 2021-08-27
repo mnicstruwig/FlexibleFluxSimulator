@@ -67,7 +67,7 @@ class UnifiedModel:
 
     def __init__(self) -> None:
         """Constructor."""
-        self.max_height_m: Optional[float] = None
+        self.height: Optional[float] = None
         self.mechanical_model: Optional[MechanicalModel] = None
         self.electrical_model: Optional[ElectricalModel] = None
         self.coupling_model: Optional[CouplingModel] = None
@@ -80,22 +80,29 @@ class UnifiedModel:
         """Return string representation of the UnifiedModel"""
         return f"Unified Model: {pretty_str(self.__dict__)}"
 
-    def set_maximum_height(self, max_height_mm: float) -> None:
+    def set_height(self, height_mm: float) -> UnifiedModel:
         """Constrain the microgenerator to a maximum vertical height.
 
         This constraint will be validated before solving for a solution.
 
         Parameters
         ----------
-        max_height_mm : float
+        height_mm : float
             The maximum allowed height, in mm, of the final device.
 
         Returns
         -------
-        None
+        UnifiedModel
+            An updated UnifiedModel.
 
         """
-        self.max_height_m = max_height_mm / 1000
+        try:
+            self.height = height_mm / 1000
+            self.mechanical_model.mechanical_spring.set_position(self.height)  # type: ignore
+        except AttributeError as e:
+            raise ModelError("Set the mechanical spring first before setting the device height.") from e
+
+        return self
 
     def _print_device(self):
         ma = self.mechanical_model.magnet_assembly
@@ -112,7 +119,7 @@ class UnifiedModel:
             l_c_mm=np.round(cc.get_height() * 1000, 3),
             l_ccd_mm=cc.l_ccd_mm,
             l_center=cc.coil_center_mm,
-            l_L=self.max_height_m * 1000
+            l_L=self.height * 1000,
         )
 
     def summarize(self) -> None:
@@ -140,15 +147,16 @@ class UnifiedModel:
         coil_config_str = (
             f"⚡ There are {cc.c} coils,"
             f" each with {cc.n_z * cc.n_w} windings ({cc.n_z} vertical X {cc.n_w} horizontal).\n"
+            f"⚡ This gives each a coil an estimated height of ~{np.round(cc.get_height() * 1000, 2)}mm"
+            f" and width of ~{np.round(cc.get_width() * 1000, 2)}mm.\n"
             f"⚡ The coils' centers are {cc.l_ccd_mm}mm apart.\n"
             f"⚡ The first coil's center is {cc.coil_center_mm}mm above the fixed magnet.\n"
             f"⚡ The total microgenerator resistance is {cc.coil_resistance}Ω.\n"
         )
 
         mech_spring_str = (
-            f"📏 The device has a height of {ms.position * 1000}mm.\n"\
+            f"📏 The device has a height of {ms.position * 1000}mm.\n"
             f"📏 The minimum required height is {np.round(self._calculate_required_vertical_space() * 1000, 3)}mm.\n"
-
         )
 
         load_str = f"🎯 The device is powering a {load.R}Ω load.\n"
@@ -302,7 +310,7 @@ class UnifiedModel:
             equations of the unified model.
 
         """
-        self._validate()
+        self.validate()
 
         high_level_models = {
             "mechanical_model": self.mechanical_model,
@@ -835,7 +843,7 @@ class UnifiedModel:
 
         return unified_model
 
-    def _validate(self) -> None:
+    def validate(self) -> None:
         try:
             assert self.mechanical_model is not None
             self.mechanical_model._validate()
@@ -851,15 +859,20 @@ class UnifiedModel:
         except AssertionError:
             raise ModelError("A coupling model must be specified.")
 
+        try:
+            assert self.height is not None
+        except AssertionError:
+            raise ModelError('Height of the microgenerator must be specified.')
+
         # Check that our mechanical spring at the top of the mechanical model
         # lies within our required height.
         required_height_m = self._calculate_required_vertical_space()
-        mech_spring_pos_m = self.mechanical_model.mechanical_spring.position
+        device_height_m = self.mechanical_model.mechanical_spring.position
         try:
-            assert mech_spring_pos_m <= required_height_m
+            assert required_height_m <= device_height_m
         except AssertionError:
-            raise ModelError(
-                f"The device will have a height of {required_height_m}m, but the mechanical spring position is {mech_spring_pos_m}m."
+            warnings.warn(
+                f"The device requirers a minimum height of {required_height_m}m for intended operation, but the height has been set to {device_height_m}m."
             )
 
     def _apply_pipeline(self) -> None:
