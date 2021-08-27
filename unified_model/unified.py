@@ -88,7 +88,7 @@ class UnifiedModel:
         Parameters
         ----------
         height_mm : float
-            The maximum allowed height, in mm, of the final device.
+            The height of the device, in mm.
 
         Returns
         -------
@@ -100,7 +100,9 @@ class UnifiedModel:
             self.height = height_mm / 1000
             self.mechanical_model.mechanical_spring.set_position(self.height)  # type: ignore
         except AttributeError as e:
-            raise ModelError("Set the mechanical spring first before setting the device height.") from e
+            raise ModelError(
+                "Set the mechanical spring first before setting the device height."
+            ) from e
 
         return self
 
@@ -109,16 +111,22 @@ class UnifiedModel:
         mag_spring = self.mechanical_model.magnetic_spring
         cc = self.electrical_model.coil_config
 
+        # We must compensate for the fact that the hover height and
+        # coil center are relative to the *top* edge of the floating magnet.
+        fixed_magnet_offset = ma.l_m_mm
+        l_bth = 3
+        offset = fixed_magnet_offset + l_bth
+
         paint_device(
             step=5,
             m=ma.m,
             l_m_mm=ma.l_m_mm,
             l_mcd_mm=ma.l_mcd_mm,
-            l_hover=np.round(mag_spring.get_hover_height(ma) * 1000, 3),
+            l_hover=mag_spring.get_hover_height(ma) * 1000 + offset,
             c=cc.c,
-            l_c_mm=np.round(cc.get_height() * 1000, 3),
+            l_c_mm=cc.get_height() * 1000,
             l_ccd_mm=cc.l_ccd_mm,
-            l_center=cc.coil_center_mm,
+            l_center=cc.coil_center_mm + offset,
             l_L=self.height * 1000,
         )
 
@@ -844,6 +852,39 @@ class UnifiedModel:
         return unified_model
 
     def validate(self) -> None:
+        l_bth = 3 / 1000  # Bottom part of the tube
+        # We use the same fixed magnet length as in the assembly
+        fixed_mag_offset = self.mechanical_model.magnet_assembly.l_m_mm / 1000
+        offset = fixed_mag_offset + l_bth
+
+        # Check if the coils are within bounds
+        # Find the top edge of the uppermost coil
+        cc = self.electrical_model.coil_config
+        coil_top_edge = (
+            cc.coil_center_mm / 1000
+            + (cc.c - 1) * cc.l_ccd_mm / 1000
+            + cc.get_height() / 2
+        )
+
+        # Coil's position is relative to the top edge of the fixed magnet, while
+        # the height of the device is the absolute height. So we must compensate
+        # for this offset
+        if coil_top_edge + offset > self.height:
+            raise ModelError(
+                f"The top edge of the top coil is {(coil_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm."
+            )
+
+
+        # Find the top edge of the uppermost magnet assembly
+        ma = self.mechanical_model.magnet_assembly
+        ms = self.mechanical_model.magnetic_spring
+        mag_top_edge = ms.get_hover_height(ma) + ma.get_length() / 1000
+
+        if np.round(mag_top_edge + offset, 3) >= self.height:
+            raise ModelError(
+                f"The top edge of the magnet assembly is {(mag_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm."
+            )
+
         try:
             assert self.mechanical_model is not None
             self.mechanical_model._validate()
@@ -862,7 +903,7 @@ class UnifiedModel:
         try:
             assert self.height is not None
         except AssertionError:
-            raise ModelError('Height of the microgenerator must be specified.')
+            raise ModelError("Height of the microgenerator must be specified.")
 
         # Check that our mechanical spring at the top of the mechanical model
         # lies within our required height.
@@ -872,7 +913,7 @@ class UnifiedModel:
             assert required_height_m <= device_height_m
         except AssertionError:
             warnings.warn(
-                f"The device requirers a minimum height of {required_height_m}m for intended operation, but the height has been set to {device_height_m}m."
+                f"The device requires a minimum height of {required_height_m}m for intended operation, but the height has been set to {device_height_m}m."
             )
 
     def _apply_pipeline(self) -> None:
@@ -886,7 +927,9 @@ class UnifiedModel:
 
         Returns
         -------
-        The required vertical height of the device in metres.
+        float
+            The required vertical height of the device in metres.
+
         """
         # TODO: Make these overridable from args.
         l_th = 0

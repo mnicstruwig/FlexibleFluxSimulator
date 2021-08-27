@@ -228,6 +228,7 @@ def evolve_simulation_set(
     magnet_assembly_params: Dict,
     mech_spring_params: Dict,
     damper_model_params: Dict,
+    height_mm: float
 ) -> List[UnifiedModel]:
     """Update the simulation set with new subsidiary models."""
 
@@ -250,6 +251,7 @@ def evolve_simulation_set(
         magnet_assembly=magnet_assembly,  # New
         magnetic_spring=unified_model_factory.magnetic_spring,
         mechanical_spring=new_mech_spring,  # New
+        height_mm=height_mm,
         rectification_drop=unified_model_factory.rectification_drop,
         load_model=unified_model_factory.load_model,
         coil_configuration=coil_configuration,  # New
@@ -266,7 +268,7 @@ def evolve_simulation_set(
 
 @ray.remote
 def simulate_unified_model_for_power(
-    unified_model: UnifiedModel, **solve_kwargs
+    model: UnifiedModel, **solve_kwargs
 ) -> Dict:
     """Simulate a unified model and return the average load power.
 
@@ -283,7 +285,7 @@ def simulate_unified_model_for_power(
         Output of the `.calulate_metrics` method of `unified_model`.
 
     """
-    unified_model.reset()  # Make sure we're starting from a clean slate
+    model.reset()  # Make sure we're starting from a clean slate
 
     if not solve_kwargs:
         solve_kwargs = {}
@@ -294,16 +296,18 @@ def simulate_unified_model_for_power(
     solve_kwargs.setdefault("t_max_step", 1e-3)
     solve_kwargs.setdefault("t_eval", np.arange(0, 8, 1e-3))  # type: ignore
 
-    unified_model.solve(**solve_kwargs)
+    # If our device is not valid, we want to return `None` as our result.
 
-    if unified_model.electrical_model is None:
+    model.solve(**solve_kwargs)
+
+    if model.electrical_model is None:
         raise ValueError("ElectricalModel is not specified.")
 
-    results = unified_model.calculate_metrics(
+    results = model.calculate_metrics(
         "g(t, x5)",
         {
             "p_load_avg": lambda x: calc_p_load_avg(
-                x, unified_model.electrical_model.load_model.R
+                x, model.electrical_model.load_model.R
             )  # noqa
         },
     )

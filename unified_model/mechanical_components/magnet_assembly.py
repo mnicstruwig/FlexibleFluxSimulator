@@ -96,6 +96,7 @@ class MagnetAssembly:
 
         return self.m * weight_magnet + (self.m - 1) * weight_spacer
 
+    # TODO: Return in m instead.
     def get_length(self) -> float:
         """Get the length of the assembly in mm."""
         l_spacer = self.l_mcd_mm - self.l_m_mm

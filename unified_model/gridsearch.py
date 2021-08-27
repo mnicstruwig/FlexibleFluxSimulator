@@ -192,6 +192,7 @@ class UnifiedModelFactory:
         magnetic_spring: Any,
         mechanical_spring: Any,
         coil_configuration: Any,
+        height_mm: float,
         rectification_drop: float,
         load_model: Any,
         flux_model: Any,
@@ -206,6 +207,7 @@ class UnifiedModelFactory:
         self.magnetic_spring = magnetic_spring
         self.mechanical_spring = mechanical_spring
         self.coil_config = coil_configuration
+        self.height_mm = height_mm
         self.rectification_drop = rectification_drop
         self.load_model = load_model
         self.flux_model = flux_model
@@ -265,6 +267,7 @@ class UnifiedModelFactory:
             .set_coupling_model(self.coupling_model)
             .set_governing_equations(self.governing_equations)
             .set_post_processing_pipeline(pipeline.clip_x2, name="clip x2")
+            .set_height(self.height_mm)
         )
         return unified_model
 

@@ -1,6 +1,7 @@
 """
 Utility functions for rendering the microgenerator in ascii.
 """
+
 import numpy as np
 
 empty_coil = "│        │"
@@ -14,6 +15,7 @@ top = "  ┌────┐"
 empty = "        "
 
 
+# TODO: Documentation + make private
 def is_magnet(z, l_m_mm, m, l_hover, l_mcd_mm):
     if 0 <= z <= l_m_mm:  # Fixed magnet
         return True
