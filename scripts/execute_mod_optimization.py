@@ -28,7 +28,7 @@ from unified_model import (
 
 # PARAMETERS
 c = 1
-m = 2
+m = 1
 n_z_arr = np.arange(6, 101, 2)
 n_w_arr = np.arange(6, 101, 2)
 c_c_arr = np.arange(20, 82, 2.5)
@@ -72,7 +72,6 @@ magnet_assembly_params: Dict[str, Any] = {
 
 mech_spring_params: Dict[str, Any] = {
     "magnet_assembly": None,
-    "position": 135 / 1000,
     "strength": 1e7,
     "damping_coefficient": 3.108,
 }
@@ -81,6 +80,8 @@ curve_model = CurveModel.load(
     "./data/flux_curve_model/flux_curve_model_2021_05_11.model"
 )
 
+height_mm = 105
+
 # Build our first "template" factory
 unified_model_factory = gridsearch.UnifiedModelFactory(
     damper=None,
@@ -88,6 +89,7 @@ unified_model_factory = gridsearch.UnifiedModelFactory(
     mechanical_spring=None,
     magnetic_spring=magnetic_spring,
     coil_configuration=None,
+    height_mm=height_mm,
     rectification_drop=v_rect_drop,
     load_model=load,
     flux_model=None,
@@ -192,6 +194,7 @@ for batch_num, batch in enumerate(batches):
             magnet_assembly_params=magnet_assembly_params_copy,
             mech_spring_params=mech_spring_params,
             damper_model_params=damper_model_params,
+            height_mm=height_mm,
         )
         for i, um in enumerate(simulation_models):
             submitted.append(optimize.simulate_unified_model_for_power.remote(um))
@@ -216,7 +219,7 @@ for batch_num, batch in enumerate(batches):
         }
     )
     table = pa.Table.from_pandas(df)
-    pq.write_to_dataset(table, f"./output/{c}c{m}m.parquet")
+    pq.write_to_dataset(table, f"./output/{c}c{m}.parquet")
 
     # Clear
     del results
