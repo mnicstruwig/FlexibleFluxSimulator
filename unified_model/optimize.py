@@ -2,6 +2,7 @@
 A module for finding the optimal energy harvester
 """
 import copy
+import warnings
 from itertools import product
 from typing import Any, Dict, List, Tuple, Union
 
@@ -14,6 +15,7 @@ from tqdm import tqdm
 from unified_model.electrical_components.coil import CoilConfiguration
 from unified_model.electrical_components.flux.model import FluxModelInterp
 from unified_model.gridsearch import UnifiedModelFactory
+from unified_model.local_exceptions import ModelError
 from unified_model.mechanical_components.damper import MassProportionalDamper
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_components.mechanical_spring import MechanicalSpring
@@ -228,7 +230,7 @@ def evolve_simulation_set(
     magnet_assembly_params: Dict,
     mech_spring_params: Dict,
     damper_model_params: Dict,
-    height_mm: float
+    height_mm: float,
 ) -> List[UnifiedModel]:
     """Update the simulation set with new subsidiary models."""
 
@@ -267,9 +269,7 @@ def evolve_simulation_set(
 
 
 @ray.remote
-def simulate_unified_model_for_power(
-    model: UnifiedModel, **solve_kwargs
-) -> Dict:
+def simulate_unified_model_for_power(model: UnifiedModel, **solve_kwargs) -> Dict:
     """Simulate a unified model and return the average load power.
 
     Parameters
@@ -297,19 +297,23 @@ def simulate_unified_model_for_power(
     solve_kwargs.setdefault("t_eval", np.arange(0, 8, 1e-3))  # type: ignore
 
     # If our device is not valid, we want to return `None` as our result.
+    try:
+        model.solve(**solve_kwargs)
 
-    model.solve(**solve_kwargs)
+        if model.electrical_model is None:
+            raise ValueError("ElectricalModel is not specified.")
 
-    if model.electrical_model is None:
-        raise ValueError("ElectricalModel is not specified.")
+        results = model.calculate_metrics(
+            "g(t, x5)",
+            {
+                "p_load_avg": lambda x: calc_p_load_avg(
+                    x, model.electrical_model.load_model.R
+                )  # noqa
+            },
+        )
+    except ModelError:
+        warnings.warn("Device configuration not valid, skipping.")
 
-    results = model.calculate_metrics(
-        "g(t, x5)",
-        {
-            "p_load_avg": lambda x: calc_p_load_avg(
-                x, model.electrical_model.load_model.R
-            )  # noqa
-        },
-    )
+        results = {"p_load_avg": None}
 
     return results

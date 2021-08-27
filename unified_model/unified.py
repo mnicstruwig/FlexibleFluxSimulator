@@ -874,7 +874,6 @@ class UnifiedModel:
                 f"The top edge of the top coil is {(coil_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm."
             )
 
-
         # Find the top edge of the uppermost magnet assembly
         ma = self.mechanical_model.magnet_assembly
         ms = self.mechanical_model.magnetic_spring
