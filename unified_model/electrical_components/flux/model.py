@@ -9,6 +9,45 @@ from unified_model.utils.utils import FastInterpolator, grad
 from unified_model.electrical_components.coil import CoilConfiguration
 
 
+class FluxModelPretrained:
+    """A flux model that uses a trained CurveModel."""
+    def __init__(
+            self,
+            coil_config: CoilConfiguration,
+            magnet_assembly: MagnetAssembly,
+            curve_model_path: str
+    ) -> None:
+        """Constructor."""
+
+        # Load the CurveModel and predict the flux values
+        self.curve_model = CurveModel.load(curve_model_path)
+        z, phi = self.curve_model.predict_curves(np.array([[coil_config.n_z, coil_config.n_w]]))
+        phi = phi.flatten()
+
+        # Create the actual flux model
+        self.flux_model_interp = FluxModelInterp(
+            coil_config=coil_config,
+            magnet_assembly=magnet_assembly
+        )
+
+        self.flux_model_interp.fit(z, phi)
+
+        self.flux_model = self.flux_model_interp.flux_model
+        self.dflux_model = self.flux_model_interp.dflux_model
+
+    def __repr__(self):
+        to_print = ", ".join([f"{k}={v}" for k, v in self.__dict__.items()])
+        return f"FluxModelPretrained({to_print})"
+
+    def get_flux(self, z):
+        """Get the flux at relative magnet position `z` (in metres)."""
+        return self.flux_model_interp.flux_model.get(z)
+
+    def get_dflux(self, z):
+        """Get the flux derivative at relative magnet position `z` (in metres)."""
+        return self.flux_model_interp.dflux_model.get(z)
+
+
 class FluxModelInterp:
     """A flux model that uses interpolation."""
 
@@ -16,7 +55,6 @@ class FluxModelInterp:
         self,
         coil_config: CoilConfiguration,
         magnet_assembly: MagnetAssembly,
-        curve_model: Optional[CurveModel] = None,
     ) -> None:
         """A flux model that relies on interpolation.
 
@@ -40,8 +78,6 @@ class FluxModelInterp:
         # `flux_inteprolate` requires measurements in SI units.
         self.l_mcd = magnet_assembly.l_mcd_mm / 1000
 
-        self.curve_model = curve_model
-
         self.flux_model = None
         self.dflux_model = None
 
@@ -51,13 +87,6 @@ class FluxModelInterp:
         """Do some internal validation of the parameters"""
         # TODO: Figure out a better way of warning the user that doesn't spam
         # gridsearch.
-
-        # if self.curve_model:
-        #     assert self.coil_config.n_z is not None
-        #     assert self.coil_config.n_w is not None
-        # else:
-        #     if self.coil_config.n_z or self.coil_config.n_w:
-        #         warnings.warn('n_z and n_w are set, but are not required if no `curve_model` is specified.')  # noqa
 
         _validate_coil_params(c=self.c, m=self.m, l_ccd=self.l_ccd, l_mcd=self.l_mcd)
 

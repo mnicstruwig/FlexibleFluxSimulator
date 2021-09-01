@@ -18,6 +18,7 @@ import cloudpickle
 import numpy as np
 import pandas as pd
 from scipy import integrate
+from unified_model import mechanical_model
 
 from unified_model.coupling import CouplingModel
 from unified_model.electrical_components.coil import CoilConfiguration
@@ -137,6 +138,11 @@ class UnifiedModel:
         ms = self.mechanical_model.mechanical_spring
         mag_spring = self.mechanical_model.magnetic_spring
         load = self.electrical_model.load_model
+
+        try:
+            assert self.height is not None
+        except AssertionError as e:
+            raise ModelError('Please set the height first using the .set_height method!') from e
 
         self._print_device()
 
@@ -318,7 +324,7 @@ class UnifiedModel:
             equations of the unified model.
 
         """
-        self.validate()
+        self.validate(verbose=False)
 
         high_level_models = {
             "mechanical_model": self.mechanical_model,
@@ -851,7 +857,91 @@ class UnifiedModel:
 
         return unified_model
 
-    def validate(self) -> None:
+    def validate(self, verbose=True) -> None:
+
+        def _fail_if_true(bool_or_func, message, err_message=""):
+            good = " ✔️"
+            bad = " ❌ "
+            exception_message = ""
+
+            if isinstance(bool_or_func, bool):
+                if not bool_or_func:
+                    message += good
+                else:
+                    message += bad
+                    message += err_message
+
+                if verbose:
+                    print(message)
+                return bool_or_func
+
+            elif callable(bool_or_func):
+                try:
+                    result = bool_or_func()
+                except ModelError as e:
+                    exception_message = str(e)
+                    result = True
+
+                if not result:
+                    message += good
+                else:
+                    message += bad
+                    message += err_message
+                    message += exception_message
+
+                if verbose:
+                    print(message)
+                return result
+            else:
+                raise ValueError('Must specify either a boolean variable or a callable!')
+
+        failed_any = False
+
+        # Basic checks
+        failed_any = _fail_if_true(  # TODO: Consider a better interface
+            self.mechanical_model is None,
+            "Checking if mechanical model is present...",
+            "No mechanical model."
+        ) or failed_any
+
+        failed_any = _fail_if_true(
+            self.mechanical_model._validate,
+            "Checking mechanical model...",
+            ""
+        ) or failed_any
+
+        failed_any = _fail_if_true(
+            self.electrical_model is None,
+            "Checking if electrical model is present...",
+            "No electrical model."
+        ) or failed_any
+
+        failed_any = _fail_if_true(
+            self.electrical_model._validate,
+            "Checking electrical model...",
+            ""
+        ) or failed_any
+
+        failed_any = _fail_if_true(
+            self.coupling_model is None,
+            "Checking if coupling model is present...",
+            "No coupling model."
+        ) or failed_any
+
+        failed_any = _fail_if_true(
+            self.height is None,
+            "Checking if device height has been specified...",
+            "Height of the device has not been set."
+        ) or failed_any
+
+        failed_any = _fail_if_true(
+            self.governing_equations is None,
+            "Checking if governing equations have been specified...",
+            "Governing equations have not been set."
+        ) or failed_any
+
+        # More involved checks
+
         l_bth = 3 / 1000  # Bottom part of the tube
         # We use the same fixed magnet length as in the assembly
         fixed_mag_offset = self.mechanical_model.magnet_assembly.l_m_mm / 1000
@@ -869,51 +959,39 @@ class UnifiedModel:
         # Coil's position is relative to the top edge of the fixed magnet, while
         # the height of the device is the absolute height. So we must compensate
         # for this offset
-        if coil_top_edge + offset > self.height:
-            raise ModelError(
-                f"The top edge of the top coil is {(coil_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm."
-            )
+        failed_any = _fail_if_true(
+            bool(coil_top_edge + offset > self.height),
+            "Check if coil configuration fits onto device...",
+            f"The top edge of the top coil is {(coil_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm."  # type:ignore # noqa
+        ) or failed_any
 
         # Find the top edge of the uppermost magnet assembly
         ma = self.mechanical_model.magnet_assembly
         ms = self.mechanical_model.magnetic_spring
         mag_top_edge = ms.get_hover_height(ma) + ma.get_length() / 1000
 
-        if np.round(mag_top_edge + offset, 3) >= self.height:
-            raise ModelError(
-                f"The top edge of the magnet assembly is {(mag_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm."
-            )
-
-        try:
-            assert self.mechanical_model is not None
-            self.mechanical_model._validate()
-        except AssertionError:
-            raise ModelError("A mechanical model must be specified.")
-        try:
-            assert self.electrical_model is not None
-            self.electrical_model._validate()
-        except AssertionError:
-            raise ModelError("A electrical model must be specified.")
-        try:
-            assert self.coupling_model is not None
-        except AssertionError:
-            raise ModelError("A coupling model must be specified.")
-
-        try:
-            assert self.height is not None
-        except AssertionError:
-            raise ModelError("Height of the microgenerator must be specified.")
+        magnet_top_edge_is_outside = bool(np.round(mag_top_edge + offset, 3) >= self.height)
+        failed_any = _fail_if_true(
+            magnet_top_edge_is_outside,
+            "Checking if the magnet assembly fits into device...",
+            f"The top edge of the magnet assembly is {(mag_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm."  # type:ignore # noqa
+        ) or failed_any
 
         # Check that our mechanical spring at the top of the mechanical model
         # lies within our required height.
         required_height_m = self._calculate_required_vertical_space()
         device_height_m = self.mechanical_model.mechanical_spring.position
+
         try:
             assert required_height_m <= device_height_m
         except AssertionError:
             warnings.warn(
                 f"The device requires a minimum height of {required_height_m}m for intended operation, but the height has been set to {device_height_m}m."
             )
+
+        # If we failed anything, raise a ModelError.
+        if failed_any:
+            raise ModelError('Model did not pass validation.')
 
     def _apply_pipeline(self) -> None:
         """Execute the post-processing pipelines on the raw solution.."""

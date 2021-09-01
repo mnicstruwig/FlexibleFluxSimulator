@@ -29,9 +29,10 @@ from unified_model import (
 # PARAMETERS
 c = 1
 m = 1
-n_z_arr = np.arange(6, 101, 2)
-n_w_arr = np.arange(6, 101, 2)
+n_z_arr = np.arange(6, 101, 4)
+n_w_arr = np.arange(6, 101, 4)
 c_c_arr = np.arange(20, 82, 2.5)
+c_c_arr = [40.]
 
 # Mechanical components
 magnetic_spring = mechanical_components.MagneticSpringInterp(
@@ -114,6 +115,7 @@ for log_file in glob("./data/2019-05-23/A/log*_acc.csv"):
     )
     acc_inputs.append(acc_input)
 
+acc_inputs = acc_inputs[1:3]
 assert len(acc_inputs) != 0  # Safety check
 
 
@@ -129,7 +131,7 @@ def batchify(x, batch_size):
 
 
 # Actual experiment
-ray.init(ignore_reinit_error=True, num_cpus=24)
+ray.init(ignore_reinit_error=True, num_cpus=12)
 
 
 BATCH_SIZE = 256
@@ -219,7 +221,7 @@ for batch_num, batch in enumerate(batches):
         }
     )
     table = pa.Table.from_pandas(df)
-    pq.write_to_dataset(table, f"./output/{c}c{m}.parquet")
+    pq.write_to_dataset(table, f"./output/{c}c{m}m_sample_two_input.parquet")
 
     # Clear
     del results

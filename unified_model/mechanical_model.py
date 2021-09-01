@@ -80,10 +80,6 @@ class MechanicalModel:
         spring : MagneticSpring
             The magnetic spring model attached to the magnet assembly and the
             tube.
-        position : float
-            Controls where the mechanical spring will beging to act. This is typically
-            used to specify the top edge of the energy harvester device. The
-            magnet assembly will "colide" with this top edge.
 
         """
         self.magnetic_spring = spring
