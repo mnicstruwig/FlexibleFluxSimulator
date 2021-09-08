@@ -277,7 +277,7 @@ def simulate_unified_model_for_power(model: UnifiedModel, **solve_kwargs) -> Dic
     unified_model : UnifiedModel
         The unified model to simulate.
     solve_kwargs : dict
-        Keyword arguments passed to the `.solve` methof the `unified_model`.
+        Keyword arguments passed to the `.solve` method the `unified_model`.
 
     Returns
     -------
@@ -293,27 +293,23 @@ def simulate_unified_model_for_power(model: UnifiedModel, **solve_kwargs) -> Dic
     solve_kwargs.setdefault("t_start", 0)
     solve_kwargs.setdefault("t_end", 8)
     solve_kwargs.setdefault("y0", [0.0, 0.0, 0.04, 0.0, 0.0])
-    solve_kwargs.setdefault("t_max_step", 1e-3)
+    solve_kwargs.setdefault("t_max_step", 1e-4)
     solve_kwargs.setdefault("t_eval", np.arange(0, 8, 1e-3))  # type: ignore
 
     # If our device is not valid, we want to return `None` as our result.
     try:
         model.solve(**solve_kwargs)
 
-        if model.electrical_model is None:
-            raise ValueError("ElectricalModel is not specified.")
-
         results = model.calculate_metrics(
             "g(t, x5)",
             {
                 "p_load_avg": lambda x: calc_p_load_avg(
-                    x, model.electrical_model.load_model.R
-                )  # noqa
+                    x, model.electrical_model.load_model.R  # type: ignore
+                )
             },
         )
     except ModelError:
         warnings.warn("Device configuration not valid, skipping.")
-
         results = {"p_load_avg": None}
 
     return results

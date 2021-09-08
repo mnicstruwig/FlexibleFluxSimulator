@@ -31,8 +31,7 @@ c = 1
 m = 1
 n_z_arr = np.arange(6, 101, 4)
 n_w_arr = np.arange(6, 101, 4)
-c_c_arr = np.arange(20, 82, 2.5)
-c_c_arr = [40.]
+c_c_arr = np.arange(20, 82, 5)
 
 # Mechanical components
 magnetic_spring = mechanical_components.MagneticSpringInterp(
@@ -221,7 +220,7 @@ for batch_num, batch in enumerate(batches):
         }
     )
     table = pa.Table.from_pandas(df)
-    pq.write_to_dataset(table, f"./output/{c}c{m}m_sample_two_input.parquet")
+    pq.write_to_dataset(table, f"./output/{c}c{m}m_amd_radau.parquet")
 
     # Clear
     del results

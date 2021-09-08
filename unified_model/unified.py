@@ -337,8 +337,7 @@ class UnifiedModel:
             t_span=[t_start, t_end],
             y0=y0,
             t_eval=t_eval,
-            method="RK45",
-            rtol=1e-4,
+            method="Radau",
             max_step=t_max_step,
         )
 
