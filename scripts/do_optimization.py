@@ -90,6 +90,8 @@ for batch_number, batch in enumerate(batches):
 
     task_ids: List[Any] = []
     output: Dict[str, Any] = {
+        'c': [],
+        'm': [],
         'n_z': [],
         'n_w': [],
         'c_c': [],
@@ -184,6 +186,8 @@ for batch_number, batch in enumerate(batches):
 
             task_ids.append(simulate_and_calculate_power.remote(model))
 
+            output['c'].append(c)
+            output['m'].append(m)
             output['n_z'].append(n_z)
             output['n_w'].append(n_w)
             output['c_c'].append(c_c)
