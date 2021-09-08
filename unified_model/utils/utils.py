@@ -394,11 +394,12 @@ def apply_scalar_functions(x1, x2, **func) -> dict:
 @dataclass
 class Sample:
     """A class for holding groundtruth sample data"""
-
     acc_df: pd.DataFrame
+    acc_path: str
     adc_df: pd.DataFrame
+    adc_path: str
     video_labels_df: pd.DataFrame
-    paths: List
+    video_labels_path: str
 
 
 # TODO: Add test (might need to be a bit creative)
@@ -458,14 +459,10 @@ def collect_samples(
     adc_dfs = [pd.read_csv(adc_path) for adc_path in adc_paths]
     lvp_dfs = [pd.read_csv(lvp_path) for lvp_path in labeled_video_paths]
 
-    paths = zip_longest(acc_paths, adc_paths, labeled_video_paths, fillvalue=None)
+    sample_collection = []
+    for acc, acc_path, adc, adc_path, lvp, lvp_path in zip_longest(acc_dfs, acc_paths, adc_dfs, adc_paths, lvp_dfs, labeled_video_paths, fillvalue=None):
+        sample_collection.append(Sample(acc, acc_path, adc, adc_path, lvp, lvp_path))
 
-    sample_collection = [
-        Sample(acc, adc, lvp, path)
-        for acc, adc, lvp, path in zip_longest(
-            acc_dfs, adc_dfs, lvp_dfs, paths, fillvalue=None
-        )
-    ]
     return np.array(sample_collection)
 
 

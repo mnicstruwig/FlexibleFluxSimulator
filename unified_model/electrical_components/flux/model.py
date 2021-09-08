@@ -19,6 +19,8 @@ class FluxModelPretrained:
     ) -> None:
         """Constructor."""
 
+        self.curve_model_path = curve_model_path
+
         # Load the CurveModel and predict the flux values
         self.curve_model = CurveModel.load(curve_model_path)
         z, phi = self.curve_model.predict_curves(np.array([[coil_config.n_z, coil_config.n_w]]))
@@ -41,11 +43,11 @@ class FluxModelPretrained:
 
     def get_flux(self, z):
         """Get the flux at relative magnet position `z` (in metres)."""
-        return self.flux_model_interp.flux_model.get(z)
+        return self.flux_model.get(z)
 
     def get_dflux(self, z):
         """Get the flux derivative at relative magnet position `z` (in metres)."""
-        return self.flux_model_interp.dflux_model.get(z)
+        return self.dflux_model.get(z)
 
 
 class FluxModelInterp:

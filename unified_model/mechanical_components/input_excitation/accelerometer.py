@@ -36,18 +36,6 @@ def _find_nearest_acc_value(t, time_arr, accel_arr):
     return acceleration
 
 
-def _parse_raw_accelerometer_input(raw_accelerometer_input):
-    """
-    Parse `raw_accelerometer_input` correctly if it is a string specifying a
-    .csv file or a passed dataframe.
-    """
-    if isinstance(raw_accelerometer_input, str):
-        return pd.read_csv(raw_accelerometer_input)
-    if isinstance(raw_accelerometer_input, pd.DataFrame):
-        return raw_accelerometer_input
-    return None
-
-
 def _preprocess_acceleration_dataframe(
     df, accel_column, time_column, accel_unit, time_unit, smooth=True
 ):
@@ -84,7 +72,7 @@ def _preprocess_acceleration_dataframe(
     df["simulation_time_seconds"] = df[time_column] * time_conversion_table[time_unit]
 
     if smooth:
-        df[accel_column] = smooth_savgol(df[accel_column], window_length=7, polyorder=2)
+        df[accel_column] = smooth_savgol(df[accel_column], window_length=101, polyorder=2)
 
     if accel_unit not in ["g", "ms2"]:
         raise KeyError('Acceleration unit must be specified as "g" or "ms2".')
@@ -117,7 +105,7 @@ class AccelerometerInput:
 
     def __init__(
         self,
-        raw_accelerometer_input,
+        raw_accelerometer_data_path,
         accel_column,
         time_column,
         accel_unit="g",
@@ -129,9 +117,8 @@ class AccelerometerInput:
 
         Parameters
         ----------
-        raw_accelerometer_input : str or pandas dataframe
-            Path to .csv file containing accelerometer data, or pandas
-            dataframe containing accelerometer data.
+        raw_accelerometer_data_path : str
+            Path to a CSV file containing the accelerometer data.
         accel_column : str
             Column containing accelerometer values.
         time_column : str
@@ -148,35 +135,36 @@ class AccelerometerInput:
             The interpolation object is available under `self.interpolator`.
 
         """
-        self.raw_accelerometer_input = copy.deepcopy(
-            raw_accelerometer_input
-        )  # Prevents updating of mutable dataframes!
-        self._accel_column = accel_column
-        self._time_column = time_column
-        self._accel_unit = accel_unit
-        self._time_unit = time_unit
+        self.raw_accelerometer_data_path = raw_accelerometer_data_path
+        self.acceleration_df = pd.read_csv(self.raw_accelerometer_data_path)
+        self.accel_column = accel_column
+        self.time_column = time_column
+        self.accel_unit = accel_unit
+        self.time_unit = time_unit
         self.smooth = smooth
         self.interpolate = interpolate
         self.interpolator = None
 
-        self.acceleration_df = _parse_raw_accelerometer_input(
-            self.raw_accelerometer_input
-        )
         # TODO: Separate processed accelerometer from raw accelerometer
         self.acceleration_df = _preprocess_acceleration_dataframe(
             self.acceleration_df,
-            self._accel_column,
-            self._time_column,
-            self._accel_unit,
-            self._time_unit,
+            self.accel_column,
+            self.time_column,
+            self.accel_unit,
+            self.time_unit,
             self.smooth,
         )
 
         if self.interpolate:
             self.interpolator = FastInterpolator(
                 self.acceleration_df["simulation_time_seconds"].values,
-                self.acceleration_df[self._accel_column].values,
+                self.acceleration_df[self.accel_column].values,
             )
+
+    # TODO: Add over attributes
+    def __str__(self) -> str:
+        """Return string representation of the Accelerometer"""
+        return f"AccelerometerInput('{self.raw_accelerometer_data_path}')"
 
     def get_acceleration(self, t):
         """Get the acceleration at time `t`.
@@ -198,5 +186,5 @@ class AccelerometerInput:
         return _find_nearest_acc_value(
             t,
             self.acceleration_df["simulation_time_seconds"].values,
-            self.acceleration_df[self._accel_column].values,
+            self.acceleration_df[self.accel_column].values,
         )

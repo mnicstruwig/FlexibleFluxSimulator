@@ -1,6 +1,8 @@
 from __future__ import annotations
+from unified_model.electrical_components.flux.model import FluxModelInterp, FluxModelPretrained
 
 import warnings
+from typing import Union
 
 import numpy as np
 
@@ -30,7 +32,6 @@ class ElectricalModel:
     def __init__(self):
         """Constructor."""
         self.flux_model = None
-        self.dflux_model = None
         self.coil_config = None
         self.rectification_drop = None
         self.load_model = None
@@ -46,11 +47,10 @@ class ElectricalModel:
         """
         try:
             assert self.flux_model is not None
-            assert self.dflux_model is not None
         except AssertionError as e:
             raise ModelError(
-                "A flux model and dflux model must be specified."
-            ) from e  # noqa
+                "A flux model model must be specified."
+            ) from e
         try:
             assert self.coil_config is not None
         except AssertionError as e:
@@ -66,22 +66,18 @@ class ElectricalModel:
         except AssertionError as e:
             raise ModelError("A load model must be specified.") from e
 
-    def set_flux_model(self, flux_model, dflux_model):
+    def set_flux_model(self, flux_model: Union[FluxModelInterp, FluxModelPretrained]):
         """Assign a flux model.
 
         Parameters
         ----------
-        flux_model : function
-            Function that returns the flux linkage of a coil when the position
-            of a magnet assembly's bottom edge is passed to it.
-        dflux_model : function
-            Function that returns the derivative of the flux linkage of a coil
-            (relative to `z` i.e. the position of a magnet assembly's bottom
-            edge) when the position of a magnet assembly's bottom edge is passed to it.
+        flux_model : Any
+            Object that has .get_flux and .dflux_model methods that, when passed
+            the relative magnet position, must return the value of the flux and
+            the derivative of the flux, respectively.
 
         """
         self.flux_model = flux_model
-        self.dflux_model = dflux_model
         return self
 
     def set_coil_configuration(self, coil_config: CoilConfiguration) -> ElectricalModel:
@@ -136,7 +132,7 @@ class ElectricalModel:
             The instantaneous emf. In volts.
 
         """
-        dphi_dz = self.dflux_model.get(mag_pos)
+        dphi_dz = self.flux_model.get_dflux(mag_pos)
         emf = dphi_dz * mag_vel
 
         if self.rectification_drop:  # Loss due to rectification

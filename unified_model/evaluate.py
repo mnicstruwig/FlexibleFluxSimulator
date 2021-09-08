@@ -119,7 +119,7 @@ class Measurement:
 
     def _make_measurement(self, sample):
         acc_input = mechanical_components.AccelerometerInput(
-            raw_accelerometer_input=sample.acc_df,
+            raw_accelerometer_data_path=sample.acc_path,
             accel_column="z_G",
             time_column="time(ms)",
             accel_unit="g",

@@ -72,7 +72,7 @@ class MechanicalModel:
         except AssertionError:
             raise ModelError("An input excitation must be specified.")
 
-    def set_magnetic_spring(self, spring: MechanicalSpring):
+    def set_magnetic_spring(self, spring):
         """Add a magnetic spring to the mechanical system.
 
         Parameters

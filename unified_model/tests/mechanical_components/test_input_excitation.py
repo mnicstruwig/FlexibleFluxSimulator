@@ -212,9 +212,9 @@ class TestAccelerometerInput(unittest.TestCase):
             smooth=False,
         )
 
-        self.assertEqual(test_accel_input._accel_column, self.test_accel_column)
-        self.assertEqual(test_accel_input._time_unit, "s")
-        self.assertEqual(test_accel_input._time_column, self.test_time_column)
+        self.assertEqual(test_accel_input.accel_column, self.test_accel_column)
+        self.assertEqual(test_accel_input.time_unit, "s")
+        self.assertEqual(test_accel_input.time_column, self.test_time_column)
         self.assertTrue(isinstance(test_accel_input.acceleration_df, pd.DataFrame))
 
     def test_constructor_raw_file(self):
@@ -229,9 +229,9 @@ class TestAccelerometerInput(unittest.TestCase):
             smooth=False,
         )
 
-        self.assertEqual(test_accel_input._accel_column, self.test_accel_column)
-        self.assertEqual(test_accel_input._time_unit, "s")
-        self.assertEqual(test_accel_input._time_column, self.test_time_column)
+        self.assertEqual(test_accel_input.accel_column, self.test_accel_column)
+        self.assertEqual(test_accel_input.time_unit, "s")
+        self.assertEqual(test_accel_input.time_column, self.test_time_column)
         self.assertTrue(isinstance(test_accel_input.acceleration_df, pd.DataFrame))
 
     def test_get_acceleration(self):

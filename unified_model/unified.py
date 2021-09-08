@@ -8,17 +8,23 @@ describes their interaction.
 from __future__ import annotations
 
 import copy
+import json
 import os
 import shutil
+from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
 import warnings
 from glob import glob
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from scipy.signal import savgol_filter
 
 import cloudpickle
 import numpy as np
 import pandas as pd
 from scipy import integrate
-from unified_model import mechanical_model
+from unified_model import governing_equations, mechanical_model
+from unified_model import electrical_model
+from unified_model import mechanical_components
+from unified_model import electrical_components
 
 from unified_model.coupling import CouplingModel
 from unified_model.electrical_components.coil import CoilConfiguration
@@ -299,7 +305,7 @@ class UnifiedModel:
         t_end: float,
         y0: List[float],
         t_eval: Union[List, np.ndarray],
-        t_max_step: float = 1e-5,
+        t_max_step: float = 1e-4,
     ) -> None:
         """Solve the unified model.
 
@@ -331,15 +337,15 @@ class UnifiedModel:
             "electrical_model": self.electrical_model,
             "coupling_model": self.coupling_model,
         }
-
         psoln = integrate.solve_ivp(
             fun=lambda t, y: self.governing_equations(t, y, **high_level_models),  # type: ignore # noqa
             t_span=[t_start, t_end],
             y0=y0,
             t_eval=t_eval,
-            method="RK45",
-            rtol=1e-4,
+            method="Radau",
             max_step=t_max_step,
+            rtol=1e-3,  # default 1e-3,
+            atol=1e-6,  # default 1e-6
         )
 
         self.time = psoln.t
@@ -836,6 +842,155 @@ class UnifiedModel:
             component_path = path + key + ".pkl"
             with open(component_path, "wb") as f:
                 cloudpickle.dump(val, f)
+
+    def get_config(self, as_type='dict'):
+        """Return a JSON config of the unified model"""
+
+        output = {}
+
+        output['mechanical_model'] = {
+            'magnetic_spring': {
+                'fea_data_file': os.path.abspath(self.mechanical_model.magnetic_spring.fea_data_file),
+                'filter_callable': None,  # Sort this out later
+                'magnet_length': self.mechanical_model.magnetic_spring.magnet_length
+            },
+            'magnet_assembly': {
+                'm': int(self.mechanical_model.magnet_assembly.m),
+                'l_m_mm': float(self.mechanical_model.magnet_assembly.l_m_mm),
+                'l_mcd_mm': float(self.mechanical_model.magnet_assembly.l_mcd_mm),
+                'dia_magnet_mm': float(self.mechanical_model.magnet_assembly.dia_magnet_mm),
+                'dia_spacer_mm': float(self.mechanical_model.magnet_assembly.dia_spacer_mm),
+            },
+            'mechanical_spring': {
+                'magnet_assembly': 'self',
+                'damping_coefficient': float(self.mechanical_model.mechanical_spring.damping_coefficient)
+            },
+            'damper': {
+                'damping_coefficient': float(self.mechanical_model.damper.damping_coefficient),
+                'magnet_assembly': 'self'
+            },
+            'input_excitation': {
+                'raw_accelerometer_data_path': os.path.abspath(self.mechanical_model.input_.raw_accelerometer_data_path),
+                'accel_column': self.mechanical_model.input_.accel_column,
+                'time_column': self.mechanical_model.input_.time_column,
+                'accel_unit': self.mechanical_model.input_.accel_unit,
+                'time_unit': self.mechanical_model.input_.time_unit,
+                'smooth': self.mechanical_model.input_.smooth,
+                'interpolate': self.mechanical_model.input_.interpolate,
+            }
+        }
+
+        output['electrical_model'] = {
+            'coil_config': {
+                'c': int(self.electrical_model.coil_config.c),
+                'n_z': float(self.electrical_model.coil_config.n_z),
+                'n_w': float(self.electrical_model.coil_config.n_w),
+                'l_ccd_mm': float(self.electrical_model.coil_config.l_ccd_mm),
+                'ohm_per_mm': float(self.electrical_model.coil_config.ohm_per_mm),
+                'tube_wall_thickness_mm': float(self.electrical_model.coil_config.tube_wall_thickness_mm),
+                'coil_wire_radius_mm': float(self.electrical_model.coil_config.coil_wire_radius_mm),
+                'coil_center_mm': float(self.electrical_model.coil_config.coil_center_mm),
+                'inner_tube_radius_mm': float(self.electrical_model.coil_config.inner_tube_radius_mm)
+            },
+            'flux_model': {  # For now, this assumes a pretrained model
+                'coil_config': 'self',
+                'magnet_assembly': 'self',
+                'curve_model_path': os.path.abspath(self.electrical_model.flux_model.curve_model_path)
+            },
+            'rectification_drop': float(self.electrical_model.rectification_drop),
+            'load_model': {
+                'R': float(self.electrical_model.load_model.R)
+            }
+        }
+
+        output['coupling_model'] = {
+            'coupling_constant': float(self.coupling_model.coupling_constant)
+        }
+
+        output['height'] = float(self.height * 1000)  # Must be in mm.
+
+        if as_type == 'dict':
+            return output
+        elif as_type == 'json':
+            return json.dumps(output)
+        else:
+            raise ValueError(f'Return type "{as_type}" not known.')
+
+    @staticmethod
+    def from_config(config: Dict):
+
+        magnet_assembly = mechanical_components.MagnetAssembly(
+            **config['mechanical_model']['magnet_assembly']
+        )
+
+        coil_config = CoilConfiguration(
+            **config['electrical_model']['coil_config']
+        )
+
+        mech_model = (
+            MechanicalModel()
+            .set_magnetic_spring(
+                mechanical_components.MagneticSpringInterp(
+                    fea_data_file=config['mechanical_model']['magnetic_spring']['fea_data_file'],
+                    magnet_length=config['mechanical_model']['magnetic_spring']['magnet_length'],
+                    filter_callable=lambda x: savgol_filter(x, 11, 7)
+                )
+            )
+            .set_magnet_assembly(magnet_assembly)
+            .set_mechanical_spring(
+                mechanical_components.MechanicalSpring(
+                    damping_coefficient=config['mechanical_model']['mechanical_spring']['damping_coefficient'],
+                    magnet_assembly=magnet_assembly
+                )
+            )
+            .set_damper(
+                mechanical_components.MassProportionalDamper(
+                    damping_coefficient=config['mechanical_model']['damper']['damping_coefficient'],
+                    magnet_assembly=magnet_assembly
+                )
+            )
+            .set_input(
+                mechanical_components.AccelerometerInput(
+                    raw_accelerometer_data_path=config['mechanical_model']['input_excitation']['raw_accelerometer_data_path'],
+                    accel_column=config['mechanical_model']['input_excitation']['accel_column'],
+                    time_column=config['mechanical_model']['input_excitation']['time_column'],
+                    time_unit=config['mechanical_model']['input_excitation']['time_unit'],
+                    smooth=config['mechanical_model']['input_excitation']['smooth'],
+                    interpolate=config['mechanical_model']['input_excitation']['interpolate'],
+                )
+            )
+        )
+
+        elec_model = (
+            ElectricalModel()
+            .set_flux_model(
+                electrical_components.FluxModelPretrained(
+                    coil_config=coil_config,
+                    magnet_assembly=magnet_assembly,
+                    curve_model_path=config['electrical_model']['flux_model']['curve_model_path']
+                )
+            )
+            .set_coil_configuration(
+                coil_config
+            )
+            .set_rectification_drop(config['electrical_model']['rectification_drop'])
+            .set_load_model(
+                electrical_components.SimpleLoad(config['electrical_model']['load_model']['R'])
+            )
+        )
+
+        coupling_model = CouplingModel().set_coupling_constant(config['coupling_model']['coupling_constant'])
+
+        model = (
+            UnifiedModel()
+            .set_mechanical_model(mech_model)
+            .set_electrical_model(elec_model)
+            .set_coupling_model(coupling_model)
+            .set_governing_equations(governing_equations.unified_ode)
+            .set_height(config['height'])
+        )
+
+        return model
 
     @staticmethod
     def load_from_disk(path: str) -> UnifiedModel:

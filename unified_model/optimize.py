@@ -2,6 +2,7 @@
 A module for finding the optimal energy harvester
 """
 import copy
+from unified_model import electrical_components, mechanical_components
 import warnings
 from itertools import product
 from typing import Any, Dict, List, Tuple, Union
@@ -225,7 +226,7 @@ def calc_p_load_avg(x, r_load):
 def evolve_simulation_set(
     unified_model_factory: UnifiedModelFactory,
     input_excitations: List[Any],
-    curve_model: CurveModel,
+    curve_model_path: str,
     coil_config_params: Dict,
     magnet_assembly_params: Dict,
     mech_spring_params: Dict,
@@ -242,10 +243,11 @@ def evolve_simulation_set(
 
     mech_spring_params["magnet_assembly"] = magnet_assembly
     new_mech_spring = MechanicalSpring(**mech_spring_params)
-    new_flux_model, new_dflux_model = _get_new_flux_and_dflux_model(
-        curve_model=curve_model,
-        coil_configuration=coil_configuration,
+
+    new_flux_model = electrical_components.FluxModelPretrained(
+        coil_config=coil_configuration,
         magnet_assembly=magnet_assembly,
+        curve_model_path=curve_model_path
     )
 
     new_factory = UnifiedModelFactory(
@@ -258,7 +260,6 @@ def evolve_simulation_set(
         load_model=unified_model_factory.load_model,
         coil_configuration=coil_configuration,  # New
         flux_model=new_flux_model,  # New
-        dflux_model=new_dflux_model,  # New
         coupling_model=unified_model_factory.coupling_model,
         governing_equations=unified_model_factory.governing_equations,
         model_id=unified_model_factory.model_id,
@@ -277,7 +278,7 @@ def simulate_unified_model_for_power(model: UnifiedModel, **solve_kwargs) -> Dic
     unified_model : UnifiedModel
         The unified model to simulate.
     solve_kwargs : dict
-        Keyword arguments passed to the `.solve` methof the `unified_model`.
+        Keyword arguments passed to the `.solve` method the `unified_model`.
 
     Returns
     -------
@@ -300,20 +301,16 @@ def simulate_unified_model_for_power(model: UnifiedModel, **solve_kwargs) -> Dic
     try:
         model.solve(**solve_kwargs)
 
-        if model.electrical_model is None:
-            raise ValueError("ElectricalModel is not specified.")
-
         results = model.calculate_metrics(
             "g(t, x5)",
             {
                 "p_load_avg": lambda x: calc_p_load_avg(
-                    x, model.electrical_model.load_model.R
-                )  # noqa
+                    x, model.electrical_model.load_model.R  # type: ignore
+                )
             },
         )
     except ModelError:
         warnings.warn("Device configuration not valid, skipping.")
-
         results = {"p_load_avg": None}
 
     return results

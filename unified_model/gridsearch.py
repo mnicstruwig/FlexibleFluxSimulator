@@ -196,7 +196,6 @@ class UnifiedModelFactory:
         rectification_drop: float,
         load_model: Any,
         flux_model: Any,
-        dflux_model: Any,
         coupling_model: Any,
         governing_equations: Any,
         model_id: int = None,
@@ -211,7 +210,6 @@ class UnifiedModelFactory:
         self.rectification_drop = rectification_drop
         self.load_model = load_model
         self.flux_model = flux_model
-        self.dflux_model = dflux_model
         self.coupling_model = coupling_model
         self.governing_equations = governing_equations
         self.model_id = model_id  # <-- keep track of a set of parameters
@@ -258,7 +256,7 @@ class UnifiedModelFactory:
             .set_rectification_drop(self.rectification_drop)
             .set_coil_configuration(self.coil_config)
             .set_load_model(self.load_model)
-            .set_flux_model(self.flux_model, self.dflux_model)
+            .set_flux_model(self.flux_model)
         )
         unified_model = (
             UnifiedModel()
