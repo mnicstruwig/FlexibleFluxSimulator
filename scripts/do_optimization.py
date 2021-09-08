@@ -1,6 +1,7 @@
 from glob import glob
 from itertools import product
 from typing import Any, Dict, List
+import warnings
 
 import ray
 import numpy as np
@@ -14,6 +15,7 @@ from unified_model import (CouplingModel, ElectricalModel, MechanicalModel,
                            mechanical_components, optimize)
 from unified_model.governing_equations import unified_ode
 from unified_model.utils.utils import batchify
+from unified_model.local_exceptions import ModelError
 
 
 def calc_rms(x):
@@ -29,20 +31,24 @@ def calc_p_load_avg(x, r_load):
 
 @ray.remote
 def simulate_and_calculate_power(model: UnifiedModel):
-    model.solve(
-        t_start=0.,
-        t_end=8,
-        y0=[0., 0., 0.04, 0., 0.],
-        t_max_step=1e-3,
-        t_eval=np.arange(0, 8, 1e-3)
-    )
+    try:
+        model.solve(
+            t_start=0.,
+            t_end=8,
+            y0=[0., 0., 0.04, 0., 0.],
+            t_max_step=1e-3,
+            t_eval=np.arange(0, 8, 1e-3)
+        )
 
-    results = model.calculate_metrics(
-        prediction_expr='g(t, x5)',
-        metric_dict={
-            'p_load_avg': lambda x: calc_p_load_avg(x, model.electrical_model.load_model.R)
-        }
-    )
+        results = model.calculate_metrics(
+            prediction_expr='g(t, x5)',
+            metric_dict={
+                'p_load_avg': lambda x: calc_p_load_avg(x, model.electrical_model.load_model.R)
+            }
+        )
+    except ModelError:
+        warnings.warn("Model didn't pass validation. Skipping.")
+        results = {'p_load_avg': None}
 
     return results
 
