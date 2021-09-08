@@ -306,6 +306,7 @@ class UnifiedModel:
         y0: List[float],
         t_eval: Union[List, np.ndarray],
         t_max_step: float = 1e-4,
+        method: str = 'RK45',
     ) -> None:
         """Solve the unified model.
 
@@ -322,7 +323,10 @@ class UnifiedModel:
             Times at which to store the computed solution.
         t_max_step : float, optional
             The maximum time step (in seconds) to be used when solving the
-            unified model. Default value is 1e-5.
+            unified model. Default value is 1e-4.
+        method : str, optional
+            The solver to use. Default value is 'RK45'. See the documentation
+            for `scipy.integrate.solve_ivp` for possible solution methods.
 
         See Also
         --------
@@ -342,7 +346,7 @@ class UnifiedModel:
             t_span=[t_start, t_end],
             y0=y0,
             t_eval=t_eval,
-            method="Radau",
+            method=method,
             max_step=t_max_step,
             rtol=1e-3,  # default 1e-3,
             atol=1e-6,  # default 1e-6
