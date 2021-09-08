@@ -1,7 +1,17 @@
-import warnings
+from __future__ import annotations
 
-from unified_model.utils.utils import pretty_str
+import warnings
+from typing import Any
+
 from unified_model.local_exceptions import ModelError
+from unified_model.mechanical_components.damper import (ConstantDamper,
+                                                        MassProportionalDamper,
+                                                        QuasiKarnoppDamper)
+from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
+from unified_model.mechanical_components.magnetic_spring import (
+    MagneticSpringInterp, MagnetSpringAnalytic)
+from unified_model.utils.utils import pretty_str
+
 from .mechanical_components.mechanical_spring import MechanicalSpring
 
 
@@ -28,7 +38,7 @@ class MechanicalModel:
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor"""
         self.magnetic_spring = None
         self.mechanical_spring = None
@@ -36,11 +46,25 @@ class MechanicalModel:
         self.damper = None
         self.input_ = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return string representation of the MechanicalModel"""
         return f"""Mechanical Model: {pretty_str(self.__dict__, 1)}"""
 
-    def _validate(self):
+    def __add__(self, other: Any) -> MechanicalModel:
+        """Compose a unified from other mechanical components."""
+
+        if isinstance(other, MagnetAssembly):
+            return self.set_magnet_assembly(other)
+        elif isinstance(other, MagneticSpringInterp) or isinstance(other, MagnetSpringAnalytic):
+            return self.set_magnetic_spring(other)
+        elif isinstance(other, MechanicalSpring):
+            return self.set_mechanical_spring(other)
+        elif isinstance(other, MassProportionalDamper) or isinstance(other, ConstantDamper) or isinstance(other, QuasiKarnoppDamper):
+            return self.set_damper(other)
+        else:
+            raise ValueError(f'Unsupported component of type: {type(other)}.')
+
+    def _validate(self) -> None:
         """Validate the mechanical model.
 
         Do some basic checks to make sure mandatory components have been set.
@@ -72,7 +96,7 @@ class MechanicalModel:
         except AssertionError:
             raise ModelError("An input excitation must be specified.")
 
-    def set_magnetic_spring(self, spring):
+    def set_magnetic_spring(self, spring) -> MechanicalModel:
         """Add a magnetic spring to the mechanical system.
 
         Parameters
@@ -85,7 +109,7 @@ class MechanicalModel:
         self.magnetic_spring = spring
         return self
 
-    def set_mechanical_spring(self, spring):
+    def set_mechanical_spring(self, spring) -> MechanicalModel:
         """Add a mechanical spring to the mechanical system.
 
         Parameters

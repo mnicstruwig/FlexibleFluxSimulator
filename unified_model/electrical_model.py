@@ -1,4 +1,5 @@
 from __future__ import annotations
+from unified_model.electrical_components.load import SimpleLoad
 from unified_model.electrical_components.flux.model import FluxModelInterp, FluxModelPretrained
 
 import warnings
@@ -39,6 +40,19 @@ class ElectricalModel:
     def __str__(self):
         """Return string representation of the ElectricalModel"""
         return f"""Electrical Model: {pretty_str(self.__dict__, 1)}"""
+
+    def __add__(self, other) -> ElectricalModel:
+        """Compose a ElectricalModel from components"""
+        if isinstance(other, CoilConfiguration):
+            return self.set_coil_configuration(other)
+        elif isinstance(other, (FluxModelInterp, FluxModelPretrained)):
+            return self.set_flux_model(other)
+        elif isinstance(other, float):
+            return self.set_rectification_drop(other)
+        elif isinstance(other, SimpleLoad):
+            return self.set_load_model(other)
+        else:
+            raise ValueError(f'Unsupported component of type: {type(other)}.')
 
     def _validate(self):
         """Validate the electrical model.

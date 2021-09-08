@@ -612,3 +612,14 @@ def update_attribute(primary, key_expr, value):
         temp.__dict__[keys[-1]] = value  # Set value at deepest key
 
     return new_primary
+
+
+def batchify(x, batch_size):
+    """Batch a list `x` into batches of size `batch_size`."""
+    total_size = len(x)
+    indexes = np.arange(0, total_size, batch_size)
+
+    if indexes[-1] < total_size:
+        indexes = np.append(indexes, [total_size])  # type: ignore
+
+    return [x[indexes[i] : indexes[i + 1]] for i in range(len(indexes) - 1)]
