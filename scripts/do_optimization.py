@@ -36,8 +36,9 @@ def simulate_and_calculate_power(model: UnifiedModel):
             t_start=0.,
             t_end=8,
             y0=[0., 0., 0.04, 0., 0.],
-            t_max_step=1e-3,
-            t_eval=np.arange(0, 8, 1e-3)
+            t_max_step=1e-4,
+            t_eval=np.arange(0, 8, 1e-3),
+            method="Radau"
         )
 
         results = model.calculate_metrics(
@@ -77,7 +78,7 @@ for log_file in log_files:
     )
     acc_inputs.append(acc_input)
 
-acc_inputs = acc_inputs[:3]
+acc_inputs = acc_inputs[1:2]
 assert len(acc_inputs) != 0
 
 batches = batchify(list(product(n_z_arr, n_w_arr, c_c_arr)), BATCH_SIZE)
@@ -206,6 +207,6 @@ for batch_number, batch in enumerate(batches):
 
     df = pd.DataFrame(output)
     table = pa.Table.from_pandas(df)
-    pq.write_to_dataset(table, f"./output/{c}c{m}m_3input.parquet")
+    pq.write_to_dataset(table, f"./output/{c}c{m}m_i1_Radau_small_ts.parquet")
 
 ray.shutdown()
