@@ -1030,9 +1030,7 @@ class UnifiedModel:
                     message += bad
                     message += err_message
 
-                if verbose:
-                    print(message)
-                return bool_or_func
+                return bool_or_func, message
 
             elif callable(bool_or_func):
                 try:
@@ -1048,56 +1046,85 @@ class UnifiedModel:
                     message += err_message
                     message += exception_message
 
-                if verbose:
-                    print(message)
-                return result
+                return result, message
             else:
                 raise ValueError('Must specify either a boolean variable or a callable!')
 
-        failed_any = False
+        did_any_fail = False
+
+        messages = ["Model validation report:"]
+        error_messages = ['Model validation failed:']
 
         # Basic checks
-        failed_any = _fail_if_true(  # TODO: Consider a better interface
+        did_fail, message = _fail_if_true(  # TODO: Consider a better interface
             self.mechanical_model is None,
             "Checking if mechanical model is present...",
             "No mechanical model."
-        ) or failed_any
+        )
+        if did_fail:
+            error_messages.append(message)  # TODO: Come up with something less repetitive
+            did_any_fail = True
+        messages.append(message)
 
-        failed_any = _fail_if_true(
+        did_fail, message = _fail_if_true(
             self.mechanical_model._validate,
             "Checking mechanical model...",
             ""
-        ) or failed_any
+        )
+        if did_fail:
+            error_messages.append(message)  # TODO: Come up with something less repetitive
+            did_any_fail = True
+        messages.append(message)
 
-        failed_any = _fail_if_true(
+        did_fail, message = _fail_if_true(
             self.electrical_model is None,
             "Checking if electrical model is present...",
             "No electrical model."
-        ) or failed_any
+        )
+        if did_fail:
+            error_messages.append(message)  # TODO: Come up with something less repetitive
+            did_any_fail = True
+        messages.append(message)
 
-        failed_any = _fail_if_true(
+        did_fail, message = _fail_if_true(
             self.electrical_model._validate,
             "Checking electrical model...",
             ""
-        ) or failed_any
+        )
+        if did_fail:
+            error_messages.append(message)  # TODO: Come up with something less repetitive
+            did_any_fail = True
+        messages.append(message)
 
-        failed_any = _fail_if_true(
+        did_fail, message = _fail_if_true(
             self.coupling_model is None,
             "Checking if coupling model is present...",
             "No coupling model."
-        ) or failed_any
+        )
+        if did_fail:
+            error_messages.append(message)  # TODO: Come up with something less repetitive
+            did_any_fail = True
+        messages.append(message)
 
-        failed_any = _fail_if_true(
+        did_fail, message = _fail_if_true(
             self.height is None,
             "Checking if device height has been specified...",
             "Height of the device has not been set."
-        ) or failed_any
+        )
+        if did_fail:
+            error_messages.append(message)  # TODO: Come up with something less repetitive
+            did_any_fail = True
+        messages.append(message)
 
-        failed_any = _fail_if_true(
+        did_fail, message = _fail_if_true(
             self.governing_equations is None,
             "Checking if governing equations have been specified...",
             "Governing equations have not been set."
-        ) or failed_any
+        )
+        if did_fail:
+            error_messages.append(message)  # TODO: Come up with something less repetitive
+            did_any_fail = True
+        messages.append(message)
 
         # More involved checks
 
@@ -1118,11 +1145,15 @@ class UnifiedModel:
         # Coil's position is relative to the top edge of the fixed magnet, while
         # the height of the device is the absolute height. So we must compensate
         # for this offset
-        failed_any = _fail_if_true(
+        did_fail, message = _fail_if_true(
             bool(coil_top_edge + offset > self.height),
             "Check if coil configuration fits onto device...",
             f"The top edge of the top coil is {(coil_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm."  # type:ignore # noqa
-        ) or failed_any
+        )
+        if did_fail:
+            error_messages.append(message)  # TODO: Come up with something less repetitive
+            did_any_fail = True
+        messages.append(message)
 
         # Find the top edge of the uppermost magnet assembly
         ma = self.mechanical_model.magnet_assembly
@@ -1130,11 +1161,15 @@ class UnifiedModel:
         mag_top_edge = ms.get_hover_height(ma) + ma.get_length() / 1000
 
         magnet_top_edge_is_outside = bool(np.round(mag_top_edge + offset, 3) >= self.height)
-        failed_any = _fail_if_true(
+        did_fail, message = _fail_if_true(
             magnet_top_edge_is_outside,
             "Checking if the magnet assembly fits into device...",
             f"The top edge of the magnet assembly is {(mag_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm."  # type:ignore # noqa
-        ) or failed_any
+        )
+        if did_fail:
+            error_messages.append(message)  # TODO: Come up with something less repetitive
+            did_any_fail = True
+        messages.append(message)
 
         # Check that our mechanical spring at the top of the mechanical model
         # lies within our required height.
@@ -1148,9 +1183,12 @@ class UnifiedModel:
                 f"The device requires a minimum height of {required_height_m}m for intended operation, but the height has been set to {device_height_m}m."
             )
 
+        if verbose:
+            print('\n'.join(messages))
+
         # If we failed anything, raise a ModelError.
-        if failed_any:
-            raise ModelError('Model did not pass validation.')
+        if did_any_fail:
+            raise ModelError('\n'.join(error_messages))
 
     def _apply_pipeline(self) -> None:
         """Execute the post-processing pipelines on the raw solution.."""

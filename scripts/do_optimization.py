@@ -38,7 +38,7 @@ def simulate_and_calculate_power(model: UnifiedModel):
             y0=[0., 0., 0.04, 0., 0.],
             t_max_step=1e-4,
             t_eval=np.arange(0, 8, 1e-3),
-            method="Radau"
+            method="RK23"
         )
 
         results = model.calculate_metrics(
@@ -47,8 +47,10 @@ def simulate_and_calculate_power(model: UnifiedModel):
                 'p_load_avg': lambda x: calc_p_load_avg(x, model.electrical_model.load_model.R)
             }
         )
-    except ModelError:
+    except ModelError as e:
         warnings.warn("Model didn't pass validation. Skipping.")
+        warnings.warn(e.args)
+
         results = {'p_load_avg': None}
 
     return results
@@ -207,6 +209,6 @@ for batch_number, batch in enumerate(batches):
 
     df = pd.DataFrame(output)
     table = pa.Table.from_pandas(df)
-    pq.write_to_dataset(table, f"./output/{c}c{m}m_i1_Radau_small_ts.parquet")
+    pq.write_to_dataset(table, f"./output/{c}c{m}m_i1_DOP853_small_ts.parquet")
 
 ray.shutdown()
