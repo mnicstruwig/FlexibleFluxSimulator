@@ -1019,8 +1019,8 @@ class UnifiedModel:
     def validate(self, verbose=True) -> None:
 
         def _fail_if_true(bool_or_func, message, err_message=""):
-            good = " ✔️"
-            bad = " ❌ "
+            good = " . "
+            bad = " X "
             exception_message = ""
 
             if isinstance(bool_or_func, bool):
