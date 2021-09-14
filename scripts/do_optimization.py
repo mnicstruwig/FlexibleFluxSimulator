@@ -48,8 +48,8 @@ def simulate_and_calculate_power(model: UnifiedModel):
             }
         )
     except ModelError as e:
+        warnings.warn(e)
         warnings.warn("Model didn't pass validation. Skipping.")
-        warnings.warn(e.args)
 
         results = {'p_load_avg': None}
 
