@@ -93,8 +93,8 @@ unified_model = UnifiedModel(name="Unified Model")
 unified_model.set_mechanical_model(mechanical_model)
 unified_model.set_electrical_model(electrical_model)
 unified_model.set_coupling_model(coupling_model)
-unified_model.set_governing_equations(unified_ode)
-unified_model.set_post_processing_pipeline(clip_x2, name="clip tube velocity")
+unified_model.with_governing_equations(unified_ode)
+unified_model.with_post_processing_pipeline(clip_x2, name="clip tube velocity")
 
 # Execute and collect results
 unified_model.solve(t_start=0, t_end=8, t_max_step=1e-3, y0=[0.0, 0.0, 0.04, 0.0, 0.0])

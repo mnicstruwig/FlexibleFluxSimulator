@@ -182,7 +182,7 @@ for batch_number, batch in enumerate(batches):
                 .set_electrical_model(electrical_model)
                 .set_coupling_model(coupling_model)
                 .set_governing_equations(unified_ode)
-                .set_height(105)
+                .with_height(105)
             )
 
             model.mechanical_model.set_input(input_)

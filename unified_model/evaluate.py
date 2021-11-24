@@ -132,7 +132,7 @@ class Measurement:
         ground_truth = Groundtruth(
             sample=sample,
             lvp_kwargs={
-                "magnet_assembly": self._model_prototype.mechanical_model.magnet_assembly,  # noqa
+                "magnet_assembly": self._model_prototype.magnet_assembly,  # noqa
                 "seconds_per_frame": 1 / 60,
                 "pixel_scale": 0.154508,
             },

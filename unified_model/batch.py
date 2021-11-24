@@ -1,10 +1,10 @@
 """
 Perform batch simulations, in parallel.
 """
+
 from typing import Dict, Tuple, List, Any
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 from datetime import datetime
 import ray
 import pyarrow as pa
@@ -37,17 +37,89 @@ def _score_measurement(
     return result
 
 
-# TODO: Docstring
 def solve_for_batch(
         base_model_config: Dict,
-        params: List[Tuple[str, Any]],
+        params: List[List[Tuple[str, Any]]],
         samples: List[Sample],
         mech_pred_expr: str = None,
         mech_metrics: Dict = None,
         elec_pred_expr: str = None,
         elec_metrics: Dict = None,
         solve_kwargs: Dict = None
-):
+) -> None:
+    """
+    Solve and store solutions for a batch of interpolated device designs.
+
+    Solves, scores and writes-out results for a base model configuration that is
+    updated with every parameter set specified in `params`. Each parameter set
+    is solved and scored against every ground truth Sample in `samples` for the
+    metrics and expressions specified in the `*_pred_exr` and `*_metrics`
+    arguments.
+
+    Parameters
+    ----------
+    base_model_config : Dict
+        Dict representing the base `UnifiedModel` configuration that will be
+        updated using parameters in `params`. The configuration can be obtained pf
+        from the `UnifiedModel` class methods.
+    params : List[List[Tuple[str, Any]]]
+        List of parameters to calculate solutions for. Each parameter in
+        `params` will be used to update the `base_model_config`. See the
+        `Examples` section for the shape of `params`. Each parameter in `params`
+        must be compatible with the `UnifiedModel.update_params` method.
+    samples : List[Sample]
+        List of instantiated `Sample`s that contain both the input excitation
+        and groundtruth data. Typically collected using the
+        `utils.utils.collect_samples` function.
+    mech_pred_expr : str
+         Expression that is evaluated and used as the predictions for the
+         mechanical system. Any reasonable expression is possible. You
+         can refer to each of the differential equations referenced by the
+         `governing_equations` using the letter `x` with the number appended.
+         For example, `x1` refers to the first differential equation, and
+         `x2` refers to the second differential equation.
+    mech_metrics : Dict[str, Any]
+        Metrics to compute on the predicted and target mechanical data. Keys is
+        a user-chosen name given to the metric returned in the result. Values
+        must be a function, that accepts two numpy arrays (arr_predict,
+        arr_target), and computes a scalar value. See the `metrics` module for
+        some built-in metrics.
+    elec_pred_expr : str
+        Expression that is evaluated and used as the predictions for the
+        electrical system. Identical in functionality to `mech_pred_expr`.
+        Optional.
+    elec_metrics: Dict[str, Any]
+        Metrics to compute on the predicted and target electrical data.
+        Identical in functionality to `mech_metrics`.
+    solve_kwargs : Dict[str, Any]
+        Additional keyword arguments passed to the `UnifiedModel.solve` method for each
+        model that is solved. Optional.
+
+    Examples
+    --------
+    >>> # Example `params`
+    >>> params = [[('mechanical_model.damper.damping_coefficient', 5.3)]]
+    >>> param_set_1 = [
+    ...     ('mechanical_model.damper.damping_coefficient', 1.5)
+    ...     ('coupling_model.coupling_constant', 0.1)
+    ... ]
+    >>> param_set_2 = [
+    ...     ('mechanical_model.damper.damping_coefficient', 2.0)
+    ...     ('coupling_model.coupling_constant', 0.2)
+    ... ]
+    >>> param_set_3 = [
+    ...     ('mechanical_model.damper.damping_coefficient', 3.0)
+    ...     ('coupling_model.coupling_constant', 0.3)
+    ... ]
+    >>> params = [param_set_1, param_set_2, param_set_3]
+
+    >>> # Example mech_metrics
+    >>> mech_metrics = {
+    ...    'dtw_mech_norm' : metrics.dtw_euclid_norm_by_length
+    ...    'dtw_mech' : metrics.dtw_euclid_distance
+    ... }
+
+    """
     start_time = datetime.now()
 
     if ray.is_initialized():  # Make sure we start fresh

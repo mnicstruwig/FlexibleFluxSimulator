@@ -265,7 +265,7 @@ class UnifiedModelFactory:
             .set_coupling_model(self.coupling_model)
             .set_governing_equations(self.governing_equations)
             .set_post_processing_pipeline(pipeline.clip_x2, name="clip x2")
-            .set_height(self.height_mm)
+            .with_height(self.height_mm)
         )
         return unified_model
 

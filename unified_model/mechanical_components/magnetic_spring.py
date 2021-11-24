@@ -1,4 +1,5 @@
-from typing import Callable, Optional, Union, overload, cast
+from typing import Callable, Optional, Union, overload, cast, Dict, Any
+import os
 
 import numpy as np
 import pandas as pd
@@ -64,7 +65,7 @@ class MagneticSpringInterp:
     def __init__(
         self,
         fea_data_file: str,
-        magnet_length: float,
+        magnet_assembly: Any,
         filter_callable: Callable = None,
         **model_kwargs,
     ) -> None:
@@ -82,19 +83,18 @@ class MagneticSpringInterp:
             center of the moving magnet.
         filter_callable : Callable
             A filter_callable to smooth the data in the data file. Optional.
-        **model_kwargs :
-            Keyword arguments passed to `scipy.interpolate.interp1d`.
 
         """
         self.fea_data_file = fea_data_file
         self.filter_callable = filter_callable
-        self.magnet_length = magnet_length
 
         self.fea_dataframe = _preprocess(
             cast(pd.DataFrame, pd.read_csv(fea_data_file)), filter_callable
         )
+
+        self.magnet_length = magnet_assembly.l_m_mm / 1000
         self._model = self._fit_model(
-            self.fea_dataframe, self.magnet_length, **model_kwargs
+            self.fea_dataframe, self.magnet_length
         )
 
     @overload
@@ -156,6 +156,21 @@ class MagneticSpringInterp:
 
         l_hover = y_diff[idx]
         return l_hover
+
+    def to_json(self):
+        """Return a json-serializable representation of the magnetic spring"""
+        return {
+            'fea_data_file': os.path.abspath(self.fea_data_file),
+            'filter_callable': 'auto',  # TODO: sort this out later
+            'magnet_assembly': 'dep:magnet_assembly'
+        }
+
+    def update(self, um):
+        """Update the internal state when notified."""
+        self.magnet_length = um.magnet_assembly.l_m_mm / 1000
+        self._model = self._fit_model(
+            self.fea_dataframe, self.magnet_length
+        )
 
 
 # TODO: Update to match latest version in paper.

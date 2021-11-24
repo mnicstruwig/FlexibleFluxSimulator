@@ -127,9 +127,9 @@ unified_model = UnifiedModel(name="Unified")
 unified_model.set_mechanical_model(mechanical_model)
 unified_model.set_electrical_model(electrical_model)
 unified_model.set_coupling_model(coupling_model)
-unified_model.set_governing_equations(governing_equations)
+unified_model.with_governing_equations(governing_equations)
 
-unified_model.set_post_processing_pipeline(clip_x2, name="clip tube velocity")
+unified_model.with_post_processing_pipeline(clip_x2, name="clip tube velocity")
 
 y0 = [0, 0, 0.04, 0, 0]
 unified_model.solve(t_start=0, t_end=15, y0=y0, t_max_step=1e-3)

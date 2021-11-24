@@ -339,7 +339,7 @@ def _calculate_cost_for_single_measurement(
     )
 
     # We need to set the height again since we've re-specified the mechanical spring
-    model.set_height(model.height * 1000)
+    model.with_height(model.height * 1000)
 
     # Input excitation
     model.mechanical_model.set_input(measurement.input_)

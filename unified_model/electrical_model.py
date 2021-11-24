@@ -17,15 +17,16 @@ class ElectricalModel:
 
     Attributes
     ----------
-    flux_model : Callable
-        Function that returns the flux linkage of a coil when the position of a
-        magnet assembly's bottom edge is passed to it.
-    dflux_model : Callable
-        The gradient of `flux_model`.
+    flux_model : Any
+        Object that has .get_flux and .dflux_model methods that, when passed
+        the relative magnet position, must return the value of the flux and
+        the derivative of the flux, respectively.
+    coil_configuration : CoilConfiguration
+        The coil configuration for the coils being modeled.
     rectification_drop : float
         The voltage drop (from open-circuit voltage) due to rectification
         by a full-wave bridge rectifier.
-    load_model : Object
+    load_model : Any
         A load model object.
 
     """
@@ -33,7 +34,7 @@ class ElectricalModel:
     def __init__(self):
         """Constructor."""
         self.flux_model = None
-        self.coil_config = None
+        self.coil_configuration = None
         self.rectification_drop = None
         self.load_model = None
 
@@ -66,7 +67,7 @@ class ElectricalModel:
                 "A flux model model must be specified."
             ) from e
         try:
-            assert self.coil_config is not None
+            assert self.coil_configuration is not None
         except AssertionError as e:
             raise ModelError("A coil model must be specified.") from e
         try:
@@ -80,6 +81,7 @@ class ElectricalModel:
         except AssertionError as e:
             raise ModelError("A load model must be specified.") from e
 
+    # TODO: Make a base `FluxModel` class
     def set_flux_model(self, flux_model: Union[FluxModelInterp, FluxModelPretrained]):
         """Assign a flux model.
 
@@ -96,7 +98,7 @@ class ElectricalModel:
 
     def set_coil_configuration(self, coil_config: CoilConfiguration) -> ElectricalModel:
         """Set the coil model"""
-        self.coil_config = coil_config
+        self.coil_configuration = coil_config
         return self
 
     def set_rectification_drop(self, v: float) -> ElectricalModel:
@@ -121,7 +123,7 @@ class ElectricalModel:
         v_load = (
             emf
             * self.load_model.R
-            / (self.load_model.R + self.coil_config.coil_resistance)
+            / (self.load_model.R + self.coil_configuration.coil_resistance)
         )
 
         return v_load
@@ -180,6 +182,6 @@ class ElectricalModel:
             return 0
 
         r_load = self.load_model.R
-        r_coil = self.coil_config.coil_resistance
+        r_coil = self.coil_configuration.get_coil_resistance()
         # V = I/R -> I = V/R
         return emf_oc / (r_load + r_coil)

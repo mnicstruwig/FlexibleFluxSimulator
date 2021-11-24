@@ -17,17 +17,5 @@ class SimpleLoad:
         # Couldn't discover a nicer way to do this
         return f"SimpleLoad(R={self.R})"
 
-    def get_current(self, emf, coil_resistance):
-        """Get the current through the load."""
-        if np.isinf(self.R) or np.isinf(coil_resistance):
-            return 0
-        v_load = emf * self.R / (self.R + coil_resistance)
-        return v_load / self.R
-
-    def get_voltage(self, current):
-        """Get the voltage over the load."""
-        pass
-
-    def get_power(self, **kwargs):
-        """Get the power dissipated in the load."""
-        pass
+    def to_json(self):
+        return {'R': self.R}
