@@ -103,7 +103,7 @@ for batch_number, batch in enumerate(batches):
         'config': []
     }
 
-    print(f'✨ Running batch {batch_number} out of {len(batches)}... ')
+    print(f'✨ Running batch {batch_number+1} out of {len(batches)}... ')
     for n_z, n_w, c_c in batch:
         for i, input_ in enumerate(acc_inputs):
             # Build our model
