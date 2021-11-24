@@ -73,7 +73,7 @@ for device in ["A", "B", "C"]:
         inner_tube_radius_mm=5.5,
         coil_resistance=abc_coil_resistance[device],
     )
-    flux_model, dflux_model = abc_flux_database.query_to_model(
+    flux_model = abc_flux_database.query_to_model(
         FluxModelInterp,
         {"coil_config": coil_config, "magnet_assembly": abc_magnet_assembly},
         coil_height=abc_coil_height[device],
@@ -82,7 +82,6 @@ for device in ["A", "B", "C"]:
     )
 
     abc_flux_models[device] = flux_model
-    abc_dflux_models[device] = dflux_model
     abc_coil_configs[device] = coil_config
 
 
@@ -95,7 +94,6 @@ config_parameters = [
     "spring",
     "flux_database",
     "flux_models",
-    "dflux_models",
     "magnet_assembly",
 ]
 
@@ -111,7 +109,6 @@ class Config:
     spring: Any
     flux_database: Any
     flux_models: Dict
-    dflux_models: Dict
     magnet_assembly: Any
 
 
@@ -123,7 +120,6 @@ ABC_CONFIG = Config(
     spring=abc_spring,
     flux_database=abc_flux_database,
     flux_models=abc_flux_models,
-    dflux_models=abc_dflux_models,
     magnet_assembly=abc_magnet_assembly,
 )
 

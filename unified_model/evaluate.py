@@ -38,12 +38,12 @@ class Groundtruth:
         self.lvp = LabeledVideoProcessor(**self.lvp_kwargs)
         self.adc = AdcProcessor(**self.adc_kwargs)
 
-        y_target, y_time_target = self.lvp.fit_transform(self._sample.video_labels_df)
+        y_target, y_time_target = self.lvp.fit_transform(pd.read_csv(self._sample.video_labels_path))
         y_target = savgol_filter(y_target, 9, 3)  # addtional filtering on `y_target`
         self.mech["y_diff"] = y_target
         self.mech["time"] = y_time_target
 
-        emf_target, emf_time_target = self.adc.fit_transform(self._sample.adc_df)
+        emf_target, emf_time_target = self.adc.fit_transform(pd.read_csv(self._sample.adc_path))
         self.elec["emf"] = emf_target
         self.elec["time"] = emf_time_target
 
@@ -118,6 +118,7 @@ class Measurement:
         self.input_, self.groundtruth = self._make_measurement(self.sample)
 
     def _make_measurement(self, sample):
+        # First get the acceleration input
         acc_input = mechanical_components.AccelerometerInput(
             raw_accelerometer_data_path=sample.acc_path,
             accel_column="z_G",
@@ -127,7 +128,7 @@ class Measurement:
             smooth=True,
             interpolate=True,
         )
-
+        # Then get the ground truth measurements
         ground_truth = Groundtruth(
             sample=sample,
             lvp_kwargs={

@@ -76,13 +76,7 @@ class MechanicalModel:
         try:
             assert self.mechanical_spring is not None
         except AssertionError:
-            warnings.warn(
-                """A mechanical spring, simulating the impact dynamics
-                          of the magnet assembly impacting the top of the
-                          microgenerator device, has not been set. The resulting
-                          simulation will assume an infinitely-long
-                          microgenerator tube."""
-            )
+            raise ModelError('A mechanical spring, simulating the top of the microgenerator body, must be set.')
         try:
             assert self.damper is not None
         except AssertionError:

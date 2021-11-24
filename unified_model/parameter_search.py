@@ -2,11 +2,11 @@
 
 import copy
 from typing import Dict, List, Tuple, Any
+from datetime import datetime
 
 import nevergrad as ng
 import numpy as np
 import ray  # type: ignore
-from halo import Halo
 
 from .coupling import CouplingModel
 from .evaluate import Measurement
@@ -17,56 +17,6 @@ from .metrics import (
     root_mean_square_percentage_diff,
 )
 from .unified import UnifiedModel
-
-
-def _in_notebook() -> bool:
-    # https://stackoverflow.com/a/22424821
-    import sys
-
-    try:
-        get_ipython = sys.modules["IPython"].get_ipython  # type: ignore
-        if "IPKernelApp" in get_ipython().config:
-            return True
-        return False
-    except KeyError:
-        return False
-
-
-class NotebookSpinner:
-    def __init__(self, text):
-        self.running = False
-        self.text = text
-
-    def start(self):
-        self.running = True
-        self._print()
-
-    def succeed(self, text):
-        self.text = text
-        self.stop()
-
-    def _print(self):
-        print(self.text, end="\r")
-
-    def _clear(self):
-        try:
-            print(" " * len(self.text), end="\r")
-        except AttributeError:
-            pass
-
-    def stop(self):
-        self.running = False
-
-    def __setattr__(self, key, value):
-        if key == "text":
-            super().__setattr__(key, value)
-            if self.running:
-                self._print()  # Print after updating the text attribute
-
-        # must call the base parent __setattr__ to actually set an attribute.
-        # Otherwise we recurse forever.
-        else:
-            super().__setattr__(key, value)
 
 
 def _assert_valid_cost_metric(cost_metric: str) -> None:
@@ -196,20 +146,11 @@ def mean_of_votes(
         ref = wrapper.remote()
         tasks.append(ref)
 
-    if _in_notebook():
-        spinner = Halo(
-            text=f"Running :: 0 / {len(tasks)}", spinner="dots", color="red"
-        )  # noqa
-    else:
-        spinner = NotebookSpinner(text=f"Running :: 0 / {len(tasks)}")
-
-    spinner.start()
     ready: List[Any] = []
     while len(ready) < len(tasks):
         ready, _ = ray.wait(tasks, num_returns=len(tasks), timeout=30)
-        spinner.text = f"Running :: {len(ready)} / {len(tasks)}"
+        print(f"Running :: {len(ready)} / {len(tasks)}")
 
-    spinner.succeed("Simulation complete!")
     results = ray.get(tasks)
 
     for recommendation in results:
@@ -238,6 +179,7 @@ def mean_of_scores(
     cost_metric: str,
     budget: int = 500,
     verbose: bool = True,
+    log_to_disk: bool = False,
 ) -> Dict[str, float]:
     """Perform the `mean of scores` evolutionary parameter search optimization.
 
@@ -281,7 +223,10 @@ def mean_of_scores(
         Optional.
     verbose : bool
         Set to `True` to print out the Loss value of the cost function during
-        optimization. Optional.
+        optimization. Optional. Default value is `True`.
+    log_to_disk : bool
+        Set to `True` to log the cost function scores to disk during
+        optimization. Optional. Default value is `False`.
 
     Returns
     -------
@@ -319,7 +264,7 @@ def mean_of_scores(
         mech_spring_constant=instruments["mech_spring_constant"],
     )
 
-    optimizer = ng.optimizers.PSO(parametrization=instrum, budget=budget)
+    optimizer = ng.optimizers.TBPSA(parametrization=instrum, budget=budget)
 
     def callback(optimizer, candidate, value):
         try:
@@ -332,6 +277,11 @@ def mean_of_scores(
 
     if verbose:
         optimizer.register_callback("tell", callback)
+
+    if log_to_disk:
+        log_file = f"evo_log_{datetime.now()}.json"
+        logger = ng.callbacks.ParametersLogger(log_file)
+        optimizer.register_callback("tell", logger)
 
     ray.init()
     recommendation = optimizer.minimize(
@@ -384,10 +334,12 @@ def _calculate_cost_for_single_measurement(
     model.mechanical_model.set_mechanical_spring(
         MechanicalSpring(
             magnet_assembly=model.mechanical_model.magnet_assembly,
-            position=model.mechanical_model.mechanical_spring.position,
             damping_coefficient=mech_spring_constant,
         )
     )
+
+    # We need to set the height again since we've re-specified the mechanical spring
+    model.set_height(model.height * 1000)
 
     # Input excitation
     model.mechanical_model.set_input(measurement.input_)

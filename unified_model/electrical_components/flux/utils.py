@@ -153,6 +153,7 @@ class FluxDatabase:
         db_key = self._make_db_key(**key_dict)
         self.database[db_key] = value
 
+    # TODO: Update docs
     def query_to_model(self, model_cls, model_kwargs, **kwargs):
         """Query the database and return a flux model.
 
@@ -174,10 +175,6 @@ class FluxDatabase:
         flux_model: obj
             A flux model object that can be called with `z` values to
             return the flux linkage at that position z.
-        dflux_model: obj
-            A dflux model object that can be called with 'z' values to return
-            the derivative of the flux linkage at position z (with respect to
-            z, *not* time).
 
         See Also
         --------
@@ -187,7 +184,7 @@ class FluxDatabase:
         phi = self.query(**kwargs)
         model = model_cls(**model_kwargs)
         model.fit(self.z, phi)
-        return model.flux_model, model.dflux_model
+        return model
 
     def query(self, **kwargs):
         """Query the database

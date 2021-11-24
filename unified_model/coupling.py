@@ -1,3 +1,6 @@
+from unified_model.local_exceptions import ModelError
+
+
 class CouplingModel:
     """Coupling between mechanical and electrical class."""
 
@@ -13,3 +16,7 @@ class CouplingModel:
 
     def get_mechanical_force(self, current):
         return self.coupling_constant * current
+
+    def _validate(self):
+        if self.coupling_constant is None:
+            raise ModelError(f'`coupling_constant` not set! Did you call `.set_coupling_constant`? {self.coupling_constant}')

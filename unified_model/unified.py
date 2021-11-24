@@ -152,7 +152,6 @@ class UnifiedModel:
 
         self._print_device()
 
-        header_str = "Device Summary\n"
         top_rule = "====================\n"
         mid_rule = "-----------\n"
 
@@ -672,8 +671,8 @@ class UnifiedModel:
         function is a convenience wrapper around the `_score_mechanical_system`
         and `_score_electrical_system` methods.
 
-        Note, that this explicitly calls a `solve` after updating the model to
-        use the `measurement` input excitation.
+        Note: this emthod explicitly calls the `.solve` method after updating
+        the model to use the `measurement` input excitation.
 
         Parameters
         ----------
@@ -781,6 +780,7 @@ class UnifiedModel:
         self.time = None
         self.raw_solution = None
 
+    # TODO: Docstring
     def update_params(self, config: List[Tuple[str, Any]]) -> UnifiedModel:
         """Update the parameters and return a new copy of the unified model."""
 
@@ -795,7 +795,7 @@ class UnifiedModel:
             except AssertionError as e:
                 raise ValueError(
                     f"The component `{sub_paths[0]}` is not defined or present."
-                ) from e  # noqa
+                ) from e
 
             try:
                 if len(sub_paths) == 2:  # TODO: Make this less hardcoded
@@ -843,6 +843,7 @@ class UnifiedModel:
             raise FileExistsError("The path already exists.")
 
         for key, val in self.__dict__.items():
+            print(key)
             component_path = path + key + ".pkl"
             with open(component_path, "wb") as f:
                 cloudpickle.dump(val, f)
@@ -855,7 +856,7 @@ class UnifiedModel:
         output['mechanical_model'] = {
             'magnetic_spring': {
                 'fea_data_file': os.path.abspath(self.mechanical_model.magnetic_spring.fea_data_file),
-                'filter_callable': None,  # Sort this out later
+                'filter_callable': 'auto',  # Sort this out later
                 'magnet_length': self.mechanical_model.magnetic_spring.magnet_length
             },
             'magnet_assembly': {
@@ -867,13 +868,16 @@ class UnifiedModel:
             },
             'mechanical_spring': {
                 'magnet_assembly': 'self',
-                'damping_coefficient': float(self.mechanical_model.mechanical_spring.damping_coefficient)
+                'damping_coefficient': self.mechanical_model.mechanical_spring.damping_coefficient
             },
             'damper': {
-                'damping_coefficient': float(self.mechanical_model.damper.damping_coefficient),
+                'damping_coefficient': self.mechanical_model.damper.damping_coefficient,
                 'magnet_assembly': 'self'
             },
-            'input_excitation': {
+        }
+
+        if self.mechanical_model.input_:
+            input_excitation_dict = {
                 'raw_accelerometer_data_path': os.path.abspath(self.mechanical_model.input_.raw_accelerometer_data_path),
                 'accel_column': self.mechanical_model.input_.accel_column,
                 'time_column': self.mechanical_model.input_.time_column,
@@ -882,7 +886,10 @@ class UnifiedModel:
                 'smooth': self.mechanical_model.input_.smooth,
                 'interpolate': self.mechanical_model.input_.interpolate,
             }
-        }
+        else:
+            input_excitation_dict = None
+
+        output['mechanical_model']['input_excitation'] = input_excitation_dict
 
         output['electrical_model'] = {
             'coil_config': {
@@ -908,7 +915,7 @@ class UnifiedModel:
         }
 
         output['coupling_model'] = {
-            'coupling_constant': float(self.coupling_model.coupling_constant)
+            'coupling_constant': self.coupling_model.coupling_constant
         }
 
         output['height'] = float(self.height * 1000)  # Must be in mm.
@@ -931,29 +938,30 @@ class UnifiedModel:
             **config['electrical_model']['coil_config']
         )
 
-        mech_model = (
-            MechanicalModel()
-            .set_magnetic_spring(
-                mechanical_components.MagneticSpringInterp(
-                    fea_data_file=config['mechanical_model']['magnetic_spring']['fea_data_file'],
-                    magnet_length=config['mechanical_model']['magnetic_spring']['magnet_length'],
-                    filter_callable=lambda x: savgol_filter(x, 11, 7)
-                )
+        mech_model = MechanicalModel()
+        mech_model.set_magnetic_spring(
+            mechanical_components.MagneticSpringInterp(
+                fea_data_file=config['mechanical_model']['magnetic_spring']['fea_data_file'],
+                magnet_length=config['mechanical_model']['magnetic_spring']['magnet_length'],
+                filter_callable=lambda x: savgol_filter(x, 11, 7)
             )
-            .set_magnet_assembly(magnet_assembly)
-            .set_mechanical_spring(
-                mechanical_components.MechanicalSpring(
-                    damping_coefficient=config['mechanical_model']['mechanical_spring']['damping_coefficient'],
-                    magnet_assembly=magnet_assembly
-                )
+        )
+        mech_model.set_magnet_assembly(magnet_assembly)
+        mech_model.set_mechanical_spring(
+            mechanical_components.MechanicalSpring(
+                damping_coefficient=config['mechanical_model']['mechanical_spring']['damping_coefficient'],
+                magnet_assembly=magnet_assembly
             )
-            .set_damper(
-                mechanical_components.MassProportionalDamper(
-                    damping_coefficient=config['mechanical_model']['damper']['damping_coefficient'],
-                    magnet_assembly=magnet_assembly
-                )
+        )
+        mech_model.set_damper(
+            mechanical_components.MassProportionalDamper(
+                damping_coefficient=config['mechanical_model']['damper']['damping_coefficient'],
+                magnet_assembly=magnet_assembly
             )
-            .set_input(
+        )
+
+        if config['mechanical_model']['input_excitation']:
+            mech_model.set_input(
                 mechanical_components.AccelerometerInput(
                     raw_accelerometer_data_path=config['mechanical_model']['input_excitation']['raw_accelerometer_data_path'],
                     accel_column=config['mechanical_model']['input_excitation']['accel_column'],
@@ -963,7 +971,6 @@ class UnifiedModel:
                     interpolate=config['mechanical_model']['input_excitation']['interpolate'],
                 )
             )
-        )
 
         elec_model = (
             ElectricalModel()
@@ -991,7 +998,7 @@ class UnifiedModel:
             .set_electrical_model(elec_model)
             .set_coupling_model(coupling_model)
             .set_governing_equations(governing_equations.unified_ode)
-            .set_height(config['height'])
+            .set_height(config['height'])  # Must call this last!
         )
 
         return model
@@ -1019,112 +1026,133 @@ class UnifiedModel:
     def validate(self, verbose=True) -> None:
 
         def _fail_if_true(bool_or_func, message, err_message=""):
-            good = " . "
-            bad = " X "
+            good = " OK!"
+            bad = " ERROR -- "
             exception_message = ""
 
             if isinstance(bool_or_func, bool):
-                if not bool_or_func:
+                result = bool_or_func
+                if not result:  # If the test passes
                     message += good
-                else:
+                else:  # If the test fails
                     message += bad
                     message += err_message
-
-                return bool_or_func, message
 
             elif callable(bool_or_func):
                 try:
                     result = bool_or_func()
+                    # We assume that if nothing gets returned, the test passed
+                    if result is None:
+                        result = False
                 except ModelError as e:
                     exception_message = str(e)
                     result = True
 
-                if not result:
+                if not result:  # If the test passes
                     message += good
-                else:
+                else:  # If the test fails
                     message += bad
                     message += err_message
                     message += exception_message
 
-                return result, message
             else:
                 raise ValueError('Must specify either a boolean variable or a callable!')
 
-        did_any_fail = False
+            return result, message
 
         messages = ["Model validation report:"]
         error_messages = ['Model validation failed:']
 
+        def _do_validation(
+                test,
+                message,
+                err_message,
+                messages=messages,
+                error_messages=error_messages,
+        ):
+            did_fail, message = _fail_if_true(
+                test,
+                message,
+                err_message
+            )
+            if did_fail:
+                error_messages.append(message)
+            messages.append(message)
+
+            return messages, error_messages
+
         # Basic checks
-        did_fail, message = _fail_if_true(  # TODO: Consider a better interface
+        messages, error_messages = _do_validation(
             self.mechanical_model is None,
             "Checking if mechanical model is present...",
-            "No mechanical model."
+            "No mechanical model.",
+            messages,
+            error_messages
         )
-        if did_fail:
-            error_messages.append(message)  # TODO: Come up with something less repetitive
-            did_any_fail = True
-        messages.append(message)
 
-        did_fail, message = _fail_if_true(
+        messages, error_messages = _do_validation(
             self.mechanical_model._validate,
-            "Checking mechanical model...",
-            ""
+            "Validating mechanical model...",
+            "",
+            messages,
+            error_messages
         )
-        if did_fail:
-            error_messages.append(message)  # TODO: Come up with something less repetitive
-            did_any_fail = True
-        messages.append(message)
 
-        did_fail, message = _fail_if_true(
+        messages, error_messages = _do_validation(
             self.electrical_model is None,
             "Checking if electrical model is present...",
-            "No electrical model."
+            "No electrical model.",
+            messages,
+            error_messages
         )
-        if did_fail:
-            error_messages.append(message)  # TODO: Come up with something less repetitive
-            did_any_fail = True
-        messages.append(message)
 
-        did_fail, message = _fail_if_true(
+        messages, error_messages = _do_validation(
             self.electrical_model._validate,
-            "Checking electrical model...",
-            ""
+            "Validating electrical model...",
+            "",
+            messages,
+            error_messages
         )
-        if did_fail:
-            error_messages.append(message)  # TODO: Come up with something less repetitive
-            did_any_fail = True
-        messages.append(message)
 
-        did_fail, message = _fail_if_true(
+        messages, error_messages = _do_validation(
             self.coupling_model is None,
             "Checking if coupling model is present...",
-            "No coupling model."
+            "No coupling model.",
+            messages,
+            error_messages
         )
-        if did_fail:
-            error_messages.append(message)  # TODO: Come up with something less repetitive
-            did_any_fail = True
-        messages.append(message)
 
-        did_fail, message = _fail_if_true(
+        messages, error_messages = _do_validation(
+            self.coupling_model._validate,
+            "Validating coupling model...",
+            "",
+            messages,
+            error_messages
+        )
+
+        messages, error_messages = _do_validation(
             self.height is None,
             "Checking if device height has been specified...",
-            "Height of the device has not been set."
+            "Height of the device has not been set.",
+            messages,
+            error_messages
         )
-        if did_fail:
-            error_messages.append(message)  # TODO: Come up with something less repetitive
-            did_any_fail = True
-        messages.append(message)
 
-        did_fail, message = _fail_if_true(
+        messages, error_messages = _do_validation(
+            self.mechanical_model.mechanical_spring.position is None,
+            "Checking if the mechanical spring position has been set...",
+            "Mechanical spring position not set. Did you call `.set_height` on the UnifiedModel after setting the mechanical spring?",
+            messages,
+            error_messages
+        )
+
+        messages, error_messages = _do_validation(
             self.governing_equations is None,
             "Checking if governing equations have been specified...",
-            "Governing equations have not been set."
+            "Governing equations have not been set.",
+            messages,
+            error_messages
         )
-        if did_fail:
-            error_messages.append(message)  # TODO: Come up with something less repetitive
-            did_any_fail = True
-        messages.append(message)
 
         # More involved checks
 
@@ -1145,15 +1173,13 @@ class UnifiedModel:
         # Coil's position is relative to the top edge of the fixed magnet, while
         # the height of the device is the absolute height. So we must compensate
         # for this offset
-        did_fail, message = _fail_if_true(
+        messages, error_messages = _do_validation(
             bool(coil_top_edge + offset > self.height),
             "Check if coil configuration fits onto device...",
-            f"The top edge of the top coil is {(coil_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm."  # type:ignore # noqa
+            f"The top edge of the top coil is {(coil_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm.",  # type:ignore # noqa
+            messages,
+            error_messages
         )
-        if did_fail:
-            error_messages.append(message)  # TODO: Come up with something less repetitive
-            did_any_fail = True
-        messages.append(message)
 
         # Find the top edge of the uppermost magnet assembly
         ma = self.mechanical_model.magnet_assembly
@@ -1161,33 +1187,19 @@ class UnifiedModel:
         mag_top_edge = ms.get_hover_height(ma) + ma.get_length() / 1000
 
         magnet_top_edge_is_outside = bool(np.round(mag_top_edge + offset, 3) >= self.height)
-        did_fail, message = _fail_if_true(
+        messages, error_messages = _do_validation(
             magnet_top_edge_is_outside,
             "Checking if the magnet assembly fits into device...",
-            f"The top edge of the magnet assembly is {(mag_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm."  # type:ignore # noqa
+            f"The top edge of the magnet assembly is {(mag_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm.",  # type:ignore # noqa
+            messages,
+            error_messages
         )
-        if did_fail:
-            error_messages.append(message)  # TODO: Come up with something less repetitive
-            did_any_fail = True
-        messages.append(message)
-
-        # Check that our mechanical spring at the top of the mechanical model
-        # lies within our required height.
-        required_height_m = self._calculate_required_vertical_space()
-        device_height_m = self.mechanical_model.mechanical_spring.position
-
-        try:
-            assert required_height_m <= device_height_m
-        except AssertionError:
-            warnings.warn(
-                f"The device requires a minimum height of {required_height_m}m for intended operation, but the height has been set to {device_height_m}m."
-            )
 
         if verbose:
             print('\n'.join(messages))
 
         # If we failed anything, raise a ModelError.
-        if did_any_fail:
+        if len(error_messages) > 1:
             raise ModelError('\n'.join(error_messages))
 
     def _apply_pipeline(self) -> None:

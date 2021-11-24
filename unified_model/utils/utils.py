@@ -394,11 +394,8 @@ def apply_scalar_functions(x1, x2, **func) -> dict:
 @dataclass
 class Sample:
     """A class for holding groundtruth sample data"""
-    acc_df: pd.DataFrame
     acc_path: str
-    adc_df: pd.DataFrame
     adc_path: str
-    video_labels_df: pd.DataFrame
     video_labels_path: str
 
 
@@ -455,13 +452,9 @@ def collect_samples(
     if len(labeled_video_paths) == 0 and len(acc_paths) == 0 and len(adc_paths) == 0:
         warnings.warn("No groundtruth files were found.")
 
-    acc_dfs = [pd.read_csv(acc_path) for acc_path in acc_paths]
-    adc_dfs = [pd.read_csv(adc_path) for adc_path in adc_paths]
-    lvp_dfs = [pd.read_csv(lvp_path) for lvp_path in labeled_video_paths]
-
     sample_collection = []
-    for acc, acc_path, adc, adc_path, lvp, lvp_path in zip_longest(acc_dfs, acc_paths, adc_dfs, adc_paths, lvp_dfs, labeled_video_paths, fillvalue=None):
-        sample_collection.append(Sample(acc, acc_path, adc, adc_path, lvp, lvp_path))
+    for acc_path, adc_path, lvp_path in zip_longest(acc_paths, adc_paths, labeled_video_paths, fillvalue=None):
+        sample_collection.append(Sample(acc_path, adc_path, lvp_path))
 
     return np.array(sample_collection)
 
