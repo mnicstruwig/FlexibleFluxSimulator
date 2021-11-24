@@ -1,7 +1,12 @@
 """Execute a gridsearch that creates an optimization dataset.
 
-In addition to the normal optimization process, this gridsearch also explores
-the coil center position as an optimizable variable.
+This gridsearch computes over the following variables:
+- n_z
+- n_w
+- c_c
+- c  # fixed
+- m  # fixed
+
 """
 
 from copy import copy
@@ -15,6 +20,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import ray
 from scipy.signal import savgol_filter
+from unified_model.utils import utils
 
 from flux_modeller.model import CurveModel
 from unified_model import (
@@ -118,17 +124,6 @@ acc_inputs = acc_inputs[0:2]
 assert len(acc_inputs) != 0  # Safety check
 
 
-def batchify(x, batch_size):
-    """Batch a list `x` into batches of size `batch_size`."""
-    total_size = len(x)
-    indexes = np.arange(0, total_size, batch_size)
-
-    if indexes[-1] < total_size:
-        indexes = np.append(indexes, [total_size])  # type: ignore
-
-    return [x[indexes[i] : indexes[i + 1]] for i in range(len(indexes) - 1)]
-
-
 # Actual experiment
 ray.init(ignore_reinit_error=True, num_cpus=16)
 
@@ -143,7 +138,7 @@ config_list = []
 BATCH_SIZE = 256
 print(f"Executing {len(nz_nw_cc_product)} device simulations.")
 print(f"There are {len(acc_inputs)} inputs per simulation.")
-batches = batchify(nz_nw_cc_product, BATCH_SIZE)
+batches = utils.batchify(nz_nw_cc_product, BATCH_SIZE)
 for batch_num, batch in enumerate(batches):
     print(f"Executing batch {batch_num+1} out of {len(batches)}...")
     for n_z, n_w, c_c in batch:

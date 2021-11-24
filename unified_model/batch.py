@@ -37,7 +37,7 @@ def _score_measurement(
     return result
 
 
-# TODO: Docstring, batchify
+# TODO: Docstring
 def solve_for_batch(
         base_model_config: Dict,
         params: List[Tuple[str, Any]],
