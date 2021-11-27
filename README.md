@@ -1,4 +1,4 @@
-# Unified Model: An energy harvester simulation framework.
+# FFS: A declarative energy harvester simulation framework.
 
 **Disclaimer**: This is research code and, like most research code, is not
 considered production-ready. Expect things to break, explode and behave
