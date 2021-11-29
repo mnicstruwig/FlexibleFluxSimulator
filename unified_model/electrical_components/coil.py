@@ -5,7 +5,7 @@ from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
 
 
-
+class CoilConfiguration:
     def __init__(
         self,  # pylint: disable=too-many-arguments
         c: int,
