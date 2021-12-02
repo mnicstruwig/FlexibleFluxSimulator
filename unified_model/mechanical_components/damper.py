@@ -98,8 +98,8 @@ class MassProportionalDamper:
 
     def to_json(self):
         return {
-            'damping_coefficient': self.damping_coefficient,
-            'magnet_assembly': 'dep:magnet_assembly'
+            "damping_coefficient": self.damping_coefficient,
+            "magnet_assembly": "dep:magnet_assembly",
         }
 
     def update(self, model):
@@ -108,7 +108,6 @@ class MassProportionalDamper:
 
     def __repr__(self) -> str:
         return f"MassProportionalDamper(damping_coefficient={self.damping_coefficient}, magnet_assembly_mass={self.magnet_assembly_mass})"  # noqa
-
 
 
 class ConstantDamper:

@@ -14,4 +14,4 @@ class CouplingModel:
         return self.coupling_constant * current
 
     def to_json(self):
-        return {'coupling_constant': self.coupling_constant}
+        return {"coupling_constant": self.coupling_constant}

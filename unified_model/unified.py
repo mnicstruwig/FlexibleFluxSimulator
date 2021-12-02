@@ -22,7 +22,9 @@ from scipy import integrate
 from unified_model.coupling import CouplingModel
 from unified_model.electrical_components.flux.model import FluxModelPretrained
 from unified_model.electrical_components.load import SimpleLoad
-from unified_model.mechanical_components.input_excitation.accelerometer import AccelerometerInput
+from unified_model.mechanical_components.input_excitation.accelerometer import (
+    AccelerometerInput,
+)
 
 from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
 from unified_model.mechanical_components.damper import MassProportionalDamper
@@ -35,7 +37,6 @@ from unified_model.evaluate import (
 from unified_model.local_exceptions import ModelError
 from unified_model.mechanical_components import magnet_assembly
 from unified_model.mechanical_components.mechanical_spring import MechanicalSpring
-from unified_model.mechanical_model import MechanicalModel
 from unified_model.utils.utils import parse_output_expression, pretty_str
 from unified_model.utils.paint import paint_device
 
@@ -94,6 +95,7 @@ class UnifiedModel:
         The time steps of the solution to the governing equations.
 
     """
+
     # TODO: Type hint attributes
     def __init__(self) -> None:
         """Constructor."""
@@ -220,15 +222,15 @@ class UnifiedModel:
         return self
 
     @send_notification
-    def with_height(self, height_mm: float) -> UnifiedModel:
+    def with_height(self, height: float) -> UnifiedModel:
         """Constrain the microgenerator to a maximum vertical height.
 
         This constraint will be validated before solving for a solution.
 
         Parameters
         ----------
-        height_mm : float
-            The height of the device, in mm.
+        height : float
+            The height of the device, in metres.
 
         Returns
         -------
@@ -236,7 +238,7 @@ class UnifiedModel:
             An updated UnifiedModel.
 
         """
-        self.height = height_mm / 1000
+        self.height = height
         return self
 
     def with_governing_equations(self, governing_equations: Callable) -> UnifiedModel:
@@ -859,52 +861,66 @@ class UnifiedModel:
 
         new_model = copy.deepcopy(self)
 
-        for path, new_value in config:
-            sub_paths = path.split(".")
-
-            try:  # Check the base component exists
-                assert sub_paths[0] in self.__dict__
-                assert self.__dict__[sub_paths[0]] is not None
-            except AssertionError as e:
-                raise ValueError(
-                    f"The component `{sub_paths[0]}` is not defined or present."
-                ) from e
-
+        for full_path, new_value in config:
             try:
-                if len(sub_paths) == 2:  # TODO: Make this less hardcoded
-                    try:
-                        assert (
-                            sub_paths[-1] in new_model.__dict__[sub_paths[0]].__dict__
-                        )
-                        new_model.__dict__[sub_paths[0]].__dict__[
-                            sub_paths[1]
-                        ] = new_value
-                    except AssertionError as e:
-                        raise ValueError(
-                            f"The parameter `{path}` does not exist."
-                        ) from e
-                if len(sub_paths) == 3:  # TODO: Make this less hardcoded
-                    try:  # Check we're not setting something that doesn't exist
-                        assert (
-                            sub_paths[-1]
-                            in new_model.__dict__[sub_paths[0]]
-                            .__dict__[sub_paths[1]]
-                            .__dict__
-                        )  # noqa
-                        new_model.__dict__[sub_paths[0]].__dict__[
-                            sub_paths[1]
-                        ].__dict__[sub_paths[2]] = new_value
-                    except AssertionError as e:
-                        raise ValueError(
-                            f"The parameter `{path}` does not exist."
-                        ) from e  # noqa
+                if "." in full_path:
+                    component, param_path = full_path.split(".")
+                    new_model.__dict__[component].__dict__[param_path] = new_value
+                else:
+                    component = full_path
+                    new_model.__dict__[component] = new_value
+            except KeyError as e:
+                raise KeyError(f"Unable to find parameter path: {full_path}") from e
 
-            except AttributeError as ae:
-                raise AttributeError(f'"{path}" could not be found.') from ae
-
+        new_model._notify()  # Notify our components of the update
         return new_model
 
-    def get_config(self, kind: str = 'dict') -> Union[Dict[str, Any], str]:
+        # for path, new_value in config:
+        #     sub_paths = path.split(".")
+
+        #     try:  # Check the base component exists
+        #         assert sub_paths[0] in self.__dict__
+        #         assert self.__dict__[sub_paths[0]] is not None
+        #     except AssertionError as e:
+        #         raise ValueError(
+        #             f"The component `{sub_paths[0]}` is not defined or present."
+        #         ) from e
+
+        #     try:
+        #         if len(sub_paths) == 2:  # TODO: Make this less hardcoded
+        #             try:
+        #                 assert (
+        #                     sub_paths[-1] in new_model.__dict__[sub_paths[0]].__dict__
+        #                 )
+        #                 new_model.__dict__[sub_paths[0]].__dict__[
+        #                     sub_paths[1]
+        #                 ] = new_value
+        #             except AssertionError as e:
+        #                 raise ValueError(
+        #                     f"The parameter `{path}` does not exist."
+        #                 ) from e
+        #         if len(sub_paths) == 3:  # TODO: Make this less hardcoded
+        #             try:  # Check we're not setting something that doesn't exist
+        #                 assert (
+        #                     sub_paths[-1]
+        #                     in new_model.__dict__[sub_paths[0]]
+        #                     .__dict__[sub_paths[1]]
+        #                     .__dict__
+        #                 )  # noqa
+        #                 new_model.__dict__[sub_paths[0]].__dict__[
+        #                     sub_paths[1]
+        #                 ].__dict__[sub_paths[2]] = new_value
+        #             except AssertionError as e:
+        #                 raise ValueError(
+        #                     f"The parameter `{path}` does not exist."
+        #                 ) from e  # noqa
+
+        #     except AttributeError as ae:
+        #         raise AttributeError(f'"{path}" could not be found.') from ae
+
+        # return new_model
+
+    def get_config(self, kind: str = "dict") -> Union[Dict[str, Any], str]:
         """Get the configuration of the unified model."""
 
         output = {
@@ -920,7 +936,7 @@ class UnifiedModel:
             "load_model": None,
             "coupling_model": None,
             "extra_components": None,
-            "governing_equations": None
+            "governing_equations": None,
         }
 
         # Mechanical components
@@ -951,15 +967,14 @@ class UnifiedModel:
 
         # Governing equations
         if self.governing_equations:
-                output['governing_equations'] = {  # type: ignore
-                        'module_path': self.governing_equations.__module__,
-                        'func_name': self.governing_equations.__qualname__
-                }
+            output["governing_equations"] = {  # type: ignore
+                "module_path": self.governing_equations.__module__,
+                "func_name": self.governing_equations.__qualname__,
+            }
 
-
-        if kind == 'dict':
+        if kind == "dict":
             return output
-        elif kind == 'json':
+        elif kind == "json":
             return json.dumps(output)
         else:
             raise ValueError('`kind` must be "dict" or "json"!')
@@ -971,11 +986,11 @@ class UnifiedModel:
 
         for comp, comp_config in config.items():
             if comp_config is None:
-               continue  # Skip
+                continue  # Skip
             if comp == "height":  # Handle height separately
-                model.with_height(comp_config * 1000)  # NB: Must be passed as mm!
+                model.with_height(comp_config)
                 continue
-            if comp == 'rectification_drop':  # Handle the rectification drop separately
+            if comp == "rectification_drop":  # Handle the rectification drop separately
                 model.with_rectification_drop(comp_config)
                 continue
 
@@ -986,7 +1001,9 @@ class UnifiedModel:
             # dependencies -- things will just break, there is no warning yet.
             for param_name, param_value in comp_config.items():
                 if param_value == "dep:magnet_assembly":
-                    dep = magnet_assembly.MagnetAssembly(**config[param_name])  # Lookup dependency config and instantiate it
+                    dep = magnet_assembly.MagnetAssembly(
+                        **config[param_name]
+                    )  # Lookup dependency config and instantiate it
                     comp_config[param_name] = dep  # Inject dependency
                 if param_value == "dep:coil_configuration":
                     dep = CoilConfiguration(**config[param_name])
@@ -1011,28 +1028,28 @@ class UnifiedModel:
             if comp == "mechanical_spring":
                 model.with_mechanical_spring(MechanicalSpring(**comp_config))
 
-            if comp == 'input_excitation':
+            if comp == "input_excitation":
                 model.with_input_excitation(AccelerometerInput(**comp_config))
 
-            if comp == 'coil_configuration':
+            if comp == "coil_configuration":
                 model.with_coil_configuration(CoilConfiguration(**comp_config))
 
-            if comp == 'flux_model':
+            if comp == "flux_model":
                 model.with_flux_model(FluxModelPretrained(**comp_config))
 
-            if comp == 'governing_equations':
+            if comp == "governing_equations":
                 import importlib  # TODO: Move?
-                module_ = importlib.import_module(comp_config['module_path'])
-                governing_equations = getattr(module_, comp_config['func_name'])
+
+                module_ = importlib.import_module(comp_config["module_path"])
+                governing_equations = getattr(module_, comp_config["func_name"])
                 model.with_governing_equations(governing_equations)
 
-            if comp == 'load_model':
+            if comp == "load_model":
                 model.with_load_model(SimpleLoad(**comp_config))
-            if comp == 'coupling_model':
+            if comp == "coupling_model":
                 model.with_coupling_model(CouplingModel(**comp_config))
 
         return model
-
 
     @staticmethod
     def load_from_disk(path: str) -> UnifiedModel:

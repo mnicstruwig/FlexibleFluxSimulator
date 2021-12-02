@@ -18,4 +18,4 @@ class SimpleLoad:
         return f"SimpleLoad(R={self.R})"
 
     def to_json(self):
-        return {'R': self.R}
+        return {"R": self.R}

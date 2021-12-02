@@ -93,9 +93,7 @@ class MagneticSpringInterp:
         )
 
         self.magnet_length = magnet_assembly.l_m_mm / 1000
-        self._model = self._fit_model(
-            self.fea_dataframe, self.magnet_length
-        )
+        self._model = self._fit_model(self.fea_dataframe, self.magnet_length)
 
     @overload
     def get_force(self, z: float) -> float:
@@ -160,17 +158,15 @@ class MagneticSpringInterp:
     def to_json(self):
         """Return a json-serializable representation of the magnetic spring"""
         return {
-            'fea_data_file': os.path.abspath(self.fea_data_file),
-            'filter_callable': 'auto',  # TODO: sort this out later
-            'magnet_assembly': 'dep:magnet_assembly'
+            "fea_data_file": os.path.abspath(self.fea_data_file),
+            "filter_callable": "auto",  # TODO: sort this out later
+            "magnet_assembly": "dep:magnet_assembly",
         }
 
     def update(self, um):
         """Update the internal state when notified."""
         self.magnet_length = um.magnet_assembly.l_m_mm / 1000
-        self._model = self._fit_model(
-            self.fea_dataframe, self.magnet_length
-        )
+        self._model = self._fit_model(self.fea_dataframe, self.magnet_length)
 
 
 # TODO: Update to match latest version in paper.

@@ -17,13 +17,13 @@ from unified_model.utils.utils import batchify
 
 @ray.remote
 def _score_measurement(
-        model: UnifiedModel,
-        solve_kwargs: Dict,
-        measurement: Measurement,
-        mech_pred_expr: str,
-        mech_metrics: Dict,
-        elec_pred_expr: str,
-        elec_metrics: Dict
+    model: UnifiedModel,
+    solve_kwargs: Dict,
+    measurement: Measurement,
+    mech_pred_expr: str,
+    mech_metrics: Dict,
+    elec_pred_expr: str,
+    elec_metrics: Dict,
 ):
     result, _ = model.score_measurement(
         measurement=measurement,
@@ -31,21 +31,21 @@ def _score_measurement(
         mech_pred_expr=mech_pred_expr,
         mech_metrics_dict=mech_metrics,
         elec_pred_expr=elec_pred_expr,
-        elec_metrics_dict=elec_metrics
+        elec_metrics_dict=elec_metrics,
     )
 
     return result
 
 
 def solve_for_batch(
-        base_model_config: Dict,
-        params: List[List[Tuple[str, Any]]],
-        samples: List[Sample],
-        mech_pred_expr: str = None,
-        mech_metrics: Dict = None,
-        elec_pred_expr: str = None,
-        elec_metrics: Dict = None,
-        solve_kwargs: Dict = None
+    base_model_config: Dict,
+    params: List[List[Tuple[str, Any]]],
+    samples: List[Sample],
+    mech_pred_expr: str = None,
+    mech_metrics: Dict = None,
+    elec_pred_expr: str = None,
+    elec_metrics: Dict = None,
+    solve_kwargs: Dict = None,
 ) -> None:
     """
     Solve and store solutions for a batch of interpolated device designs.
@@ -130,18 +130,18 @@ def solve_for_batch(
 
     if not solve_kwargs:
         solve_kwargs = {
-            't_start': 0.,
-            't_end': 8,
-            'y0': [0., 0., 0.04, 0., 0.],
-            't_max_step': 1e-3,
-            't_eval': np.arange(0, 8, 1e-3),
-            'method': "RK23"
+            "t_start": 0.0,
+            "t_end": 8,
+            "y0": [0.0, 0.0, 0.04, 0.0, 0.0],
+            "t_max_step": 1e-3,
+            "t_eval": np.arange(0, 8, 1e-3),
+            "method": "RK23",
         }
 
     batches = batchify(params, batch_size=256)
 
     for batch_number, current_batch in enumerate(batches):  # For each batch
-        print(f'✨ Running batch {batch_number+1} out of {len(batches)}... ')
+        print(f"✨ Running batch {batch_number+1} out of {len(batches)}... ")
 
         results: List[Any] = []
         tasks: List[Any] = []
@@ -158,7 +158,7 @@ def solve_for_batch(
                     mech_pred_expr=mech_pred_expr,
                     mech_metrics=mech_metrics,
                     elec_pred_expr=elec_pred_expr,
-                    elec_metrics=elec_metrics
+                    elec_metrics=elec_metrics,
                 )
                 tasks.append(task_id)
 
@@ -169,17 +169,17 @@ def solve_for_batch(
                     info[param_name] = param_value
 
                 # Add input excitation number
-                info['input'] = i
+                info["input"] = i
 
                 # Add the full config
-                info['config'] = model.get_config(as_type='json')
+                info["config"] = model.get_config(as_type="json")
 
                 results.append(info)
 
         ready: List = []
         while len(ready) < len(tasks):  # Wait for every task to finish
             ready, waiting = ray.wait(tasks, num_returns=len(tasks), timeout=60)
-            print(f'🕙 Still waiting for {len(waiting)} jobs...')
+            print(f"🕙 Still waiting for {len(waiting)} jobs...")
 
         # Update our results array with scored measurement results
         for i, r in enumerate(ready):

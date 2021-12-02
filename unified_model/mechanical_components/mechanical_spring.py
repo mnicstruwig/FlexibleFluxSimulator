@@ -88,17 +88,19 @@ class MechanicalSpring:
             self.magnet_length = um.magnet_assembly.l_m_mm / 1000  # Must be in metres
             self.magnet_assembly_length = um.magnet_assembly.get_length() / 1000
         except AssertionError as e:
-            raise ValueError('`.magnet_assembly` missing, unable to update state.') from e
+            raise ValueError(
+                "`.magnet_assembly` missing, unable to update state."
+            ) from e
 
         try:
             assert um.height is not None
             self.set_position(um.height)  # Must be in metres
         except AssertionError as e:
-            raise ValueError('`.height` is missing, unable to update state') from e
+            raise ValueError("`.height` is missing, unable to update state") from e
 
     def to_json(self):
         return {
-            'magnet_assembly': 'dep:magnet_assembly',  # <-- will be injected by the `UnifiedModel`
-            'strength': self.strength,
-            'damping_coefficient': self.damping_coefficient
+            "magnet_assembly": "dep:magnet_assembly",  # <-- will be injected by the `UnifiedModel`
+            "strength": self.strength,
+            "damping_coefficient": self.damping_coefficient,
         }

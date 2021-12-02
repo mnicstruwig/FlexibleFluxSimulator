@@ -11,18 +11,19 @@ from unified_model.electrical_components.coil import CoilConfiguration
 
 class FluxModelPretrained:
     """A flux model that uses a trained CurveModel."""
+
     def __init__(
-            self,
-            coil_configuration: CoilConfiguration,
-            magnet_assembly: MagnetAssembly,
-            curve_model_path: str
+        self,
+        coil_configuration: CoilConfiguration,
+        magnet_assembly: MagnetAssembly,
+        curve_model_path: str,
     ) -> None:
         """Constructor."""
 
         self._set_up(
             coil_configuration=coil_configuration,
             magnet_assembly=magnet_assembly,
-            curve_model_path=curve_model_path
+            curve_model_path=curve_model_path,
         )
 
     def __repr__(self):
@@ -34,7 +35,7 @@ class FluxModelPretrained:
         self._set_up(
             coil_configuration=um.coil_configuration,
             magnet_assembly=um.magnet_assembly,
-            curve_model_path=self.curve_model_path
+            curve_model_path=self.curve_model_path,
         )
 
     def _set_up(self, coil_configuration, magnet_assembly, curve_model_path):
@@ -50,8 +51,7 @@ class FluxModelPretrained:
 
         # Create the actual flux model
         self.flux_model_interp = FluxModelInterp(
-            coil_configuration=coil_configuration,
-            magnet_assembly=magnet_assembly
+            coil_configuration=coil_configuration, magnet_assembly=magnet_assembly
         )
 
         self.flux_model_interp.fit(z, phi)
@@ -69,10 +69,11 @@ class FluxModelPretrained:
 
     def to_json(self):
         return {
-            'coil_configuration': 'dep:coil_configuration',
-            'magnet_assembly': 'dep:magnet_assembly',
-            'curve_model_path': self.curve_model_path
+            "coil_configuration": "dep:coil_configuration",
+            "magnet_assembly": "dep:magnet_assembly",
+            "curve_model_path": self.curve_model_path,
         }
+
 
 class FluxModelInterp:
     """A flux model that uses interpolation."""
@@ -103,16 +104,16 @@ class FluxModelInterp:
         self.dflux_model = None
 
         # Do actual setting up
-        self._set_up(coil_configuration=coil_configuration,
-                     magnet_assembly=magnet_assembly)
+        self._set_up(
+            coil_configuration=coil_configuration, magnet_assembly=magnet_assembly
+        )
 
         self._validate()
 
     # keep as separate func to make `.update` method to be DRY
-    def _set_up(self,
-              coil_configuration: CoilConfiguration,
-              magnet_assembly: MagnetAssembly
-              ) -> None:
+    def _set_up(
+        self, coil_configuration: CoilConfiguration, magnet_assembly: MagnetAssembly
+    ) -> None:
 
         self.c = coil_configuration.c
 
@@ -126,12 +127,10 @@ class FluxModelInterp:
         # `flux_inteprolate` requires measurements in SI units.
         self.l_mcd = magnet_assembly.l_mcd_mm / 1000
 
-
     def update(self, um):
         """Update the internal state when notified."""
         self._set_up(
-            coil_configuration=um.coil_configuration,
-            magnet_assembly=um.magnet_assembly
+            coil_configuration=um.coil_configuration, magnet_assembly=um.magnet_assembly
         )
 
         self._validate()
@@ -186,7 +185,9 @@ class FluxModelInterp:
         return self.dflux_model.get(z)
 
     def to_json(self):
-        raise NotImplementedError('FluxModelInterp is not currently supported for converting to a configuration. Use `FluxModelPretrained` instead.')
+        raise NotImplementedError(
+            "FluxModelInterp is not currently supported for converting to a configuration. Use `FluxModelPretrained` instead."
+        )
 
 
 # TODO: Add docs

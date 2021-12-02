@@ -394,6 +394,7 @@ def apply_scalar_functions(x1, x2, **func) -> dict:
 @dataclass
 class Sample:
     """A class for holding groundtruth sample data"""
+
     acc_path: str
     adc_path: str
     video_labels_path: str
@@ -453,7 +454,9 @@ def collect_samples(
         warnings.warn("No groundtruth files were found.")
 
     sample_collection = []
-    for acc_path, adc_path, lvp_path in zip_longest(acc_paths, adc_paths, labeled_video_paths, fillvalue=None):
+    for acc_path, adc_path, lvp_path in zip_longest(
+        acc_paths, adc_paths, labeled_video_paths, fillvalue=None
+    ):
         sample_collection.append(Sample(acc_path, adc_path, lvp_path))
 
     return np.array(sample_collection)
