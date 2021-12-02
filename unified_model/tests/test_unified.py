@@ -1,16 +1,12 @@
 import json
-import os
 
 import numpy as np
 import pandas as pd
 from unified_model import metrics
-from unified_model.coupling import CouplingModel
 from unified_model.electrical_components.coil import CoilConfiguration
 from unified_model.electrical_components.flux.model import (
     FluxModelInterp, FluxModelPretrained)
-from unified_model.electrical_components.load import SimpleLoad
 from unified_model.evaluate import Measurement
-from unified_model.governing_equations import unified_ode
 from unified_model.mechanical_components import (MagnetAssembly,
                                                  MagneticSpringInterp,
                                                  MassProportionalDamper,
@@ -18,87 +14,9 @@ from unified_model.mechanical_components import (MagnetAssembly,
                                                  magnet_assembly)
 from unified_model.mechanical_components.input_excitation.accelerometer import \
     AccelerometerInput
+from unified_model.tests import utils as test_utils
 from unified_model.unified import UnifiedModel
 from unified_model.utils.utils import Sample
-
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-TEST_DATA_DIR = os.path.join(CURRENT_DIR, "test_data")
-
-TEST_LOG_ACC_PATH = os.path.join(TEST_DATA_DIR, "test_log_acc.csv")
-TEST_LOG_ADC_PATH = os.path.join(TEST_DATA_DIR, "test_log_adc.csv")
-TEST_LOG_VIDEO_LABELS_PATH = os.path.join(TEST_DATA_DIR, "test_log_video_labels.csv")
-TEST_MAG_SPRING_DATA_PATH = os.path.join(TEST_DATA_DIR, "test_mag_spring_data.csv")
-TEST_PRETRAINED_CURVE_MODEL_PATH = os.path.join(
-    TEST_DATA_DIR, "test_curve_model_pretrained.model"
-)
-
-
-def _build_unified_model_with_standard_components() -> UnifiedModel:
-    """Create a `UnifiedModel` with all standard components attached."""
-    input_excitation = AccelerometerInput(
-        raw_accelerometer_data_path=TEST_LOG_ACC_PATH,
-        accel_column="z_G",
-        time_column="time(ms)",
-        accel_unit="g",
-        time_unit="ms",
-        smooth=True,
-        interpolate=True,
-    )
-
-    mag_assembly = MagnetAssembly(
-        m=1, l_m_mm=10, l_mcd_mm=0, dia_magnet_mm=10, dia_spacer_mm=10
-    )
-
-    mag_spring = MagneticSpringInterp(
-        fea_data_file=TEST_MAG_SPRING_DATA_PATH,
-        magnet_assembly=mag_assembly,
-    )
-
-    mech_spring = MechanicalSpring(magnet_assembly=mag_assembly, damping_coefficient=1)
-
-    mech_damper = MassProportionalDamper(
-        damping_coefficient=1, magnet_assembly=mag_assembly
-    )
-
-    coil_configuration = CoilConfiguration(
-        c=1,
-        n_z=20,
-        n_w=20,
-        l_ccd_mm=0,
-        ohm_per_mm=100,
-        tube_wall_thickness_mm=1,
-        coil_wire_radius_mm=0.143 / 2,
-        coil_center_mm=50,
-        inner_tube_radius_mm=5,
-    )
-
-    flux_model = FluxModelPretrained(
-        coil_configuration=coil_configuration,
-        magnet_assembly=mag_assembly,
-        curve_model_path=TEST_PRETRAINED_CURVE_MODEL_PATH,
-    )
-
-    load_model = SimpleLoad(R=30)
-
-    coupling_model = CouplingModel(coupling_constant=1)
-
-    test_model = (
-        UnifiedModel()
-        .with_height(105 / 1000)
-        .with_magnet_assembly(mag_assembly)
-        .with_magnetic_spring(mag_spring)
-        .with_mechanical_spring(mech_spring)
-        .with_mechanical_damper(mech_damper)
-        .with_input_excitation(input_excitation)
-        .with_coil_configuration(coil_configuration)
-        .with_flux_model(flux_model)
-        .with_rectification_drop(0.01)
-        .with_load_model(load_model)
-        .with_coupling_model(coupling_model)
-        .with_governing_equations(unified_ode)
-    )
-
-    return test_model
 
 
 def test_get_config_for_magnet_assembly_only():
@@ -150,7 +68,7 @@ def test_get_config_for_all_standard_components():
     """Test that the correct config is generated when a number of different
     components are attached to the model."""
 
-    test_model = _build_unified_model_with_standard_components()
+    test_model = test_utils.build_unified_model_with_standard_components()
     actual_config = test_model.get_config()
 
     # Mechanical components
@@ -186,7 +104,7 @@ def test_from_config_for_all_standard_components():
     model. We then compare the two models across some attributes.
     """
 
-    test_model = _build_unified_model_with_standard_components()
+    test_model = test_utils.build_unified_model_with_standard_components()
 
     # Make a second model from the config of the first model
     test_config = test_model.get_config()
@@ -237,7 +155,7 @@ def test_same_json_config_and_dict_config_for_all_standard_components():
     that is returned from `.get_config`.
     """
 
-    test_model = _build_unified_model_with_standard_components()
+    test_model = test_utils.build_unified_model_with_standard_components()
 
     actual_config_dict = test_model.get_config(kind="dict")
     actual_config_json = test_model.get_config(kind="json")
@@ -255,7 +173,7 @@ def test_same_json_config_and_dict_config_for_all_standard_components():
 def test_solve():
     """Test that we can solve for a solution of a `UnifiedModel`."""
 
-    test_model = _build_unified_model_with_standard_components()
+    test_model = test_utils.build_unified_model_with_standard_components()
 
     # Initiate the solve
     test_model.solve(
@@ -271,7 +189,7 @@ def test_solve():
 def test_get_results():
     """Test that we can solve for a `UnifiedModel` and get the results."""
 
-    test_model = _build_unified_model_with_standard_components()
+    test_model = test_utils.build_unified_model_with_standard_components()
 
     # Initiate the solve
     test_t_eval = np.linspace(0, 8, 1000)
@@ -307,13 +225,13 @@ def test_score_measurement_mech_model():
     """Test the that we can score a solution of a `UnifiedModel` against a
     measurement, for the mechanical component of the model."""
 
-    test_model = _build_unified_model_with_standard_components()
+    test_model = test_utils.build_unified_model_with_standard_components()
 
     # Create our measurement
     test_sample = Sample(
-        acc_path=TEST_LOG_ACC_PATH,
-        adc_path=TEST_LOG_ADC_PATH,
-        video_labels_path=TEST_LOG_VIDEO_LABELS_PATH,
+        acc_path=test_utils.TEST_LOG_ACC_PATH_1,
+        adc_path=test_utils.TEST_LOG_ADC_PATH_1,
+        video_labels_path=test_utils.TEST_LOG_VIDEO_LABELS_PATH_1,
     )
 
     test_measurement = Measurement(sample=test_sample, model_prototype=test_model)
@@ -341,13 +259,13 @@ def test_score_measurement_elec_model():
     """Test the that we can score a solution of a `UnifiedModel` against a
     measurement, for the electrical component of the model."""
 
-    test_model = _build_unified_model_with_standard_components()
+    test_model = test_utils.build_unified_model_with_standard_components()
 
     # Create our measurement
     test_sample = Sample(
-        acc_path=TEST_LOG_ACC_PATH,
-        adc_path=TEST_LOG_ADC_PATH,
-        video_labels_path=TEST_LOG_VIDEO_LABELS_PATH,
+        acc_path=test_utils.TEST_LOG_ACC_PATH_1,
+        adc_path=test_utils.TEST_LOG_ADC_PATH_1,
+        video_labels_path=test_utils.TEST_LOG_VIDEO_LABELS_PATH_1,
     )
 
     test_measurement = Measurement(sample=test_sample, model_prototype=test_model)
@@ -374,7 +292,7 @@ def test_score_measurement_elec_model():
 def test_calculate_metrics():
     """Test that we can calculate metrics for a single prediction expression."""
 
-    test_model = _build_unified_model_with_standard_components()
+    test_model = test_utils.build_unified_model_with_standard_components()
     # First need to solve
     test_model.solve(
         t_start=0,
@@ -398,6 +316,7 @@ def test_calculate_metrics():
     assert "max_load_voltage" in actual_result
 
 
+# TODO: Test updating an invalid component!
 def test_update_single_param_with_no_observers():
     """Test that model components can be updated.
 

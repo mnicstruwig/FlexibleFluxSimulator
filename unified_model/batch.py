@@ -1,17 +1,18 @@
 """
 Perform batch simulations, in parallel.
 """
+import os
+from datetime import datetime
+from typing import Any, Dict, List, Tuple
 
-from typing import Dict, Tuple, List, Any
 import numpy as np
 import pandas as pd
-from datetime import datetime
-import ray
 import pyarrow as pa
 import pyarrow.parquet as pq
+import ray
 
-from unified_model.unified import UnifiedModel
 from unified_model.evaluate import Measurement, Sample
+from unified_model.unified import UnifiedModel
 from unified_model.utils.utils import batchify
 
 
@@ -46,6 +47,7 @@ def solve_for_batch(
     elec_pred_expr: str = None,
     elec_metrics: Dict = None,
     solve_kwargs: Dict = None,
+    output_root_dir: str = '.',
 ) -> None:
     """
     Solve and store solutions for a batch of interpolated device designs.
@@ -121,6 +123,7 @@ def solve_for_batch(
 
     """
     start_time = datetime.now()
+    output_path = os.path.abspath(output_root_dir + f"/batch_run_{start_time}.parquet")
 
     if ray.is_initialized():  # Make sure we start fresh
         ray.shutdown()
@@ -135,7 +138,7 @@ def solve_for_batch(
             "y0": [0.0, 0.0, 0.04, 0.0, 0.0],
             "t_max_step": 1e-3,
             "t_eval": np.arange(0, 8, 1e-3),
-            "method": "RK23",
+            "method": "RK45",
         }
 
     batches = batchify(params, batch_size=256)
@@ -172,7 +175,7 @@ def solve_for_batch(
                 info["input"] = i
 
                 # Add the full config
-                info["config"] = model.get_config(as_type="json")
+                info["config"] = model.get_config(kind="json")
 
                 results.append(info)
 
@@ -188,6 +191,6 @@ def solve_for_batch(
 
         df = pd.DataFrame(results)
         table = pa.Table.from_pandas(df)
-        pq.write_to_dataset(table, f"./batch_run_{start_time}.parquet")
+        pq.write_to_dataset(table, output_path)
 
     ray.shutdown()
