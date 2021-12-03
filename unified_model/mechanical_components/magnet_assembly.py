@@ -109,3 +109,16 @@ class MagnetAssembly:
     def get_contact_surface_area(self):
         """Get the contact surface area of the magnet assembly in mm^2."""
         return self.surface_area
+
+    def to_json(self):
+        return {
+            "m": self.m,
+            "l_m_mm": self.l_m_mm,
+            "l_mcd_mm": self.l_mcd_mm,
+            "dia_magnet_mm": self.dia_magnet_mm,
+            "dia_spacer_mm": self.dia_spacer_mm,
+        }
+
+    @staticmethod
+    def from_json(config):
+        return MagnetAssembly(**config)

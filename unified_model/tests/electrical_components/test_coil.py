@@ -7,7 +7,7 @@ from unified_model.electrical_components.coil import CoilConfiguration
 from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
 from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
 
-CUR_DIR = os.path.dirname(os.path.abspath(__file__))
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def test_coil_calc_hover_height():
@@ -28,7 +28,7 @@ def test_coil_calc_hover_height():
     )
 
     test_fea_data_file_path = os.path.join(
-        CUR_DIR, "../mechanical_components/test_data/magnetic_spring_fea_data.csv"
+        CURRENT_DIR, "../mechanical_components/test_data/magnetic_spring_fea_data.csv"
     )
 
     test_magnetic_spring = MagneticSpringInterp(
@@ -73,7 +73,7 @@ def test_coil_set_optimal_coil_center():
     )
 
     test_fea_data_file_path = os.path.join(
-        CUR_DIR, "../mechanical_components/test_data/magnetic_spring_fea_data.csv"
+        CURRENT_DIR, "../mechanical_components/test_data/magnetic_spring_fea_data.csv"
     )
 
     test_magnetic_spring = MagneticSpringInterp(

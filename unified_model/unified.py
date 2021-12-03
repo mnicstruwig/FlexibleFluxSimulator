@@ -4,14 +4,12 @@ electrical system, the coupling between them and the master system model that
 describes their interaction.
 """
 
-
 from __future__ import annotations
 
 import copy
 import json
 import os
 import shutil
-from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
 import warnings
 from glob import glob
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -21,14 +19,16 @@ import cloudpickle
 import numpy as np
 import pandas as pd
 from scipy import integrate
-from unified_model import governing_equations, mechanical_model
-from unified_model import electrical_model
-from unified_model import mechanical_components
-from unified_model import electrical_components
-
 from unified_model.coupling import CouplingModel
+from unified_model.electrical_components.flux.model import FluxModelPretrained
+from unified_model.electrical_components.load import SimpleLoad
+from unified_model.mechanical_components.input_excitation.accelerometer import (
+    AccelerometerInput,
+)
+
+from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
+from unified_model.mechanical_components.damper import MassProportionalDamper
 from unified_model.electrical_components.coil import CoilConfiguration
-from unified_model.electrical_model import ElectricalModel
 from unified_model.evaluate import (
     ElectricalSystemEvaluator,
     Measurement,
@@ -36,9 +36,37 @@ from unified_model.evaluate import (
 )
 from unified_model.local_exceptions import ModelError
 from unified_model.mechanical_components import magnet_assembly
-from unified_model.mechanical_model import MechanicalModel
+from unified_model.mechanical_components.mechanical_spring import MechanicalSpring
 from unified_model.utils.utils import parse_output_expression, pretty_str
 from unified_model.utils.paint import paint_device
+
+
+def _has_update_method(obj):
+    """Return `True` if the object has an `update` method."""
+    try:
+        update_attr = getattr(obj, "update")
+        return callable(update_attr)
+    except AttributeError:
+        return False
+
+
+def send_notification(fn):
+    """Causes the decorated function to send a notification to all Observers."""
+    from functools import wraps
+
+    @wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        # Call the underlying function, which must return
+        # a new model object
+        new_model = fn(self, *args, **kwargs)
+        # Send out notifications to all the observers
+        new_model._notify()
+
+        # Return our new model
+        return new_model
+
+    # Decorators must return functions, so we return our wrapper
+    return wrapper
 
 
 class UnifiedModel:
@@ -49,10 +77,6 @@ class UnifiedModel:
 
     Attributes
     ----------
-    mechanical_model : instance of `MechanicalModel`
-        The mechanical model to use as part of the unified model.
-    electrical_model : instance of `ElectricalModel`
-        The electrical model to use as part of the unified model.
     coupling_model : instance of `CouplingModel`
         The electro-mechanical coupling to use as part of the unified model.
     governing_equations: func
@@ -72,30 +96,141 @@ class UnifiedModel:
 
     """
 
+    # TODO: Type hint attributes
     def __init__(self) -> None:
         """Constructor."""
         self.height: Optional[float] = None
-        self.mechanical_model: Optional[MechanicalModel] = None
-        self.electrical_model: Optional[ElectricalModel] = None
-        self.coupling_model: Optional[CouplingModel] = None
+
         self.governing_equations: Optional[Callable] = None
-        self.raw_solution: Any = None
-        self.post_processing_pipeline: Dict[str, Any] = {}
+
         self.time: Optional[np.ndarray] = None
+        self.raw_solution: Optional[np.ndarray] = None
+        self.post_processing_pipeline: Dict[str, Any] = {}
+
+        # Mechanical components
+        self.magnetic_spring: Optional[Any] = None
+        self.magnet_assembly = None
+        self.mechanical_spring = None
+        self.mechanical_damper = None
+        self.input_excitation = None
+
+        # Electrical components
+        self.flux_model: Optional[Any] = None
+        self.coil_configuration: Optional[Any] = None
+        self.rectification_drop: Optional[float] = None
+        self.load_model: Optional[Any] = None
+
+        # Coupling model
+        self.coupling_model: Optional[Any] = None
+
+        # Extra, non-standard components
+        self.extra_components: Dict[str, Any] = {}
+
+        # Observers
+        self._observers: Dict[str, Any] = {}
+
+    def _attach_if_observer(self, name, candidate):
+        """
+        Attach the component as an observer if it has a valid `update` method.
+        """
+        if _has_update_method(candidate):
+            self._observers[name] = candidate
+
+    def _notify(self):
+        """Notify all observers of state changes."""
+        for observer in self._observers.values():
+            observer.update(self)
 
     def __str__(self) -> str:
         """Return string representation of the UnifiedModel"""
         return f"Unified Model: {pretty_str(self.__dict__)}"
 
-    def set_height(self, height_mm: float) -> UnifiedModel:
+    def with_magnetic_spring(self, magnetic_spring):
+        self.magnetic_spring = magnetic_spring
+        self._attach_if_observer("magnetic_spring", self.magnetic_spring)
+
+        return self
+
+    @send_notification
+    def with_magnet_assembly(self, magnet_assembly):
+        self.magnet_assembly = magnet_assembly
+        self._attach_if_observer("magnet_assembly", self.magnet_assembly)
+
+        return self
+
+    @send_notification
+    def with_mechanical_spring(self, mechanical_spring):
+        self.mechanical_spring = mechanical_spring
+        self._attach_if_observer("mechanical_spring", self.mechanical_spring)
+
+        return self
+
+    @send_notification
+    def with_mechanical_damper(self, mechanical_damper):
+        self.mechanical_damper = mechanical_damper
+        self._attach_if_observer("mechanical_damper", self.mechanical_damper)
+
+        return self
+
+    @send_notification
+    def with_input_excitation(self, input_excitation):
+        self.input_excitation = input_excitation
+        self._attach_if_observer("input_excitation", self.input_excitation)
+
+        return self
+
+    @send_notification
+    def with_flux_model(self, flux_model):
+        self.flux_model = flux_model
+        self._attach_if_observer("flux_model", self.flux_model)
+
+        return self
+
+    @send_notification
+    def with_coil_configuration(self, coil_configuration):
+        self.coil_configuration = coil_configuration
+        self._attach_if_observer("coil_configuration", self.coil_configuration)
+
+        return self
+
+    @send_notification
+    def with_rectification_drop(self, rectification_drop):
+        self.rectification_drop = rectification_drop
+        self._attach_if_observer("rectification_drop", self.rectification_drop)
+
+        return self
+
+    @send_notification
+    def with_load_model(self, load_model):
+        self.load_model = load_model
+        self._attach_if_observer("load_model", self.load_model)
+
+        return self
+
+    @send_notification
+    def with_coupling_model(self, coupling_model):
+        self.coupling_model = coupling_model
+        self._attach_if_observer("coupling_model", self.coupling_model)
+
+        return self
+
+    def with_extra(self, name, extra_component):
+        """Attach extra, non-standard components as part of the model."""
+        self.extra_components[name] = extra_component
+        self._attach_if_observer(name, extra_component)
+
+        return self
+
+    @send_notification
+    def with_height(self, height: float) -> UnifiedModel:
         """Constrain the microgenerator to a maximum vertical height.
 
         This constraint will be validated before solving for a solution.
 
         Parameters
         ----------
-        height_mm : float
-            The height of the device, in mm.
+        height : float
+            The height of the device, in metres.
 
         Returns
         -------
@@ -103,14 +238,65 @@ class UnifiedModel:
             An updated UnifiedModel.
 
         """
-        try:
-            self.height = height_mm / 1000
-            self.mechanical_model.mechanical_spring.set_position(self.height)  # type: ignore
-        except AttributeError as e:
-            raise ModelError(
-                "Set the mechanical spring first before setting the device height."
-            ) from e
+        self.height = height
+        return self
 
+    def with_governing_equations(self, governing_equations: Callable) -> UnifiedModel:
+        """Add a set of governing equations to the unified model.
+
+        The governing equations describe the behaviour of the entire system,
+        and control the manner in which the various components interact.
+
+        Must accept arguments `t` and `y` and keyword arguments
+        `mechanical_model`, `electrical_model` and `coupling_model`.The
+        structure and return value of `governing_equations` must be of the same
+        as functions solved by `scipy.integrate.solve_ivp` (but have the
+        additional keyword arguments specified above).
+
+        Parameters
+        ----------
+        governing_equations : Callable
+            Set of governing equations that controls the unified model's
+            behaviour.
+
+        See Also
+        --------
+        scipy.integrate.solve_ivp : function
+            `governing_equations` must be compatible with the class of function
+            solved by `scipy.integrate.solve_ivp`.
+
+        """
+        self.governing_equations = governing_equations
+        return self
+
+    def with_post_processing_pipeline(
+        self, pipeline: Callable, name: str
+    ) -> UnifiedModel:
+        """Add a post-processing pipeline to the unified model
+
+        After solving the unified model, optional post-processing pipelines can
+        be executed on the resulting solution data. This is useful for clipping
+        certain values, resampling or filtering noise.
+
+        The pipelines will be executed in the order that they are added.
+
+        Parameters
+        ----------
+        pipeline : Callable
+            Function that accepts an ndarray of dimensions (N, d), where
+            N is the number of time points for which a solution has been
+            computed, and d is the dimension of the solution vector `y`
+            that is passed into the governing equations.
+        name : str
+            Name of the pipeline.
+
+        See Also
+        --------
+        self.set_governing_equations : function that adds the governing
+            equations to the unified model.
+
+        """
+        self.post_processing_pipeline[name] = pipeline
         return self
 
     def _print_device(self):
@@ -148,7 +334,9 @@ class UnifiedModel:
         try:
             assert self.height is not None
         except AssertionError as e:
-            raise ModelError('Please set the height first using the .set_height method!') from e
+            raise ModelError(
+                "Please set the height first using the .set_height method!"
+            ) from e
 
         self._print_device()
 
@@ -194,110 +382,6 @@ class UnifiedModel:
 
         print(final_str)
 
-    def set_mechanical_model(
-        self,
-        mechanical_model: MechanicalModel,
-    ) -> UnifiedModel:
-
-        """Add a mechanical model to the unified model
-
-        Parameters
-        ----------
-        mechanical_model : instance of `MechanicalModel`
-            The mechanical model to add to the unified model.
-            Is passed to `governing_equations` function when the `solve`
-            method is called.
-
-        """
-        self.mechanical_model = mechanical_model
-        return self
-
-    def set_electrical_model(self, electrical_model: ElectricalModel) -> UnifiedModel:
-        """Add an electrical model to the unified model
-
-        Parameters
-        ----------
-        electrical_model : instance of `ElectricalModel`
-            The electrical model to add to the unified model.
-            Is passed to `governing_equations` function when the `solve`
-            method is called.
-
-        """
-        self.electrical_model = electrical_model
-        return self
-
-    def set_coupling_model(self, coupling_model: CouplingModel) -> UnifiedModel:
-        """Add the electro-mechanical coupling to the unified model.
-
-        Parameters
-        ----------
-        coupling_model : CouplingModel
-            The coupling model to add to the unified model.
-            Is passed to `governing_equations` function when the `solve`
-            method is called.
-
-        """
-        self.coupling_model = coupling_model
-        return self
-
-    def set_governing_equations(self, governing_equations: Callable) -> UnifiedModel:
-        """Add a set of governing equations to the unified model.
-
-        The governing equations describe the behaviour of the entire system,
-        and control the manner in which the various components interact.
-
-        Must accept arguments `t` and `y` and keyword arguments
-        `mechanical_model`, `electrical_model` and `coupling_model`.The
-        structure and return value of `governing_equations` must be of the same
-        as functions solved by `scipy.integrate.solve_ivp` (but have the
-        additional keyword arguments specified above).
-
-        Parameters
-        ----------
-        governing_equations : Callable
-            Set of governing equations that controls the unified model's
-            behaviour.
-
-        See Also
-        --------
-        scipy.integrate.solve_ivp : function
-            `governing_equations` must be compatible with the class of function
-            solved by `scipy.integrate.solve_ivp`.
-
-        """
-        self.governing_equations = governing_equations
-        return self
-
-    def set_post_processing_pipeline(
-        self, pipeline: Callable, name: str
-    ) -> UnifiedModel:
-        """Add a post-processing pipeline to the unified model
-
-        After solving the unified model, optional post-processing pipelines can
-        be executed on the resulting solution data. This is useful for clipping
-        certain values, resampling or filtering noise.
-
-        The pipelines will be executed in the order that they are added.
-
-        Parameters
-        ----------
-        pipeline : Callable
-            Function that accepts an ndarray of dimensions (N, d), where
-            N is the number of time points for which a solution has been
-            computed, and d is the dimension of the solution vector `y`
-            that is passed into the governing equations.
-        name : str
-            Name of the pipeline.
-
-        See Also
-        --------
-        self.set_governing_equations : function that adds the governing
-            equations to the unified model.
-
-        """
-        self.post_processing_pipeline[name] = pipeline
-        return self
-
     def solve(
         self,
         t_start: float,
@@ -305,7 +389,7 @@ class UnifiedModel:
         y0: List[float],
         t_eval: Union[List, np.ndarray],
         t_max_step: float = 1e-4,
-        method: str = 'RK45',
+        method: str = "RK45",
     ) -> None:
         """Solve the unified model.
 
@@ -333,15 +417,9 @@ class UnifiedModel:
             equations of the unified model.
 
         """
-        self.validate(verbose=False)
 
-        high_level_models = {
-            "mechanical_model": self.mechanical_model,
-            "electrical_model": self.electrical_model,
-            "coupling_model": self.coupling_model,
-        }
         psoln = integrate.solve_ivp(
-            fun=lambda t, y: self.governing_equations(t, y, **high_level_models),  # type: ignore # noqa
+            fun=lambda t, y: self.governing_equations(t, y, self),  # type: ignore # noqa
             t_span=[t_start, t_end],
             y0=y0,
             t_eval=t_eval,
@@ -729,10 +807,7 @@ class UnifiedModel:
         mech_result: Dict[str, float] = {}
         elec_result: Dict[str, float] = {}
 
-        if self.mechanical_model:
-            self.mechanical_model.set_input(measurement.input_)
-        else:
-            raise ValueError("Mechanical model has not been specified.")
+        self.with_input_excitation(measurement.input_)
 
         # Run the solver
         self.reset()
@@ -765,7 +840,7 @@ class UnifiedModel:
         return result, evaluators
 
     def calculate_metrics(self, prediction_expr: str, metric_dict: Dict) -> Dict:
-        """Calculate metrics on a prediction expressions."""
+        """Calculate metrics on a prediction expression."""
 
         df_result = self.get_result(expr=prediction_expr)
 
@@ -786,220 +861,193 @@ class UnifiedModel:
 
         new_model = copy.deepcopy(self)
 
-        for path, value in config:
-            sub_paths = path.split(".")
-
-            try:  # Check the base component exists
-                assert sub_paths[0] in self.__dict__
-                assert self.__dict__[sub_paths[0]] is not None
-            except AssertionError as e:
-                raise ValueError(
-                    f"The component `{sub_paths[0]}` is not defined or present."
-                ) from e
-
+        for full_path, new_value in config:
             try:
-                if len(sub_paths) == 2:  # TODO: Make this less hardcoded
-                    try:
-                        assert (
-                            sub_paths[-1] in new_model.__dict__[sub_paths[0]].__dict__
-                        )
-                        new_model.__dict__[sub_paths[0]].__dict__[sub_paths[1]] = value
-                    except AssertionError as e:
-                        raise ValueError(
-                            f"The parameter `{path}` does not exist."
-                        ) from e
-                if len(sub_paths) == 3:  # TODO: Make this less hardcoded
-                    try:  # Check we're not setting something that doesn't exist
-                        assert (
-                            sub_paths[-1]
-                            in new_model.__dict__[sub_paths[0]]
-                            .__dict__[sub_paths[1]]
-                            .__dict__
-                        )  # noqa
-                        new_model.__dict__[sub_paths[0]].__dict__[
-                            sub_paths[1]
-                        ].__dict__[sub_paths[2]] = value
-                    except AssertionError as e:
-                        raise ValueError(
-                            f"The parameter `{path}` does not exist."
-                        ) from e  # noqa
+                if "." in full_path:
+                    component, param_path = full_path.split(".")
+                    new_model.__dict__[component].__dict__[param_path] = new_value
+                else:
+                    component = full_path
+                    new_model.__dict__[component] = new_value
+            except KeyError as e:
+                raise KeyError(f"Unable to find parameter path: {full_path}") from e
 
-            except AttributeError as ae:
-                raise AttributeError(f'"{path}" could not be found.') from ae
-
+        new_model._notify()  # Notify our components of the update
         return new_model
 
-    def save_to_disk(self, path: str, overwrite=False) -> None:
-        """Persists a unified model to disk"""
-        if overwrite:
-            try:
-                shutil.rmtree(path)
-            except FileNotFoundError:
-                pass
+        # for path, new_value in config:
+        #     sub_paths = path.split(".")
 
-        if not os.path.exists(path):
-            os.makedirs(path)
-        else:
-            raise FileExistsError("The path already exists.")
+        #     try:  # Check the base component exists
+        #         assert sub_paths[0] in self.__dict__
+        #         assert self.__dict__[sub_paths[0]] is not None
+        #     except AssertionError as e:
+        #         raise ValueError(
+        #             f"The component `{sub_paths[0]}` is not defined or present."
+        #         ) from e
 
-        for key, val in self.__dict__.items():
-            print(key)
-            component_path = path + key + ".pkl"
-            with open(component_path, "wb") as f:
-                cloudpickle.dump(val, f)
+        #     try:
+        #         if len(sub_paths) == 2:  # TODO: Make this less hardcoded
+        #             try:
+        #                 assert (
+        #                     sub_paths[-1] in new_model.__dict__[sub_paths[0]].__dict__
+        #                 )
+        #                 new_model.__dict__[sub_paths[0]].__dict__[
+        #                     sub_paths[1]
+        #                 ] = new_value
+        #             except AssertionError as e:
+        #                 raise ValueError(
+        #                     f"The parameter `{path}` does not exist."
+        #                 ) from e
+        #         if len(sub_paths) == 3:  # TODO: Make this less hardcoded
+        #             try:  # Check we're not setting something that doesn't exist
+        #                 assert (
+        #                     sub_paths[-1]
+        #                     in new_model.__dict__[sub_paths[0]]
+        #                     .__dict__[sub_paths[1]]
+        #                     .__dict__
+        #                 )  # noqa
+        #                 new_model.__dict__[sub_paths[0]].__dict__[
+        #                     sub_paths[1]
+        #                 ].__dict__[sub_paths[2]] = new_value
+        #             except AssertionError as e:
+        #                 raise ValueError(
+        #                     f"The parameter `{path}` does not exist."
+        #                 ) from e  # noqa
 
-    def get_config(self, as_type='dict'):
-        """Return a JSON config of the unified model"""
+        #     except AttributeError as ae:
+        #         raise AttributeError(f'"{path}" could not be found.') from ae
 
-        output = {}
+        # return new_model
 
-        output['mechanical_model'] = {
-            'magnetic_spring': {
-                'fea_data_file': os.path.abspath(self.mechanical_model.magnetic_spring.fea_data_file),
-                'filter_callable': 'auto',  # Sort this out later
-                'magnet_length': self.mechanical_model.magnetic_spring.magnet_length
-            },
-            'magnet_assembly': {
-                'm': int(self.mechanical_model.magnet_assembly.m),
-                'l_m_mm': float(self.mechanical_model.magnet_assembly.l_m_mm),
-                'l_mcd_mm': float(self.mechanical_model.magnet_assembly.l_mcd_mm),
-                'dia_magnet_mm': float(self.mechanical_model.magnet_assembly.dia_magnet_mm),
-                'dia_spacer_mm': float(self.mechanical_model.magnet_assembly.dia_spacer_mm),
-            },
-            'mechanical_spring': {
-                'magnet_assembly': 'self',
-                'damping_coefficient': self.mechanical_model.mechanical_spring.damping_coefficient
-            },
-            'damper': {
-                'damping_coefficient': self.mechanical_model.damper.damping_coefficient,
-                'magnet_assembly': 'self'
-            },
+    def get_config(self, kind: str = "dict") -> Union[Dict[str, Any], str]:
+        """Get the configuration of the unified model."""
+
+        output = {
+            "height": None,
+            "magnetic_spring": None,
+            "magnet_assembly": None,
+            "mechanical_spring": None,
+            "mechanical_damper": None,
+            "input_excitation": None,
+            "coil_configuration": None,
+            "flux_model": None,
+            "rectification_drop": None,
+            "load_model": None,
+            "coupling_model": None,
+            "extra_components": None,
+            "governing_equations": None,
         }
 
-        if self.mechanical_model.input_:
-            input_excitation_dict = {
-                'raw_accelerometer_data_path': os.path.abspath(self.mechanical_model.input_.raw_accelerometer_data_path),
-                'accel_column': self.mechanical_model.input_.accel_column,
-                'time_column': self.mechanical_model.input_.time_column,
-                'accel_unit': self.mechanical_model.input_.accel_unit,
-                'time_unit': self.mechanical_model.input_.time_unit,
-                'smooth': self.mechanical_model.input_.smooth,
-                'interpolate': self.mechanical_model.input_.interpolate,
+        # Mechanical components
+        if self.height:
+            output["height"] = self.height  # type: ignore
+        if self.magnetic_spring:
+            output["magnetic_spring"] = self.magnetic_spring.to_json()
+        if self.magnet_assembly:
+            output["magnet_assembly"] = self.magnet_assembly.to_json()
+        if self.mechanical_spring:
+            output["mechanical_spring"] = self.mechanical_spring.to_json()
+        if self.mechanical_damper:
+            output["mechanical_damper"] = self.mechanical_damper.to_json()
+        if self.input_excitation:
+            output["input_excitation"] = self.input_excitation.to_json()
+
+        # Electrical components
+        if self.coil_configuration:
+            output["coil_configuration"] = self.coil_configuration.to_json()
+        if self.flux_model:
+            output["flux_model"] = self.flux_model.to_json()
+        if self.rectification_drop:
+            output["rectification_drop"] = self.rectification_drop
+        if self.load_model:
+            output["load_model"] = self.load_model.to_json()
+        if self.coupling_model:
+            output["coupling_model"] = self.coupling_model.to_json()
+
+        # Governing equations
+        if self.governing_equations:
+            output["governing_equations"] = {  # type: ignore
+                "module_path": self.governing_equations.__module__,
+                "func_name": self.governing_equations.__qualname__,
             }
-        else:
-            input_excitation_dict = None
 
-        output['mechanical_model']['input_excitation'] = input_excitation_dict
-
-        output['electrical_model'] = {
-            'coil_config': {
-                'c': int(self.electrical_model.coil_config.c),
-                'n_z': float(self.electrical_model.coil_config.n_z),
-                'n_w': float(self.electrical_model.coil_config.n_w),
-                'l_ccd_mm': float(self.electrical_model.coil_config.l_ccd_mm),
-                'ohm_per_mm': float(self.electrical_model.coil_config.ohm_per_mm),
-                'tube_wall_thickness_mm': float(self.electrical_model.coil_config.tube_wall_thickness_mm),
-                'coil_wire_radius_mm': float(self.electrical_model.coil_config.coil_wire_radius_mm),
-                'coil_center_mm': float(self.electrical_model.coil_config.coil_center_mm),
-                'inner_tube_radius_mm': float(self.electrical_model.coil_config.inner_tube_radius_mm)
-            },
-            'flux_model': {  # For now, this assumes a pretrained model
-                'coil_config': 'self',
-                'magnet_assembly': 'self',
-                'curve_model_path': os.path.abspath(self.electrical_model.flux_model.curve_model_path)
-            },
-            'rectification_drop': float(self.electrical_model.rectification_drop),
-            'load_model': {
-                'R': float(self.electrical_model.load_model.R)
-            }
-        }
-
-        output['coupling_model'] = {
-            'coupling_constant': self.coupling_model.coupling_constant
-        }
-
-        output['height'] = float(self.height * 1000)  # Must be in mm.
-
-        if as_type == 'dict':
+        if kind == "dict":
             return output
-        elif as_type == 'json':
+        elif kind == "json":
             return json.dumps(output)
         else:
-            raise ValueError(f'Return type "{as_type}" not known.')
+            raise ValueError('`kind` must be "dict" or "json"!')
 
     @staticmethod
-    def from_config(config: Dict):
+    def from_config(config: Dict[Any, Any]):
 
-        magnet_assembly = mechanical_components.MagnetAssembly(
-            **config['mechanical_model']['magnet_assembly']
-        )
+        model = UnifiedModel()
 
-        coil_config = CoilConfiguration(
-            **config['electrical_model']['coil_config']
-        )
+        for comp, comp_config in config.items():
+            if comp_config is None:
+                continue  # Skip
+            if comp == "height":  # Handle height separately
+                model.with_height(comp_config)
+                continue
+            if comp == "rectification_drop":  # Handle the rectification drop separately
+                model.with_rectification_drop(comp_config)
+                continue
 
-        mech_model = MechanicalModel()
-        mech_model.set_magnetic_spring(
-            mechanical_components.MagneticSpringInterp(
-                fea_data_file=config['mechanical_model']['magnetic_spring']['fea_data_file'],
-                magnet_length=config['mechanical_model']['magnetic_spring']['magnet_length'],
-                filter_callable=lambda x: savgol_filter(x, 11, 7)
-            )
-        )
-        mech_model.set_magnet_assembly(magnet_assembly)
-        mech_model.set_mechanical_spring(
-            mechanical_components.MechanicalSpring(
-                damping_coefficient=config['mechanical_model']['mechanical_spring']['damping_coefficient'],
-                magnet_assembly=magnet_assembly
-            )
-        )
-        mech_model.set_damper(
-            mechanical_components.MassProportionalDamper(
-                damping_coefficient=config['mechanical_model']['damper']['damping_coefficient'],
-                magnet_assembly=magnet_assembly
-            )
-        )
+            # First loop through all component kwargs, and inject missing
+            # dependencies where necessary. We are assuming that the
+            # `param_name` of the dependency exists in as a key in the `config`
+            # dict passed into `from_config`, and that there are no circular
+            # dependencies -- things will just break, there is no warning yet.
+            for param_name, param_value in comp_config.items():
+                if param_value == "dep:magnet_assembly":
+                    dep = magnet_assembly.MagnetAssembly(
+                        **config[param_name]
+                    )  # Lookup dependency config and instantiate it
+                    comp_config[param_name] = dep  # Inject dependency
+                if param_value == "dep:coil_configuration":
+                    dep = CoilConfiguration(**config[param_name])
+                    comp_config[param_name] = dep
 
-        if config['mechanical_model']['input_excitation']:
-            mech_model.set_input(
-                mechanical_components.AccelerometerInput(
-                    raw_accelerometer_data_path=config['mechanical_model']['input_excitation']['raw_accelerometer_data_path'],
-                    accel_column=config['mechanical_model']['input_excitation']['accel_column'],
-                    time_column=config['mechanical_model']['input_excitation']['time_column'],
-                    time_unit=config['mechanical_model']['input_excitation']['time_unit'],
-                    smooth=config['mechanical_model']['input_excitation']['smooth'],
-                    interpolate=config['mechanical_model']['input_excitation']['interpolate'],
+            # And then build the component, depending on what it is
+            if comp == "mechanical_damper":
+                damper = MassProportionalDamper(**comp_config)
+                model.with_mechanical_damper(damper)
+
+            if comp == "magnet_assembly":
+                model.with_magnet_assembly(
+                    magnet_assembly.MagnetAssembly(**comp_config)
                 )
-            )
 
-        elec_model = (
-            ElectricalModel()
-            .set_flux_model(
-                electrical_components.FluxModelPretrained(
-                    coil_config=coil_config,
-                    magnet_assembly=magnet_assembly,
-                    curve_model_path=config['electrical_model']['flux_model']['curve_model_path']
-                )
-            )
-            .set_coil_configuration(
-                coil_config
-            )
-            .set_rectification_drop(config['electrical_model']['rectification_drop'])
-            .set_load_model(
-                electrical_components.SimpleLoad(config['electrical_model']['load_model']['R'])
-            )
-        )
+            if comp == "magnetic_spring":
+                # Some additional set-up required for the filter callable
+                if comp_config["filter_callable"] == "auto":
+                    comp_config["filter_callable"] = lambda x: savgol_filter(x, 11, 7)
+                model.with_magnetic_spring(MagneticSpringInterp(**comp_config))
 
-        coupling_model = CouplingModel().set_coupling_constant(config['coupling_model']['coupling_constant'])
+            if comp == "mechanical_spring":
+                model.with_mechanical_spring(MechanicalSpring(**comp_config))
 
-        model = (
-            UnifiedModel()
-            .set_mechanical_model(mech_model)
-            .set_electrical_model(elec_model)
-            .set_coupling_model(coupling_model)
-            .set_governing_equations(governing_equations.unified_ode)
-            .set_height(config['height'])  # Must call this last!
-        )
+            if comp == "input_excitation":
+                model.with_input_excitation(AccelerometerInput(**comp_config))
+
+            if comp == "coil_configuration":
+                model.with_coil_configuration(CoilConfiguration(**comp_config))
+
+            if comp == "flux_model":
+                model.with_flux_model(FluxModelPretrained(**comp_config))
+
+            if comp == "governing_equations":
+                import importlib  # TODO: Move?
+
+                module_ = importlib.import_module(comp_config["module_path"])
+                governing_equations = getattr(module_, comp_config["func_name"])
+                model.with_governing_equations(governing_equations)
+
+            if comp == "load_model":
+                model.with_load_model(SimpleLoad(**comp_config))
+            if comp == "coupling_model":
+                model.with_coupling_model(CouplingModel(**comp_config))
 
         return model
 
@@ -1024,7 +1072,6 @@ class UnifiedModel:
         return unified_model
 
     def validate(self, verbose=True) -> None:
-
         def _fail_if_true(bool_or_func, message, err_message=""):
             good = " OK!"
             bad = " ERROR -- "
@@ -1056,25 +1103,23 @@ class UnifiedModel:
                     message += exception_message
 
             else:
-                raise ValueError('Must specify either a boolean variable or a callable!')
+                raise ValueError(
+                    "Must specify either a boolean variable or a callable!"
+                )
 
             return result, message
 
         messages = ["Model validation report:"]
-        error_messages = ['Model validation failed:']
+        error_messages = ["Model validation failed:"]
 
         def _do_validation(
-                test,
-                message,
-                err_message,
-                messages=messages,
-                error_messages=error_messages,
+            test,
+            message,
+            err_message,
+            messages=messages,
+            error_messages=error_messages,
         ):
-            did_fail, message = _fail_if_true(
-                test,
-                message,
-                err_message
-            )
+            did_fail, message = _fail_if_true(test, message, err_message)
             if did_fail:
                 error_messages.append(message)
             messages.append(message)
@@ -1087,7 +1132,7 @@ class UnifiedModel:
             "Checking if mechanical model is present...",
             "No mechanical model.",
             messages,
-            error_messages
+            error_messages,
         )
 
         messages, error_messages = _do_validation(
@@ -1095,7 +1140,7 @@ class UnifiedModel:
             "Validating mechanical model...",
             "",
             messages,
-            error_messages
+            error_messages,
         )
 
         messages, error_messages = _do_validation(
@@ -1103,7 +1148,7 @@ class UnifiedModel:
             "Checking if electrical model is present...",
             "No electrical model.",
             messages,
-            error_messages
+            error_messages,
         )
 
         messages, error_messages = _do_validation(
@@ -1111,7 +1156,7 @@ class UnifiedModel:
             "Validating electrical model...",
             "",
             messages,
-            error_messages
+            error_messages,
         )
 
         messages, error_messages = _do_validation(
@@ -1119,7 +1164,7 @@ class UnifiedModel:
             "Checking if coupling model is present...",
             "No coupling model.",
             messages,
-            error_messages
+            error_messages,
         )
 
         messages, error_messages = _do_validation(
@@ -1127,7 +1172,7 @@ class UnifiedModel:
             "Validating coupling model...",
             "",
             messages,
-            error_messages
+            error_messages,
         )
 
         messages, error_messages = _do_validation(
@@ -1135,7 +1180,7 @@ class UnifiedModel:
             "Checking if device height has been specified...",
             "Height of the device has not been set.",
             messages,
-            error_messages
+            error_messages,
         )
 
         messages, error_messages = _do_validation(
@@ -1143,7 +1188,7 @@ class UnifiedModel:
             "Checking if the mechanical spring position has been set...",
             "Mechanical spring position not set. Did you call `.set_height` on the UnifiedModel after setting the mechanical spring?",
             messages,
-            error_messages
+            error_messages,
         )
 
         messages, error_messages = _do_validation(
@@ -1151,7 +1196,7 @@ class UnifiedModel:
             "Checking if governing equations have been specified...",
             "Governing equations have not been set.",
             messages,
-            error_messages
+            error_messages,
         )
 
         # More involved checks
@@ -1178,7 +1223,7 @@ class UnifiedModel:
             "Check if coil configuration fits onto device...",
             f"The top edge of the top coil is {(coil_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm.",  # type:ignore # noqa
             messages,
-            error_messages
+            error_messages,
         )
 
         # Find the top edge of the uppermost magnet assembly
@@ -1186,21 +1231,23 @@ class UnifiedModel:
         ms = self.mechanical_model.magnetic_spring
         mag_top_edge = ms.get_hover_height(ma) + ma.get_length() / 1000
 
-        magnet_top_edge_is_outside = bool(np.round(mag_top_edge + offset, 3) >= self.height)
+        magnet_top_edge_is_outside = bool(
+            np.round(mag_top_edge + offset, 3) >= self.height
+        )
         messages, error_messages = _do_validation(
             magnet_top_edge_is_outside,
             "Checking if the magnet assembly fits into device...",
             f"The top edge of the magnet assembly is {(mag_top_edge + offset) * 1000}mm, which exceeds the set device height of {self.height * 1000}mm.",  # type:ignore # noqa
             messages,
-            error_messages
+            error_messages,
         )
 
         if verbose:
-            print('\n'.join(messages))
+            print("\n".join(messages))
 
         # If we failed anything, raise a ModelError.
         if len(error_messages) > 1:
-            raise ModelError('\n'.join(error_messages))
+            raise ModelError("\n".join(error_messages))
 
     def _apply_pipeline(self) -> None:
         """Execute the post-processing pipelines on the raw solution.."""

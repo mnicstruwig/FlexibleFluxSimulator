@@ -26,153 +26,6 @@ def _assert_valid_cost_metric(cost_metric: str) -> None:
         )  # noqa
 
 
-def mean_of_votes(
-    model_prototype: UnifiedModel,
-    measurements: List[Measurement],
-    instruments: Dict[str, ng.p.Scalar],
-    cost_metric: str,
-    budget: int = 500,
-) -> Dict[str, List[float]]:
-    """Perform the `mean of votes` evolutionary parameter search optimization.
-
-    For each measurement, a set of model parameters is found that minimizes the
-    cost function. The recommended parameters for each measurement, alongside
-    the corresponding loss is returned.
-
-    Currently, only the friction damping coefficient, coupling coefficient and
-    mechanical spring damping coefficient are considered for the parameter
-    search. These must be specified as `nevergrad` scalars using the
-    `instruments` argument.
-
-    The cost function is the sum of the DTW distance between the simulated and
-    measured devices. There are two dtw distances. The first is the DTW distance
-    between the simulated and measured position of the magnet assembly. The
-    second is the DTW distance between the simulated and measured load voltage.
-
-    Parameters
-    ----------
-    model_prototype : UnifiedModel
-        A fully-instantiated UnifiedModel object that will be used as the basis
-        for the parameter search. The damper, coupling model, mechanical spring
-        and input excitation will be replaced during the parameter search. Every
-        other component must be specified.
-    measurements : List[Measurement]
-        A list of Measurement objects that will be used to both drive the
-        unified model (by using the input excitation present in each Measurement
-        object) and also to compare the simulation results with the ground truth
-        present in each Measurement.
-    instruments : Dict[str, ng.p.Scalar]
-        The `nevergrad` parametrization instruments that will be evolved in
-        order to find the most accurate set of parameters. Keys must correspond
-        to all three of {'damping_coefficient', 'coupling_constant',
-        'mech_spring_constant'} and values must be a nevergrad `Scalar`. See the
-        relevant `Scalar` documentation for how initial values and limits can be
-        set.
-    cost_metric : str
-        The cost metric to use. Must be 'dtw,'power' or 'combined'.
-    budget : int
-        The budget (maximum number of allowed iterations) that the evolutionary
-        algorithm will run for, for *each* measurement in `measurements`.
-        Optional.
-
-    Returns
-    -------
-    Dict[str, List[float]]
-        The optimization results. Each key is one of {'damping_coefficient',
-        'coupling_constant', 'mech_spring_constant'}, and each value corresponds
-        to a list of optimal parameter values found for each measurement in
-        `measurements`.
-
-    Examples
-    --------
-
-    >>> # instrumentation example
-    >>> instruments = {
-    ...     'damping_coefficient': ng.p.Scalar(init=5),
-    ...     'coupling_constant': ng.p.Scalar(init=5),
-    ...     'mech_spring_constant': ng.p.Scalar(init=0)
-    ...     }
-
-    See Also
-    --------
-    evaluate.Measurement : Class
-        The Measurement class that contains both input excitation and measured
-        ground truth information.
-    nevergrad.p.Scalar : Class
-        The nevergrad Scalar parametrization instrument.
-
-    """
-
-    # Some quick validation.
-    if "damping_coefficient" not in instruments:
-        raise KeyError("damping_coefficient must be present in `instruments`")
-    if "coupling_constant" not in instruments:
-        raise KeyError("coupling_constant must be present in `instruments`")
-    if "mech_spring_constant" not in instruments:
-        raise KeyError("mech_spring_constant must be present in `instruments`")
-
-    if not measurements:
-        raise ValueError("No measurements were passed.")
-
-    _assert_valid_cost_metric(cost_metric)
-
-    model = copy.deepcopy(model_prototype)
-
-    recommended_params: Dict[str, List[float]] = {
-        "damping_coefficient": [],
-        "coupling_constant": [],
-        "mech_spring_constant": [],
-        "loss": [],
-    }
-    ray.init()
-    tasks = []
-    for m in measurements:
-
-        @ray.remote
-        def wrapper():
-            instrum = ng.p.Instrumentation(
-                model_prototype=model,
-                measurement=m,
-                cost_metric=cost_metric,
-                damping_coefficient=instruments["damping_coefficient"],
-                coupling_constant=instruments["coupling_constant"],
-                mech_spring_constant=instruments["mech_spring_constant"],
-            )
-
-            optimizer = ng.optimizers.PSO(parametrization=instrum, budget=budget)
-            recommendation = optimizer.minimize(_calculate_cost_for_single_measurement)
-            return recommendation
-
-        ref = wrapper.remote()
-        tasks.append(ref)
-
-    ready: List[Any] = []
-    while len(ready) < len(tasks):
-        ready, _ = ray.wait(tasks, num_returns=len(tasks), timeout=30)
-        print(f"Running :: {len(ready)} / {len(tasks)}")
-
-    results = ray.get(tasks)
-
-    for recommendation in results:
-        recommended_params["damping_coefficient"].append(
-            recommendation.value[1]["damping_coefficient"]
-        )  # noqa
-        recommended_params["coupling_constant"].append(
-            recommendation.value[1]["coupling_constant"]
-        )  # noqa
-        recommended_params["mech_spring_constant"].append(
-            recommendation.value[1]["mech_spring_constant"]
-        )  # noqa
-
-        if recommendation.loss:
-            recommended_params["loss"].append(recommendation.loss)
-        else:
-            raise ValueError("A loss could not be computed.")
-
-    ray.shutdown()
-    return recommended_params
-
-
 def mean_of_scores(
     models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
     instruments: Dict[str, ng.p.Scalar],
@@ -211,12 +64,12 @@ def mean_of_scores(
     instruments : Dict[str, ng.p.Scalar]
         The `nevergrad` parametrization instruments that will be evolved in
         order to find the most accurate set of parameters. Keys must correspond
-        to all three of {'damping_coefficient', 'coupling_constant',
-        'mech_spring_constant'} and values must be a nevergrad `Scalar`. See the
-        relevant `Scalar` documentation for how initial values and limits can be
-        set.
+        to all three of {'mech_damping_coefficient', 'coupling_constant',
+        'mech_spring_damping_coefficient'} and values must be a nevergrad
+        `Scalar`. See the relevant `Scalar` documentation for how initial values
+        and limits can be set.
     cost_metric : str
-        The cost metric to use. Must be 'dtw,'power' or 'combined'.
+        The cost metric to use. Must be 'dtw', 'power' or 'combined'.
     budget : int
         The budget (maximum number of allowed iterations) that the evolutionary
         algorithm will run for, for *each* measurement in `measurements`.
@@ -231,18 +84,19 @@ def mean_of_scores(
     Returns
     -------
     Dict[str, float]
-        The optimization results. Each key is one of {'damping_coefficient',
-        'coupling_constant', 'mech_spring_constant'}, and each value corresponds
-        to the optimal parameter values found by minimizing the cost function.
+        The optimization results. Keys are {'mech_damping_coefficient',
+        'coupling_constant', 'mech_spring_damping_coefficient'}, and each value
+        corresponds to the optimal parameter values found by minimizing the cost
+        function.
 
     Examples
     --------
 
     >>> # instrumentation example
     >>> instruments = {
-    ...     'damping_coefficient': ng.p.Scalar(init=5),
+    ...     'mech_damping_coefficient': ng.p.Scalar(init=5),
     ...     'coupling_constant': ng.p.Scalar(init=5),
-    ...     'mech_spring_constant': ng.p.Scalar(init=0)
+    ...     'mech_spring_damping_coefficient': ng.p.Scalar(init=0)
     ...     }
 
     See Also
@@ -259,21 +113,21 @@ def mean_of_scores(
     instrum = ng.p.Instrumentation(
         models_and_measurements=models_and_measurements,
         cost_metric=cost_metric,
-        damping_coefficient=instruments["damping_coefficient"],
+        mech_damping_coefficient=instruments["mech_damping_coefficient"],
         coupling_constant=instruments["coupling_constant"],
-        mech_spring_constant=instruments["mech_spring_constant"],
+        mech_spring_damping_coefficient=instruments["mech_spring_damping_coefficient"],
     )
 
-    optimizer = ng.optimizers.TBPSA(parametrization=instrum, budget=budget)
+    optimizer = ng.optimizers.OnePlusOne(parametrization=instrum, budget=budget)
 
     def callback(optimizer, candidate, value):
         try:
             best_score = np.round(optimizer.provide_recommendation().loss, 5)
-        except TypeError:
+        except TypeError as e:
             best_score = None
         latest_score = np.round(value, 5)
         text = f"{optimizer.num_ask} / {budget} - latest: {latest_score} - best: {best_score}"  # noqa
-        print(text, end="\r")
+        print(text, end="\r")  # Rewrite our latest outputline each time
 
     if verbose:
         optimizer.register_callback("tell", callback)
@@ -289,9 +143,9 @@ def mean_of_scores(
     )
 
     recommended_params = {
-        "damping_coefficient": recommendation.value[1]["damping_coefficient"],
+        "mech_damping_coefficient": recommendation.value[1]["mech_damping_coefficient"],
         "coupling_constant": recommendation.value[1]["coupling_constant"],
-        "mech_spring_constant": recommendation.value[1]["mech_spring_constant"],
+        "mech_spring_damping_coefficient": recommendation.value[1]["mech_spring_damping_coefficient"],
         "loss": recommendation.loss,
     }
 
@@ -303,9 +157,9 @@ def _calculate_cost_for_single_measurement(
     model_prototype: UnifiedModel,
     measurement: Measurement,
     cost_metric: str,
-    damping_coefficient: float,
+    mech_damping_coefficient: float,
     coupling_constant: float,
-    mech_spring_constant: float,
+    mech_spring_damping_coefficient: float,
 ) -> float:
     """Return the cost of a unified model for a single ground truth measurement.
 
@@ -316,36 +170,20 @@ def _calculate_cost_for_single_measurement(
     model = copy.deepcopy(model_prototype)
 
     # Quick verification
-    assert model.mechanical_model is not None
-    assert model.mechanical_model.magnet_assembly is not None
-    assert model.mechanical_model.mechanical_spring is not None
+    assert model.magnet_assembly is not None
+    assert model.mechanical_spring is not None
 
-    # Build a new model using parameters
-
-    # Damper
-    model.mechanical_model.set_damper(
-        MassProportionalDamper(
-            damping_coefficient=damping_coefficient,
-            magnet_assembly=model.mechanical_model.magnet_assembly,
-        )
+    # Update the model using the suggested parameters
+    model = model.update_params(
+        [
+            ('mechanical_damper.damping_coefficient', mech_damping_coefficient),
+            ('coupling_model.coupling_constant', coupling_constant),
+            ('mechanical_spring.damping_coefficient', mech_spring_damping_coefficient)
+        ]
     )
 
-    # Mechanical spring
-    model.mechanical_model.set_mechanical_spring(
-        MechanicalSpring(
-            magnet_assembly=model.mechanical_model.magnet_assembly,
-            damping_coefficient=mech_spring_constant,
-        )
-    )
-
-    # We need to set the height again since we've re-specified the mechanical spring
-    model.set_height(model.height * 1000)
-
-    # Input excitation
-    model.mechanical_model.set_input(measurement.input_)
-
-    # Coupling model
-    model.set_coupling_model(CouplingModel().set_coupling_constant(coupling_constant))
+    # Set the new input excitation
+    model.with_input_excitation(measurement.input_)
 
     model.solve(
         t_start=0,
@@ -375,32 +213,33 @@ def _calculate_cost_for_single_measurement(
         )  # noqa
 
 
+# TODO: Docs
 @ray.remote
-def _calculate_cost_for_single_measurement_remote(
+def _calculate_cost_for_single_measurement_distributed(
     model_prototype: UnifiedModel,
     measurement: Measurement,
     cost_metric: str,
-    damping_coefficient: float,
+    mech_damping_coefficient: float,
     coupling_constant: float,
-    mech_spring_constant: float,
+    mech_spring_damping_coefficient: float,
 ) -> float:
     """A ray-wrapped version to calculate the cost if a single measurement."""
     return _calculate_cost_for_single_measurement(
         model_prototype=model_prototype,
         measurement=measurement,
         cost_metric=cost_metric,
-        damping_coefficient=damping_coefficient,
+        mech_damping_coefficient=mech_damping_coefficient,
         coupling_constant=coupling_constant,
-        mech_spring_constant=mech_spring_constant,
+        mech_spring_damping_coefficient=mech_spring_damping_coefficient,
     )
 
 
 def _calculate_cost_for_multiple_devices_multiple_measurements(
     models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
     cost_metric: str,
-    damping_coefficient: float,
+    mech_damping_coefficient: float,
     coupling_constant: float,
-    mech_spring_constant: float,
+    mech_spring_damping_coefficient: float,
 ) -> float:
     """Return cost of multiple unified models with multiple measurements.
 
@@ -414,13 +253,13 @@ def _calculate_cost_for_multiple_devices_multiple_measurements(
     for model, measurements in models_and_measurements:
         for measurement in measurements:
 
-            task_id = _calculate_cost_for_single_measurement_remote.remote(
+            task_id = _calculate_cost_for_single_measurement_distributed.remote(
                 model_prototype=model,
                 measurement=measurement,
                 cost_metric=cost_metric,
-                damping_coefficient=damping_coefficient,
+                mech_damping_coefficient=mech_damping_coefficient,
                 coupling_constant=coupling_constant,
-                mech_spring_constant=mech_spring_constant,
+                mech_spring_damping_coefficient=mech_spring_damping_coefficient,
             )
             tasks.append(task_id)
 

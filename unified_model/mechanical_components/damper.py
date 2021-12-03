@@ -96,6 +96,16 @@ class MassProportionalDamper:
 
         return self.magnet_assembly_mass * self.damping_coefficient * velocity
 
+    def to_json(self):
+        return {
+            "damping_coefficient": self.damping_coefficient,
+            "magnet_assembly": "dep:magnet_assembly",
+        }
+
+    def update(self, model):
+        """Update the internal state when notified."""
+        self.magnet_assembly_mass = model.magnet_assembly.get_mass()
+
     def __repr__(self) -> str:
         return f"MassProportionalDamper(damping_coefficient={self.damping_coefficient}, magnet_assembly_mass={self.magnet_assembly_mass})"  # noqa
 

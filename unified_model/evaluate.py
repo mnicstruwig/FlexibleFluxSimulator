@@ -38,12 +38,16 @@ class Groundtruth:
         self.lvp = LabeledVideoProcessor(**self.lvp_kwargs)
         self.adc = AdcProcessor(**self.adc_kwargs)
 
-        y_target, y_time_target = self.lvp.fit_transform(pd.read_csv(self._sample.video_labels_path))
+        y_target, y_time_target = self.lvp.fit_transform(
+            pd.read_csv(self._sample.video_labels_path)
+        )
         y_target = savgol_filter(y_target, 9, 3)  # addtional filtering on `y_target`
         self.mech["y_diff"] = y_target
         self.mech["time"] = y_time_target
 
-        emf_target, emf_time_target = self.adc.fit_transform(pd.read_csv(self._sample.adc_path))
+        emf_target, emf_time_target = self.adc.fit_transform(
+            pd.read_csv(self._sample.adc_path)
+        )
         self.elec["emf"] = emf_target
         self.elec["time"] = emf_time_target
 
@@ -132,7 +136,7 @@ class Measurement:
         ground_truth = Groundtruth(
             sample=sample,
             lvp_kwargs={
-                "magnet_assembly": self._model_prototype.mechanical_model.magnet_assembly,  # noqa
+                "magnet_assembly": self._model_prototype.magnet_assembly,  # noqa
                 "seconds_per_frame": 1 / 60,
                 "pixel_scale": 0.154508,
             },

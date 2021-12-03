@@ -141,8 +141,8 @@ def _build_quick_unified_model(accelerometer_input, flux_model):
     unified_model.set_mechanical_model(mechanical_model)
     unified_model.set_electrical_model(electrical_model)
     unified_model.set_coupling_model(coupling_model)
-    unified_model.set_governing_equations(governing_equations)
-    unified_model.set_post_processing_pipeline(clip_x2, name="clip tube velocity")
+    unified_model.with_governing_equations(governing_equations)
+    unified_model.with_post_processing_pipeline(clip_x2, name="clip tube velocity")
 
     return unified_model
 
@@ -181,8 +181,8 @@ for sample_collection in ["A"]:
         unified_model.set_mechanical_model(mechanical_model)
         unified_model.set_electrical_model(electrical_model)
         unified_model.set_coupling_model(coupling_model)
-        unified_model.set_governing_equations(governing_equations)
-        unified_model.set_post_processing_pipeline(clip_x2, name="clip tube velocity")
+        unified_model.with_governing_equations(governing_equations)
+        unified_model.with_post_processing_pipeline(clip_x2, name="clip tube velocity")
 
         # Solve
         initial_conditions = [0, 0, 0.04, 0, 0]

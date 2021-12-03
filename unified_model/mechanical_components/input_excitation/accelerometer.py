@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pandas as pd
 from numba import jit
@@ -72,7 +74,9 @@ def _preprocess_acceleration_dataframe(
     df["simulation_time_seconds"] = df[time_column] * time_conversion_table[time_unit]
 
     if smooth:
-        df[accel_column] = smooth_savgol(df[accel_column], window_length=101, polyorder=2)
+        df[accel_column] = smooth_savgol(
+            df[accel_column], window_length=101, polyorder=2
+        )
 
     if accel_unit not in ["g", "ms2"]:
         raise KeyError('Acceleration unit must be specified as "g" or "ms2".')
@@ -160,6 +164,19 @@ class AccelerometerInput:
                 self.acceleration_df["simulation_time_seconds"].values,
                 self.acceleration_df[self.accel_column].values,
             )
+
+    def to_json(self):
+        return {
+            "raw_accelerometer_data_path": os.path.abspath(
+                self.raw_accelerometer_data_path
+            ),
+            "accel_column": self.accel_column,
+            "time_column": self.time_column,
+            "accel_unit": self.accel_unit,
+            "time_unit": self.time_unit,
+            "smooth": self.smooth,
+            "interpolate": self.interpolate,
+        }
 
     # TODO: Add over attributes
     def __str__(self) -> str:

@@ -17,7 +17,7 @@ class CoilConfiguration:
         coil_wire_radius_mm: float,
         coil_center_mm: float,
         inner_tube_radius_mm: float,
-        coil_resistance: Optional[float] = None,
+        custom_coil_resistance: Optional[float] = None,
     ) -> None:
         """Constructor.
 
@@ -45,10 +45,10 @@ class CoilConfiguration:
             the fixed magnet.
         inner_tube_radius_mm : float
             The inner-radius of the microgenerator tube, in mm.
-        coil_resistance : Optional[float]
+        custom_coil_resistance : Optional[float]
             The resistance of the coil. This is optional, and the value is
             intended to be calculated from the other parameters. Use only when
-            attempting to override the calculate values.
+            attempting to override the calculated values.
 
         """
 
@@ -62,12 +62,14 @@ class CoilConfiguration:
         self.coil_wire_radius_mm = coil_wire_radius_mm
         self.coil_center_mm = coil_center_mm
         self.inner_tube_radius_mm = inner_tube_radius_mm
+        self.custom_coil_resistance = custom_coil_resistance
 
-        if not coil_resistance:
-            self.coil_resistance = self._calculate_coil_resistance()
-        else:  # Override
-            self.coil_resistance = coil_resistance
         self._validate()
+
+    def get_coil_resistance(self):
+        if not self.custom_coil_resistance:
+            return self._calculate_coil_resistance()
+        return custom_coil_resistance
 
     def __repr__(self):
         to_print = ", ".join([f"{k}={v}" for k, v in self.__dict__.items()])
@@ -81,7 +83,7 @@ class CoilConfiguration:
         if self.l_ccd_mm == 0 and self.c > 1:
             raise ValueError("l_ccd_mm = 0, but c > 1")
 
-        if not self.coil_resistance:
+        if not self.custom_coil_resistance:
             try:
                 assert self.n_z is not None
                 assert self.n_w is not None
@@ -140,3 +142,20 @@ class CoilConfiguration:
         )
 
         self.coil_center_mm = new_coil_center_mm
+
+    def to_json(self):
+        return {
+            "c": self.c,
+            "n_z": self.n_z,
+            "n_w": self.n_w,
+            "l_ccd_mm": self.l_ccd_mm,
+            "ohm_per_mm": self.ohm_per_mm,
+            "tube_wall_thickness_mm": self.tube_wall_thickness_mm,
+            "coil_wire_radius_mm": self.coil_wire_radius_mm,
+            "coil_center_mm": self.coil_center_mm,
+            "inner_tube_radius_mm": self.inner_tube_radius_mm,
+            "custom_coil_resistance": self.custom_coil_resistance,
+        }
+
+    def update(self, um):
+        """Update the internal state when notified."""
