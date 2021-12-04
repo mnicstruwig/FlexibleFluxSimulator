@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Optional
+import warnings
 
 import numpy as np
 
@@ -87,16 +88,14 @@ class MechanicalSpring:
             assert um.magnet_assembly is not None
             self.magnet_length = um.magnet_assembly.l_m_mm / 1000  # Must be in metres
             self.magnet_assembly_length = um.magnet_assembly.get_length() / 1000
-        except AssertionError as e:
-            raise ValueError(
-                "`.magnet_assembly` missing, unable to update state."
-            ) from e
+        except AssertionError:
+            warnings.warn('Missing dependency `magnet_assembly` for MechanicalSpring.')
 
         try:
             assert um.height is not None
             self.set_position(um.height)  # Must be in metres
-        except AssertionError as e:
-            raise ValueError("`.height` is missing, unable to update state") from e
+        except AssertionError:
+            warnings.warn('Missing dependency `height` for MechanicalSpring')
 
     def to_json(self):
         return {

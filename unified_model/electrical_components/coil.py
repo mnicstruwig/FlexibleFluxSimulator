@@ -69,7 +69,7 @@ class CoilConfiguration:
     def get_coil_resistance(self):
         if not self.custom_coil_resistance:
             return self._calculate_coil_resistance()
-        return custom_coil_resistance
+        return self.custom_coil_resistance
 
     def __repr__(self):
         to_print = ", ".join([f"{k}={v}" for k, v in self.__dict__.items()])

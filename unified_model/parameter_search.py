@@ -190,7 +190,7 @@ def _calculate_cost_for_single_measurement(
         t_end=8.0,
         y0=[0.0, 0.0, 0.04, 0.0, 0.0],
         t_eval=np.linspace(0, 8, 1000),
-        t_max_step=1e-2,
+        t_max_step=1e-3,
     )
 
     # Score the solved model against the ground truth.

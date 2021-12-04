@@ -9,36 +9,33 @@ from __future__ import annotations
 import copy
 import json
 import os
-import shutil
 import warnings
 from glob import glob
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from scipy.signal import savgol_filter
 
 import cloudpickle
 import numpy as np
 import pandas as pd
 from scipy import integrate
+from scipy.signal import savgol_filter
+
 from unified_model.coupling import CouplingModel
+from unified_model.electrical_components.coil import CoilConfiguration
 from unified_model.electrical_components.flux.model import FluxModelPretrained
 from unified_model.electrical_components.load import SimpleLoad
-from unified_model.mechanical_components.input_excitation.accelerometer import (
-    AccelerometerInput,
-)
-
-from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
-from unified_model.mechanical_components.damper import MassProportionalDamper
-from unified_model.electrical_components.coil import CoilConfiguration
-from unified_model.evaluate import (
-    ElectricalSystemEvaluator,
-    Measurement,
-    MechanicalSystemEvaluator,
-)
+from unified_model.evaluate import (ElectricalSystemEvaluator, Measurement,
+                                    MechanicalSystemEvaluator)
 from unified_model.local_exceptions import ModelError
 from unified_model.mechanical_components import magnet_assembly
-from unified_model.mechanical_components.mechanical_spring import MechanicalSpring
-from unified_model.utils.utils import parse_output_expression, pretty_str
+from unified_model.mechanical_components.damper import MassProportionalDamper
+from unified_model.mechanical_components.input_excitation.accelerometer import \
+    AccelerometerInput
+from unified_model.mechanical_components.magnetic_spring import \
+    MagneticSpringInterp
+from unified_model.mechanical_components.mechanical_spring import \
+    MechanicalSpring
 from unified_model.utils.paint import paint_device
+from unified_model.utils.utils import parse_output_expression, pretty_str
 
 
 def _has_update_method(obj):
@@ -874,51 +871,6 @@ class UnifiedModel:
 
         new_model._notify()  # Notify our components of the update
         return new_model
-
-        # for path, new_value in config:
-        #     sub_paths = path.split(".")
-
-        #     try:  # Check the base component exists
-        #         assert sub_paths[0] in self.__dict__
-        #         assert self.__dict__[sub_paths[0]] is not None
-        #     except AssertionError as e:
-        #         raise ValueError(
-        #             f"The component `{sub_paths[0]}` is not defined or present."
-        #         ) from e
-
-        #     try:
-        #         if len(sub_paths) == 2:  # TODO: Make this less hardcoded
-        #             try:
-        #                 assert (
-        #                     sub_paths[-1] in new_model.__dict__[sub_paths[0]].__dict__
-        #                 )
-        #                 new_model.__dict__[sub_paths[0]].__dict__[
-        #                     sub_paths[1]
-        #                 ] = new_value
-        #             except AssertionError as e:
-        #                 raise ValueError(
-        #                     f"The parameter `{path}` does not exist."
-        #                 ) from e
-        #         if len(sub_paths) == 3:  # TODO: Make this less hardcoded
-        #             try:  # Check we're not setting something that doesn't exist
-        #                 assert (
-        #                     sub_paths[-1]
-        #                     in new_model.__dict__[sub_paths[0]]
-        #                     .__dict__[sub_paths[1]]
-        #                     .__dict__
-        #                 )  # noqa
-        #                 new_model.__dict__[sub_paths[0]].__dict__[
-        #                     sub_paths[1]
-        #                 ].__dict__[sub_paths[2]] = new_value
-        #             except AssertionError as e:
-        #                 raise ValueError(
-        #                     f"The parameter `{path}` does not exist."
-        #                 ) from e  # noqa
-
-        #     except AttributeError as ae:
-        #         raise AttributeError(f'"{path}" could not be found.') from ae
-
-        # return new_model
 
     def get_config(self, kind: str = "dict") -> Union[Dict[str, Any], str]:
         """Get the configuration of the unified model."""

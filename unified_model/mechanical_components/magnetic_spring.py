@@ -1,5 +1,6 @@
 from typing import Callable, Optional, Union, overload, cast, Dict, Any
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -163,10 +164,14 @@ class MagneticSpringInterp:
             "magnet_assembly": "dep:magnet_assembly",
         }
 
-    def update(self, um):
+    def update(self, model):
         """Update the internal state when notified."""
-        self.magnet_length = um.magnet_assembly.l_m_mm / 1000
-        self._model = self._fit_model(self.fea_dataframe, self.magnet_length)
+        try:
+            assert model.magnet_assembly is not None
+            self.magnet_length = model.magnet_assembly.l_m_mm / 1000
+            self._model = self._fit_model(self.fea_dataframe, self.magnet_length)
+        except AssertionError:
+            warnings.warn('Missing dependency `magnet_assembly` for MagneticSpringInterp.')
 
 
 # TODO: Update to match latest version in paper.

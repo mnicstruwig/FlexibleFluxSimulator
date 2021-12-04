@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 
 from unified_model.utils.utils import pretty_str
@@ -104,7 +106,11 @@ class MassProportionalDamper:
 
     def update(self, model):
         """Update the internal state when notified."""
-        self.magnet_assembly_mass = model.magnet_assembly.get_mass()
+        try:
+            assert model.magnet_assembly is not None
+            self.magnet_assembly_mass = model.magnet_assembly.get_mass()
+        except AssertionError:
+            warnings.warn('Missing dependency `magnet_assembly` for MassProportionalDamper.')
 
     def __repr__(self) -> str:
         return f"MassProportionalDamper(damping_coefficient={self.damping_coefficient}, magnet_assembly_mass={self.magnet_assembly_mass})"  # noqa

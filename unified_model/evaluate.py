@@ -121,6 +121,9 @@ class Measurement:
         self._model_prototype = model_prototype
         self.input_, self.groundtruth = self._make_measurement(self.sample)
 
+    def __repr__(self):
+        return f'Measurement(Sample={self.sample})'
+
     def _make_measurement(self, sample):
         # First get the acceleration input
         acc_input = mechanical_components.AccelerometerInput(
