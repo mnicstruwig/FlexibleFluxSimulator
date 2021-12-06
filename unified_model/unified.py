@@ -298,9 +298,9 @@ class UnifiedModel:
         return self
 
     def _print_device(self):
-        ma = self.mechanical_model.magnet_assembly
-        mag_spring = self.mechanical_model.magnetic_spring
-        cc = self.electrical_model.coil_config
+        ma = self.magnet_assembly
+        mag_spring = self.magnetic_spring
+        cc = self.coil_configuration
 
         # We must compensate for the fact that the hover height and
         # coil center are relative to the *top* edge of the floating magnet.
@@ -323,11 +323,11 @@ class UnifiedModel:
 
     def summarize(self) -> None:
         """Summarize and validate the microgenerator design."""
-        ma = self.mechanical_model.magnet_assembly
-        cc = self.electrical_model.coil_config
-        ms = self.mechanical_model.mechanical_spring
-        mag_spring = self.mechanical_model.magnetic_spring
-        load = self.electrical_model.load_model
+        ma = self.magnet_assembly
+        cc = self.coil_configuration
+        ms = self.mechanical_spring
+        mag_spring = self.magnetic_spring
+        load = self.load_model
 
         try:
             assert self.height is not None
@@ -356,7 +356,7 @@ class UnifiedModel:
             f" and width of ~{np.round(cc.get_width() * 1000, 2)}mm.\n"
             f"⚡ The coils' centers are {cc.l_ccd_mm}mm apart.\n"
             f"⚡ The first coil's center is {cc.coil_center_mm}mm above the fixed magnet.\n"
-            f"⚡ The total microgenerator resistance is {cc.coil_resistance}Ω.\n"
+            f"⚡ The total microgenerator resistance is {cc.get_coil_resistance()}Ω.\n"
         )
 
         mech_spring_str = (
@@ -1224,10 +1224,10 @@ class UnifiedModel:
         l_bth = 3 / 1000
         l_eps = 5 / 1000
         mag_assembly: magnet_assembly.MagnetAssembly = (
-            self.mechanical_model.magnet_assembly
+            self.magnet_assembly
         )
-        coil_config: CoilConfiguration = self.electrical_model.coil_config
-        l_hover = self.mechanical_model.magnetic_spring.get_hover_height(
+        coil_config: CoilConfiguration = self.coil_configuration
+        l_hover = self.magnetic_spring.get_hover_height(
             magnet_assembly=mag_assembly
         )
 

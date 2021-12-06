@@ -87,6 +87,7 @@ class MagneticSpringInterp:
 
         """
         self.fea_data_file = fea_data_file
+        self.filter_callable = filter_callable
 
         if filter_callable == 'auto':
             self._filter = lambda x: savgol_filter(x, 11, 7)

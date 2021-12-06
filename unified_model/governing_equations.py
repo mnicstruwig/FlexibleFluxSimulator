@@ -93,7 +93,7 @@ def unified_ode(t: Any, y: Any, model: UnifiedModel) -> Any:
     x3_dot = x4
 
     x4_dot = (
-        +magnetic_spring_force
+        + magnetic_spring_force
         - mechanical_spring_force
         - assembly_weight
         - damper_force
