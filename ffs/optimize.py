@@ -2,7 +2,6 @@
 A module for finding the optimal energy harvester
 """
 import copy
-from unified_model import electrical_components, mechanical_components
 import warnings
 from itertools import product
 from typing import Any, Dict, List, Tuple, Union
@@ -13,14 +12,14 @@ import ray
 from flux_modeller.model import CurveModel
 from tqdm import tqdm
 
-from unified_model.electrical_components.coil import CoilConfiguration
-from unified_model.electrical_components.flux.model import FluxModelInterp
-from unified_model.gridsearch import UnifiedModelFactory
-from unified_model.local_exceptions import ModelError
-from unified_model.mechanical_components.damper import MassProportionalDamper
-from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_components.mechanical_spring import MechanicalSpring
-from unified_model.unified import UnifiedModel
+from .electrical_components.coil import CoilConfiguration
+from .electrical_components.flux.model import FluxModelInterp
+from .gridsearch import UnifiedModelFactory
+from .local_exceptions import ModelError
+from .mechanical_components.damper import MassProportionalDamper
+from .mechanical_components.magnet_assembly import MagnetAssembly
+from .mechanical_components.mechanical_spring import MechanicalSpring
+from .unified import UnifiedModel
 
 
 # TODO: This should be available somewhere else
@@ -176,15 +175,15 @@ def simulate_unified_model_for_power(model: UnifiedModel, **solve_kwargs) -> Dic
 
     Parameters
     ----------
-    unified_model : UnifiedModel
+  m  : UnifiedModel
         The unified model to simulate.
     solve_kwargs : dict
-        Keyword arguments passed to the `.solve` method the `unified_model`.
+        Keyword arguments passed to the `.solve` method them .
 
     Returns
     -------
     dict
-        Output of the `.calulate_metrics` method of `unified_model`.
+        Output of the `.calulate_metrics` method ofm .
 
     """
     model.reset()  # Make sure we're starting from a clean slate

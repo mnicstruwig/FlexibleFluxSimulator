@@ -13,7 +13,7 @@ COPY data/magnetic-spring data/magnetic-spring
 COPY flux_modeller flux_modeller
 RUN cd flux_modeller && pip install .
 
-COPY unified_model unified_model
+COPY ffs ffs
 COPY setup.py .
 RUN pip install .
 

@@ -2,8 +2,8 @@ import warnings
 
 import numpy as np
 
-from unified_model.utils.utils import pretty_str
-from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
+from ..utils.utils import pretty_str
+from ..mechanical_components.magnet_assembly import MagnetAssembly
 
 
 def _sigmoid_shifted(x, x0=0):

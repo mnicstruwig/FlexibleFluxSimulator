@@ -1,8 +1,8 @@
 from typing import Optional
 
 import numpy as np
-from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_components.magnetic_spring import MagneticSpringInterp
+from ..mechanical_components.magnet_assembly import MagnetAssembly
+from ..mechanical_components.magnetic_spring import MagneticSpringInterp
 
 
 class CoilConfiguration:

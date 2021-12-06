@@ -1,8 +1,8 @@
 import nevergrad as ng
-import unified_model.tests.utils as test_utils
-from unified_model import parameter_search
-from unified_model.evaluate import Measurement
-from unified_model.utils.utils import Sample
+import ffs.tests.utils as test_utils
+from ffs import parameter_search
+from ffs.evaluate import Measurement
+from ffs.utils.utils import Sample
 
 import pytest
 import ray

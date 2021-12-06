@@ -1,5 +1,5 @@
 import numpy as np
-from unified_model.utils.utils import fetch_key_from_dictionary
+from ..utils.utils import fetch_key_from_dictionary
 
 MATERIAL_DICT = {"NdFeB": 7.5e-6, "iron": 7.5e-6}
 

@@ -1,7 +1,7 @@
 from typing import Any
 
 import numpy as np
-from unified_model.unified import UnifiedModel
+from .unified import UnifiedModel
 
 
 def _get_emf(mag_pos: float, mag_vel: float, model: UnifiedModel) -> float:

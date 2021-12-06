@@ -2,21 +2,20 @@ import json
 
 import numpy as np
 import pandas as pd
-from unified_model import metrics
-from unified_model.electrical_components.coil import CoilConfiguration
-from unified_model.electrical_components.flux.model import (
+from ffs import metrics
+from ffs.electrical_components.coil import CoilConfiguration
+from ffs.electrical_components.flux import (
     FluxModelInterp, FluxModelPretrained)
-from unified_model.evaluate import Measurement
-from unified_model.mechanical_components import (MagnetAssembly,
-                                                 MagneticSpringInterp,
-                                                 MassProportionalDamper,
-                                                 MechanicalSpring,
-                                                 magnet_assembly)
-from unified_model.mechanical_components.input_excitation.accelerometer import \
+from ffs.evaluate import Measurement
+from ffs.mechanical_components.magnet_assembly import MagnetAssembly
+from ffs.mechanical_components.magnetic_spring import MagneticSpringInterp
+from ffs.mechanical_components.mechanical_spring import MechanicalSpring
+from ffs.mechanical_components.damper import MassProportionalDamper
+from ffs.mechanical_components.input_excitation.accelerometer import \
     AccelerometerInput
-from unified_model.tests import utils as test_utils
-from unified_model.unified import UnifiedModel
-from unified_model.utils.utils import Sample
+from . import utils as test_utils
+from ffs.unified import UnifiedModel
+from ffs.utils.utils import Sample
 
 
 def test_get_config_for_magnet_assembly_only():

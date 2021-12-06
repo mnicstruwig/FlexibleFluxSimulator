@@ -11,9 +11,9 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import ray
 
-from unified_model.evaluate import Measurement, Sample
-from unified_model.unified import UnifiedModel
-from unified_model.utils.utils import batchify
+from .evaluate import Measurement, Sample
+from .unified import UnifiedModel
+from .utils.utils import batchify
 
 
 @ray.remote

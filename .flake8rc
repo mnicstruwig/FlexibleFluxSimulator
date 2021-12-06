@@ -12,6 +12,6 @@ ignore =
 exclude = experiments
 
 per-file-ignores=
-    unified_model/mechanical_components/__init__.py:F401
-    unified_model/electrical_components/__init__.py:F401
+    ffs/mechanical_components/__init__.py:F401
+    ffs/electrical_components/__init__.py:F401
     __init__.py:F401

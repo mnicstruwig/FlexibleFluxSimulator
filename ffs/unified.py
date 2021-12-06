@@ -19,23 +19,23 @@ import pandas as pd
 from scipy import integrate
 from scipy.signal import savgol_filter
 
-from unified_model.coupling import CouplingModel
-from unified_model.electrical_components.coil import CoilConfiguration
-from unified_model.electrical_components.flux.model import FluxModelPretrained
-from unified_model.electrical_components.load import SimpleLoad
-from unified_model.evaluate import (ElectricalSystemEvaluator, Measurement,
+from .coupling import CouplingModel
+from .electrical_components.coil import CoilConfiguration
+from .electrical_components.flux import FluxModelPretrained
+from .electrical_components.load import SimpleLoad
+from .evaluate import (ElectricalSystemEvaluator, Measurement,
                                     MechanicalSystemEvaluator)
-from unified_model.local_exceptions import ModelError
-from unified_model.mechanical_components import magnet_assembly
-from unified_model.mechanical_components.damper import MassProportionalDamper
-from unified_model.mechanical_components.input_excitation.accelerometer import \
+from .local_exceptions import ModelError
+from .mechanical_components import magnet_assembly
+from .mechanical_components.damper import MassProportionalDamper
+from .mechanical_components.input_excitation.accelerometer import \
     AccelerometerInput
-from unified_model.mechanical_components.magnetic_spring import \
+from .mechanical_components.magnetic_spring import \
     MagneticSpringInterp
-from unified_model.mechanical_components.mechanical_spring import \
+from .mechanical_components.mechanical_spring import \
     MechanicalSpring
-from unified_model.utils.paint import paint_device
-from unified_model.utils.utils import parse_output_expression, pretty_str
+from .utils.paint import paint_device
+from .utils.utils import parse_output_expression, pretty_str
 
 
 def _has_update_method(obj):
@@ -455,18 +455,18 @@ class UnifiedModel:
 
         See Also
         --------
-        unified_model.utils.utils.parse_output_expression : helper function
+        ffs.utils.utils.parse_output_expression : helper function
             that contains the parsing logic.
 
         Example
         --------
         >>> # Here we use previously-built and solved unified model
-        >>> unified_model
-        <unified_model.unified.UnifiedModel at 0x7fa9e45a83c8>
-        >>> print(unified_model.raw_solution)
+        >>> ffs
+        <ffs.unified.UnifiedModel at 0x7fa9e45a83c8>
+        >>> print(ffs.raw_solution)
         [[1 2 3 4 5]
          [1 1 1 1 1]]
-        >>> unified_model.get_result(an_expr='x1',
+        >>> ffs.get_result(an_expr='x1',
                                      another_expr='x2-x1',
                                      third_expr='x1*x2')
            an_expr  another_expr  third_expr
@@ -570,18 +570,18 @@ class UnifiedModel:
 
         See Also
         --------
-        unified_model.evaluate.LabeledVideoProcessor : class
+        ffs.evaluate.LabeledVideoProcessor : class
             Helper class used to preprocess labeled mechanical video data into
             `time_target` and `y_target`.
-        unified_model.evaluate.MechanicalSystemEvaluator.score : method
+        ffs.evaluate.MechanicalSystemEvaluator.score : method
             Method that implements the scoring mechanism.
-        unified_model.unified.UnifiedModel.get_result : method
+        ffs.unified.UnifiedModel.get_result : method
             Method used to evaluate `prediction_expr`.
 
         Example
         -------
         Here we use a previously created unified model
-        >>> unified_model.solve(t_start=0,
+        >>> ffs.solve(t_start=0,
         ...                     t_end=10,
         ...                     y0=initial_conditions,
         ...                     t_max_step=1e-3)
@@ -599,7 +599,7 @@ class UnifiedModel:
         ...     video_labels_df,
         ...     impute_missing_values=True
         ... )
-        >>> mech_scores = unified_model.score_mechanical_model(
+        >>> mech_scores = ffs.score_mechanical_model(
         ...     time_target=y_time_target,
         ...     y_target=y_target,
         ...     metrics_dict=mechanical_metrics,
@@ -703,13 +703,13 @@ class UnifiedModel:
         Example
         -------
         Here we use a previously created unified model
-        >>> unified_model.solve(t_start=0,
+        >>> ffs.solve(t_start=0,
         ...                     t_end=10,
         ...                     y0=initial_conditions,
         ...                     t_max_step=1e-3)
         >>> electrical_metrics = {'rms': root_mean_square}
         >>> adc_processor = AdcProcessor(voltage_division_ratio=1/0.3)
-        >>> electrical_scores = unified_model.score_electrical_model(
+        >>> electrical_scores = ffs.score_electrical_model(
         ... metrics_dict=electrical_metrics,
         ... adc_df=sample.adc_df,
         ... adc_processor=adc_processor,
@@ -1009,7 +1009,7 @@ class UnifiedModel:
     @staticmethod
     def load_from_disk(path: str) -> UnifiedModel:
         """Load a unified model from disk."""
-        unified_model = UnifiedModel()
+        ffs = UnifiedModel()
 
         try:
             assert os.path.isdir(path)
@@ -1022,9 +1022,9 @@ class UnifiedModel:
 
         for key, file_ in zip(keys, files):
             with open(file_, "rb") as f:
-                unified_model.__dict__[key] = cloudpickle.load(f)
+                ffs.__dict__[key] = cloudpickle.load(f)
 
-        return unified_model
+        return ffs
 
     def validate(self, verbose=True) -> None:
         def _fail_if_true(bool_or_func, message, err_message=""):

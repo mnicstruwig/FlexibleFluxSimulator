@@ -1,5 +1,3 @@
-from unified_model.local_exceptions import ModelError
-
 
 class CouplingModel:
     """Coupling between mechanical and electrical class."""

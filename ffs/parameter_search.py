@@ -1,21 +1,16 @@
 """A module for finding the parameter of a unified model."""
 
 import copy
-from typing import Dict, List, Tuple, Any
 from datetime import datetime
+from typing import Any, Dict, List, Tuple
 
 import nevergrad as ng
 import numpy as np
 import ray  # type: ignore
 
-from .coupling import CouplingModel
 from .evaluate import Measurement
-from .mechanical_components import MassProportionalDamper, MechanicalSpring
-from .metrics import (
-    dtw_euclid_norm_by_length,
-    power_difference_perc,
-    root_mean_square_percentage_diff,
-)
+from .metrics import (dtw_euclid_norm_by_length, power_difference_perc,
+                      root_mean_square_percentage_diff)
 from .unified import UnifiedModel
 
 

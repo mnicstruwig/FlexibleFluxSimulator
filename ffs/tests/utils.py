@@ -1,19 +1,19 @@
 import os
 
-from unified_model.coupling import CouplingModel
-from unified_model.electrical_components.coil import CoilConfiguration
-from unified_model.electrical_components.flux.model import (
+from ffs.coupling import CouplingModel
+from ffs.electrical_components.coil import CoilConfiguration
+from ffs.electrical_components.flux import (
     FluxModelInterp, FluxModelPretrained)
-from unified_model.electrical_components.load import SimpleLoad
-from unified_model.governing_equations import unified_ode
-from unified_model.mechanical_components import (MagnetAssembly,
-                                                 MagneticSpringInterp,
-                                                 MassProportionalDamper,
-                                                 MechanicalSpring,
-                                                 magnet_assembly)
-from unified_model.mechanical_components.input_excitation.accelerometer import \
+from ffs.electrical_components.load import SimpleLoad
+from ffs.governing_equations import unified_ode
+from ffs.mechanical_components.magnet_assembly import MagnetAssembly
+from ffs.mechanical_components.magnetic_spring import MagneticSpringInterp
+from ffs.mechanical_components.mechanical_spring import MechanicalSpring
+from ffs.mechanical_components.damper import MassProportionalDamper
+
+from ffs.mechanical_components.input_excitation.accelerometer import \
     AccelerometerInput
-from unified_model.unified import UnifiedModel
+from ffs.unified import UnifiedModel
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_DATA_DIR = os.path.join(CURRENT_DIR, "test_data")

@@ -5,17 +5,17 @@ from glob import glob
 import pyarrow.parquet as pq
 import pytest
 import ray
-import unified_model.tests.utils as test_utils
-from unified_model import batch, metrics
-from unified_model.electrical_components.flux.model import (
+import ffs.tests.utils as test_utils
+from ffs import batch, metrics
+from ffs.electrical_components.flux import (
     FluxModelInterp, FluxModelPretrained)
-from unified_model.mechanical_components import (MagneticSpringInterp,
-                                                 MassProportionalDamper,
-                                                 MechanicalSpring,
-                                                 magnet_assembly)
-from unified_model.mechanical_components.input_excitation.accelerometer import \
+from ffs.mechanical_components.magnet_assembly import MagnetAssembly
+from ffs.mechanical_components.magnetic_spring import MagneticSpringInterp
+from ffs.mechanical_components.mechanical_spring import MechanicalSpring
+from ffs.mechanical_components.damper import MassProportionalDamper
+from ffs.mechanical_components.input_excitation.accelerometer import \
     AccelerometerInput
-from unified_model.utils.utils import Sample
+from ffs.utils.utils import Sample
 
 
 @pytest.fixture

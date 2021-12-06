@@ -6,10 +6,10 @@ import numpy as np
 
 from wasabi import msg
 import nevergrad as ng
-from unified_model.evaluate import Measurement
-from unified_model.unified import UnifiedModel
-from unified_model.utils.utils import collect_samples
-from unified_model import parameter_search
+from ffs.evaluate import Measurement
+from ffs.unified import UnifiedModel
+from ffs.utils.utils import collect_samples
+from ffs import parameter_search
 
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument('--configs', type=str, nargs='+',

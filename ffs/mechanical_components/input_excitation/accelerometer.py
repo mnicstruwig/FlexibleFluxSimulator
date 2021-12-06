@@ -3,9 +3,8 @@ import os
 import numpy as np
 import pandas as pd
 from numba import jit
-import copy
 
-from unified_model.utils.utils import smooth_savgol, FastInterpolator
+from ...utils.utils import smooth_savgol, FastInterpolator
 
 
 @jit(nopython=True)

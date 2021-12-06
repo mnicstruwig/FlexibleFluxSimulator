@@ -7,7 +7,7 @@ import pandas as pd
 from scipy import interpolate, optimize
 from scipy.signal import savgol_filter
 
-from unified_model.utils.utils import FastInterpolator
+from ..utils.utils import FastInterpolator
 from .magnet_assembly import MagnetAssembly
 
 

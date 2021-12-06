@@ -6,7 +6,7 @@ import warnings
 
 import numpy as np
 
-from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
+from ..mechanical_components.magnet_assembly import MagnetAssembly
 from ..local_exceptions import ModelError
 
 

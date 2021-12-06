@@ -2,20 +2,20 @@ from itertools import product
 from typing import Any
 
 import numpy as np
-from unified_model import batch
-from unified_model.coupling import CouplingModel
-from unified_model.electrical_components.coil import CoilConfiguration
-from unified_model.electrical_components.flux.model import FluxModelPretrained
-from unified_model.electrical_components.load import SimpleLoad
-from unified_model.governing_equations import unified_ode
-from unified_model.mechanical_components.damper import MassProportionalDamper
-from unified_model.mechanical_components.magnet_assembly import MagnetAssembly
-from unified_model.mechanical_components.magnetic_spring import \
+from ffs import batch
+from ffs.coupling import CouplingModel
+from ffs.electrical_components.coil import CoilConfiguration
+from ffs.electrical_components.flux import FluxModelPretrained
+from ffs.electrical_components.load import SimpleLoad
+from ffs.governing_equations import unified_ode
+from ffs.mechanical_components.damper import MassProportionalDamper
+from ffs.mechanical_components.magnet_assembly import MagnetAssembly
+from ffs.mechanical_components.magnetic_spring import \
     MagneticSpringInterp
-from unified_model.mechanical_components.mechanical_spring import \
+from ffs.mechanical_components.mechanical_spring import \
     MechanicalSpring
-from unified_model.unified import UnifiedModel
-from unified_model.utils.utils import collect_samples
+from ffs.unified import UnifiedModel
+from ffs.utils.utils import collect_samples
 
 # Parameters
 c = 1

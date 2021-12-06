@@ -1,5 +1,6 @@
 from typing import Any, Callable, Dict, Optional, Union, List, cast
-from unified_model import mechanical_components
+from .mechanical_components.magnet_assembly import MagnetAssembly
+from .mechanical_components.input_excitation.accelerometer import AccelerometerInput
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,7 +8,7 @@ import pandas as pd
 
 from scipy.signal import savgol_filter
 
-from unified_model.utils.utils import (
+from .utils.utils import (
     align_signals_in_time,
     apply_scalar_functions,
     find_signal_limits,
@@ -64,7 +65,7 @@ class GroundTruthFactory:
         ----------
         samples_list : np.ndarray[Sample]
             An array of `Sample` objects containing processed groundtruth data.
-            See the `unified_model.utils.utils.collect_samples` function, which
+            See the `ffs.utils.utils.collect_samples` function, which
             is intended to be used to collect and build `samples_list`.
         lvp_kwargs : Dict
             Kwargs used for the LabeledVideoProcessor objects to process the
@@ -126,7 +127,7 @@ class Measurement:
 
     def _make_measurement(self, sample):
         # First get the acceleration input
-        acc_input = mechanical_components.AccelerometerInput(
+        acc_input = AccelerometerInput(
             raw_accelerometer_data_path=sample.acc_path,
             accel_column="z_G",
             time_column="time(ms)",
@@ -188,7 +189,7 @@ class AdcProcessor:
 
         See Also
         --------
-        unified_model.utils.utils.smooth_butterworth : function
+        ffs.utils.utils.smooth_butterworth : function
             Function used to perform the smoothing
 
         """
@@ -747,7 +748,7 @@ class ElectricalSystemEvaluator:
 class LabeledVideoProcessor:
     def __init__(
         self,
-        magnet_assembly: mechanical_components.MagnetAssembly,
+        magnet_assembly: MagnetAssembly,
         seconds_per_frame: float,
         pixel_scale: Optional[float] = None,
         impute_missing_values: bool = True,

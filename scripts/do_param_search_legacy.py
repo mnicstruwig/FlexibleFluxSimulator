@@ -2,15 +2,15 @@ import argparse
 import json
 
 import nevergrad as ng
-from unified_model.evaluate import Measurement
-from unified_model.unified import UnifiedModel
-from unified_model.utils.utils import collect_samples
+from ffs.evaluate import Measurement
+from ffs.unified import UnifiedModel
+from ffs.utils.utils import collect_samples
 
 
 device_A_config = {
     "height": 110 / 1000,
     "magnetic_spring": {
-        "fea_data_file": "/Users/michael/Nextcloud/nextcloud/PhD/Python/unified_model/data/magnetic-spring/10x10alt.csv",
+        "fea_data_file": "/Users/michael/Nextcloud/nextcloud/PhD/Python/ffs/data/magnetic-spring/10x10alt.csv",
         "filter_callable": "auto",
         "magnet_assembly": "dep:magnet_assembly",
     },
@@ -53,7 +53,7 @@ device_A_config = {
     "coupling_model": {"coupling_constant": None},
     "extra_components": None,
     "governing_equations": {
-        "module_path": "unified_model.governing_equations",
+        "module_path": "ffs.governing_equations",
         "func_name": "unified_ode",
     },
 }
@@ -61,7 +61,7 @@ device_A_config = {
 device_B_config = {
     "height": 110 / 1000,
     "magnetic_spring": {
-        "fea_data_file": "/Users/michael/Nextcloud/nextcloud/PhD/Python/unified_model/data/magnetic-spring/10x10alt.csv",
+        "fea_data_file": "/Users/michael/Nextcloud/nextcloud/PhD/Python/ffs/data/magnetic-spring/10x10alt.csv",
         "filter_callable": "auto",
         "magnet_assembly": "dep:magnet_assembly",
     },
@@ -104,7 +104,7 @@ device_B_config = {
     "coupling_model": {"coupling_constant": None},
     "extra_components": None,
     "governing_equations": {
-        "module_path": "unified_model.governing_equations",
+        "module_path": "ffs.governing_equations",
         "func_name": "unified_ode",
     },
 }
@@ -113,7 +113,7 @@ device_B_config = {
 device_C_config = {
     "height": 110 / 1000,
     "magnetic_spring": {
-        "fea_data_file": "/Users/michael/Nextcloud/nextcloud/PhD/Python/unified_model/data/magnetic-spring/10x10alt.csv",
+        "fea_data_file": "/Users/michael/Nextcloud/nextcloud/PhD/Python/ffs/data/magnetic-spring/10x10alt.csv",
         "filter_callable": "auto",
         "magnet_assembly": "dep:magnet_assembly",
     },
@@ -156,7 +156,7 @@ device_C_config = {
     "coupling_model": {"coupling_constant": None},
     "extra_components": None,
     "governing_equations": {
-        "module_path": "unified_model.governing_equations",
+        "module_path": "ffs.governing_equations",
         "func_name": "unified_ode",
     },
 }
@@ -164,7 +164,7 @@ device_C_config = {
 device_D_config = {
     "height": 140 / 1000,
     "magnetic_spring": {
-        "fea_data_file": "/Users/michael/Nextcloud/nextcloud/PhD/Python/unified_model/data/magnetic-spring/10x10alt.csv",
+        "fea_data_file": "/Users/michael/Nextcloud/nextcloud/PhD/Python/ffs/data/magnetic-spring/10x10alt.csv",
         "filter_callable": "auto",
         "magnet_assembly": "dep:magnet_assembly",
     },
@@ -207,7 +207,7 @@ device_D_config = {
     "coupling_model": {"coupling_constant": None},
     "extra_components": None,
     "governing_equations": {
-        "module_path": "unified_model.governing_equations",
+        "module_path": "ffs.governing_equations",
         "func_name": "unified_ode",
     },
 }
