@@ -145,14 +145,14 @@ class CoilConfiguration:
 
     def to_json(self):
         return {
-            "c": self.c,
-            "n_z": self.n_z,
-            "n_w": self.n_w,
+            "c": int(self.c),
+            "n_z": int(self.n_z),
+            "n_w": int(self.n_w),
             "l_ccd_mm": self.l_ccd_mm,
             "ohm_per_mm": self.ohm_per_mm,
             "tube_wall_thickness_mm": self.tube_wall_thickness_mm,
             "coil_wire_radius_mm": self.coil_wire_radius_mm,
-            "coil_center_mm": self.coil_center_mm,
+            "coil_center_mm": int(self.coil_center_mm),
             "inner_tube_radius_mm": self.inner_tube_radius_mm,
             "custom_coil_resistance": self.custom_coil_resistance,
         }

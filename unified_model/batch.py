@@ -25,6 +25,8 @@ def _score_measurement(
     mech_metrics: Dict,
     elec_pred_expr: str,
     elec_metrics: Dict,
+    prediction_expr: str,
+    prediction_metrics: Dict
 ):
     result, _ = model.score_measurement(
         measurement=measurement,
@@ -35,9 +37,17 @@ def _score_measurement(
         elec_metrics_dict=elec_metrics,
     )
 
+    if prediction_expr is not None and prediction_metrics is not None:
+        result_metric = model.calculate_metrics(
+            prediction_expr=prediction_expr,
+            metric_dict=prediction_metrics
+        )
+        result.update(result_metric)
+
     return result
 
 
+# TODO: Update docs
 def solve_for_batch(
     base_model_config: Dict,
     params: List[List[Tuple[str, Any]]],
@@ -46,11 +56,13 @@ def solve_for_batch(
     mech_metrics: Dict = None,
     elec_pred_expr: str = None,
     elec_metrics: Dict = None,
+    prediction_expr: str = None,
+    prediction_metrics: Dict = None,
     solve_kwargs: Dict = None,
     output_root_dir: str = '.',
 ) -> None:
     """
-    Solve and store solutions for a batch of interpolated device designs.
+    Solve, score and store solutions for a batch of interpolated device designs.
 
     Solves, scores and writes-out results for a base model configuration that is
     updated with every parameter set specified in `params`. Each parameter set
@@ -79,20 +91,26 @@ def solve_for_batch(
          can refer to each of the differential equations referenced by the
          `governing_equations` using the letter `x` with the number appended.
          For example, `x1` refers to the first differential equation, and
-         `x2` refers to the second differential equation.
+         `x2` refers to the second differential equation. Optional.
     mech_metrics : Dict[str, Any]
         Metrics to compute on the predicted and target mechanical data. Keys is
         a user-chosen name given to the metric returned in the result. Values
         must be a function, that accepts two numpy arrays (arr_predict,
         arr_target), and computes a scalar value. See the `metrics` module for
-        some built-in metrics.
+        some built-in metrics. Optional.
     elec_pred_expr : str
         Expression that is evaluated and used as the predictions for the
         electrical system. Identical in functionality to `mech_pred_expr`.
         Optional.
     elec_metrics: Dict[str, Any]
         Metrics to compute on the predicted and target electrical data.
-        Identical in functionality to `mech_metrics`.
+        Identical in functionality to `mech_metrics`. Optional.
+    prediction_expr : str
+        Expression that is evaluated and used as input for `prediction_metrics`.
+        Identical in functionality to `mech_pred_expr`.  Optional.
+    prediction_metrics: Dict[str, Any]
+        Metrics to compute on `prediction_expr`. Identical in functionality to
+        `mech_metrics`. Optional.
     solve_kwargs : Dict[str, Any]
         Additional keyword arguments passed to the `UnifiedModel.solve` method for each
         model that is solved. Optional.
@@ -154,7 +172,7 @@ def solve_for_batch(
 
             for i, s in enumerate(samples):  # For each sample
 
-                task_id = _score_measurement.remote(
+                task_id = _score_measurement.remote(  # type: ignore
                     model=model,
                     solve_kwargs=solve_kwargs,
                     measurement=Measurement(s, model),
@@ -162,6 +180,8 @@ def solve_for_batch(
                     mech_metrics=mech_metrics,
                     elec_pred_expr=elec_pred_expr,
                     elec_metrics=elec_metrics,
+                    prediction_expr=prediction_expr,
+                    prediction_metrics=prediction_metrics
                 )
                 tasks.append(task_id)
 

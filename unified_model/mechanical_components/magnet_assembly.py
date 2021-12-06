@@ -112,7 +112,7 @@ class MagnetAssembly:
 
     def to_json(self):
         return {
-            "m": self.m,
+            "m": int(self.m),
             "l_m_mm": self.l_m_mm,
             "l_mcd_mm": self.l_mcd_mm,
             "dia_magnet_mm": self.dia_magnet_mm,

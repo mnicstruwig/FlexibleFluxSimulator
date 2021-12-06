@@ -6,13 +6,6 @@ from unified_model.evaluate import Measurement
 from unified_model.unified import UnifiedModel
 from unified_model.utils.utils import collect_samples
 
-# parser = argparse.ArgumentParser(description='Process some integers.')
-# parser.add_argument('--configs', type=str, nargs='+',
-#                     help='Paths to the .json model config files.')
-# parser.add_argument('--sample_dirs', type=str, nargs='+',
-#                     help='Paths to the measurements that should be used.')
-# args = parser.parse_args()
-
 
 device_A_config = {
     "height": 110 / 1000,
@@ -227,15 +220,22 @@ device_C = UnifiedModel.from_config(device_C_config)
 device_D = UnifiedModel.from_config(device_D_config)
 
 
+# Write config out to Disk
+with open('device_a.json', 'w') as f:
+    config = device_A.get_config(kind='json')
+    f.write(config)
+
 with open('device_b.json', 'w') as f:
     config = device_B.get_config(kind='json')
     f.write(config)
 
-# with open('device_a.json') as f:
-#     conf = f.read()
-#     conf = json.loads(conf)
-#     test_model = UnifiedModel.from_config(conf)
+with open('device_c.json', 'w') as f:
+    config = device_C.get_config(kind='json')
+    f.write(config)
 
+with open('device_d.json', 'w') as f:
+    config = device_D.get_config(kind='json')
+    f.write(config)
 
 # Fetch our samples / measurements
 BASE_GROUNDTRUTH_PATH = "../data/2019-05-23/"

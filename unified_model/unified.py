@@ -142,6 +142,7 @@ class UnifiedModel:
         """Return string representation of the UnifiedModel"""
         return f"Unified Model: {pretty_str(self.__dict__)}"
 
+    @send_notification
     def with_magnetic_spring(self, magnetic_spring):
         self.magnetic_spring = magnetic_spring
         self._attach_if_observer("magnetic_spring", self.magnetic_spring)
@@ -867,7 +868,9 @@ class UnifiedModel:
                     component = full_path
                     new_model.__dict__[component] = new_value
             except KeyError as e:
-                raise KeyError(f"Unable to find parameter path: {full_path}") from e
+                raise ValueError(f"Unable to find parameter path: {full_path}") from e
+            except AttributeError as e:
+                raise ValueError(f"Unable to find parameter path: {full_path}") from e
 
         new_model._notify()  # Notify our components of the update
         return new_model
@@ -877,8 +880,8 @@ class UnifiedModel:
 
         output = {
             "height": None,
-            "magnetic_spring": None,
             "magnet_assembly": None,
+            "magnetic_spring": None,
             "mechanical_spring": None,
             "mechanical_damper": None,
             "input_excitation": None,
