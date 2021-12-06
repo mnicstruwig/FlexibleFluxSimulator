@@ -67,7 +67,7 @@ class MagneticSpringInterp:
         self,
         fea_data_file: str,
         magnet_assembly: Any,
-        filter_callable: Callable = None,
+        filter_callable: Union[Callable, str] = 'auto',
         **model_kwargs,
     ) -> None:
         """Constructor.
@@ -87,10 +87,16 @@ class MagneticSpringInterp:
 
         """
         self.fea_data_file = fea_data_file
-        self.filter_callable = filter_callable
+
+        if filter_callable == 'auto':
+            self._filter = lambda x: savgol_filter(x, 11, 7)
+        elif callable(filter_callable):
+            self._filter = filter_callable
+        else:
+            raise ValueError('`filter_callable` must be "auto"  or a Callable.')
 
         self.fea_dataframe = _preprocess(
-            cast(pd.DataFrame, pd.read_csv(fea_data_file)), filter_callable
+            cast(pd.DataFrame, pd.read_csv(fea_data_file)), self._filter
         )
 
         self.magnet_length = magnet_assembly.l_m_mm / 1000
@@ -160,7 +166,7 @@ class MagneticSpringInterp:
         """Return a json-serializable representation of the magnetic spring"""
         return {
             "fea_data_file": os.path.abspath(self.fea_data_file),
-            "filter_callable": "auto",  # TODO: sort this out later
+            "filter_callable": "auto",  # For now, always use the auto filter
             "magnet_assembly": "dep:magnet_assembly",
         }
 
