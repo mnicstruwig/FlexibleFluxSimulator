@@ -10,3 +10,4 @@
 *.egg*
 *flycheck*
 *dask-worker-space*
+experiments
