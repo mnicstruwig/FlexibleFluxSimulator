@@ -2,8 +2,7 @@ import os
 
 from ffs.coupling import CouplingModel
 from ffs.electrical_components.coil import CoilConfiguration
-from ffs.electrical_components.flux import (
-    FluxModelInterp, FluxModelPretrained)
+from ffs.electrical_components.flux import FluxModelInterp, FluxModelPretrained
 from ffs.electrical_components.load import SimpleLoad
 from ffs.governing_equations import unified_ode
 from ffs.mechanical_components.magnet_assembly import MagnetAssembly
@@ -11,8 +10,7 @@ from ffs.mechanical_components.magnetic_spring import MagneticSpringInterp
 from ffs.mechanical_components.mechanical_spring import MechanicalSpring
 from ffs.mechanical_components.damper import MassProportionalDamper
 
-from ffs.mechanical_components.input_excitation.accelerometer import \
-    AccelerometerInput
+from ffs.mechanical_components.input_excitation.accelerometer import AccelerometerInput
 from ffs.unified import UnifiedModel
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -20,11 +18,15 @@ TEST_DATA_DIR = os.path.join(CURRENT_DIR, "test_data")
 
 TEST_LOG_ACC_PATH_1 = os.path.join(TEST_DATA_DIR, "test_log_acc_1.csv")
 TEST_LOG_ADC_PATH_1 = os.path.join(TEST_DATA_DIR, "test_log_adc_1.csv")
-TEST_LOG_VIDEO_LABELS_PATH_1 = os.path.join(TEST_DATA_DIR, "test_log_video_labels_1.csv")
+TEST_LOG_VIDEO_LABELS_PATH_1 = os.path.join(
+    TEST_DATA_DIR, "test_log_video_labels_1.csv"
+)
 
 TEST_LOG_ACC_PATH_2 = os.path.join(TEST_DATA_DIR, "test_log_acc_2.csv")
 TEST_LOG_ADC_PATH_2 = os.path.join(TEST_DATA_DIR, "test_log_adc_2.csv")
-TEST_LOG_VIDEO_LABELS_PATH_2 = os.path.join(TEST_DATA_DIR, "test_log_video_labels_2.csv")
+TEST_LOG_VIDEO_LABELS_PATH_2 = os.path.join(
+    TEST_DATA_DIR, "test_log_video_labels_2.csv"
+)
 
 TEST_MAG_SPRING_DATA_PATH = os.path.join(TEST_DATA_DIR, "test_mag_spring_data.csv")
 TEST_PRETRAINED_CURVE_MODEL_PATH = os.path.join(

@@ -89,13 +89,13 @@ class MechanicalSpring:
             self.magnet_length = um.magnet_assembly.l_m_mm / 1000  # Must be in metres
             self.magnet_assembly_length = um.magnet_assembly.get_length() / 1000
         except AssertionError:
-            warnings.warn('Missing dependency `magnet_assembly` for MechanicalSpring.')
+            warnings.warn("Missing dependency `magnet_assembly` for MechanicalSpring.")
 
         try:
             assert um.height is not None
             self.set_position(um.height)  # Must be in metres
         except AssertionError:
-            warnings.warn('Missing dependency `height` for MechanicalSpring')
+            warnings.warn("Missing dependency `height` for MechanicalSpring")
 
     def to_json(self):
         return {

@@ -123,7 +123,7 @@ class Measurement:
         self.input_, self.groundtruth = self._make_measurement(self.sample)
 
     def __repr__(self):
-        return f'Measurement(Sample={self.sample})'
+        return f"Measurement(Sample={self.sample})"
 
     def _make_measurement(self, sample):
         # First get the acceleration input
@@ -171,7 +171,7 @@ class AdcProcessor:
         self,
         voltage_division_ratio: float = 1.0,
         smooth: bool = True,
-        **smooth_kwargs: dict
+        **smooth_kwargs: dict,
     ) -> None:
         """Constructor
 
@@ -433,7 +433,7 @@ class MechanicalSystemEvaluator:
         metric_results = apply_scalar_functions(
             self.y_predict_[: self._clip_index],
             self.y_target_[: self._clip_index],
-            **metrics
+            **metrics,
         )
 
         return metric_results

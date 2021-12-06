@@ -9,8 +9,11 @@ import numpy as np
 import ray  # type: ignore
 
 from .evaluate import Measurement
-from .metrics import (dtw_euclid_norm_by_length, power_difference_perc,
-                      root_mean_square_percentage_diff)
+from .metrics import (
+    dtw_euclid_norm_by_length,
+    power_difference_perc,
+    root_mean_square_percentage_diff,
+)
 from .unified import UnifiedModel
 
 
@@ -140,7 +143,9 @@ def mean_of_scores(
     recommended_params = {
         "mech_damping_coefficient": recommendation.value[1]["mech_damping_coefficient"],
         "coupling_constant": recommendation.value[1]["coupling_constant"],
-        "mech_spring_damping_coefficient": recommendation.value[1]["mech_spring_damping_coefficient"],
+        "mech_spring_damping_coefficient": recommendation.value[1][
+            "mech_spring_damping_coefficient"
+        ],
         "loss": recommendation.loss,
     }
 
@@ -171,9 +176,9 @@ def _calculate_cost_for_single_measurement(
     # Update the model using the suggested parameters
     model = model.update_params(
         [
-            ('mechanical_damper.damping_coefficient', mech_damping_coefficient),
-            ('coupling_model.coupling_constant', coupling_constant),
-            ('mechanical_spring.damping_coefficient', mech_spring_damping_coefficient)
+            ("mechanical_damper.damping_coefficient", mech_damping_coefficient),
+            ("coupling_model.coupling_constant", coupling_constant),
+            ("mechanical_spring.damping_coefficient", mech_spring_damping_coefficient),
         ]
     )
 

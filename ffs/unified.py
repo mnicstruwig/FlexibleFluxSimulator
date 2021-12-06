@@ -23,17 +23,13 @@ from .coupling import CouplingModel
 from .electrical_components.coil import CoilConfiguration
 from .electrical_components.flux import FluxModelPretrained
 from .electrical_components.load import SimpleLoad
-from .evaluate import (ElectricalSystemEvaluator, Measurement,
-                                    MechanicalSystemEvaluator)
+from .evaluate import ElectricalSystemEvaluator, Measurement, MechanicalSystemEvaluator
 from .local_exceptions import ModelError
 from .mechanical_components import magnet_assembly
 from .mechanical_components.damper import MassProportionalDamper
-from .mechanical_components.input_excitation.accelerometer import \
-    AccelerometerInput
-from .mechanical_components.magnetic_spring import \
-    MagneticSpringInterp
-from .mechanical_components.mechanical_spring import \
-    MechanicalSpring
+from .mechanical_components.input_excitation.accelerometer import AccelerometerInput
+from .mechanical_components.magnetic_spring import MagneticSpringInterp
+from .mechanical_components.mechanical_spring import MechanicalSpring
 from .utils.paint import paint_device
 from .utils.utils import parse_output_expression, pretty_str
 
@@ -1223,13 +1219,9 @@ class UnifiedModel:
         l_th = 0
         l_bth = 3 / 1000
         l_eps = 5 / 1000
-        mag_assembly: magnet_assembly.MagnetAssembly = (
-            self.magnet_assembly
-        )
+        mag_assembly: magnet_assembly.MagnetAssembly = self.magnet_assembly
         coil_config: CoilConfiguration = self.coil_configuration
-        l_hover = self.magnetic_spring.get_hover_height(
-            magnet_assembly=mag_assembly
-        )
+        l_hover = self.magnetic_spring.get_hover_height(magnet_assembly=mag_assembly)
 
         l_L = (
             l_bth

@@ -26,7 +26,7 @@ def _score_measurement(
     elec_pred_expr: str,
     elec_metrics: Dict,
     prediction_expr: str,
-    prediction_metrics: Dict
+    prediction_metrics: Dict,
 ):
     result, _ = model.score_measurement(
         measurement=measurement,
@@ -39,8 +39,7 @@ def _score_measurement(
 
     if prediction_expr is not None and prediction_metrics is not None:
         result_metric = model.calculate_metrics(
-            prediction_expr=prediction_expr,
-            metric_dict=prediction_metrics
+            prediction_expr=prediction_expr, metric_dict=prediction_metrics
         )
         result.update(result_metric)
 
@@ -59,7 +58,7 @@ def solve_for_batch(
     prediction_expr: str = None,
     prediction_metrics: Dict = None,
     solve_kwargs: Dict = None,
-    output_root_dir: str = '.',
+    output_root_dir: str = ".",
 ) -> None:
     """
     Solve, score and store solutions for a batch of interpolated device designs.
@@ -181,7 +180,7 @@ def solve_for_batch(
                     elec_pred_expr=elec_pred_expr,
                     elec_metrics=elec_metrics,
                     prediction_expr=prediction_expr,
-                    prediction_metrics=prediction_metrics
+                    prediction_metrics=prediction_metrics,
                 )
                 tasks.append(task_id)
 

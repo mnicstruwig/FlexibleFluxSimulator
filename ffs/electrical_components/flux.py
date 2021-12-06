@@ -365,8 +365,6 @@ def flux_univariate_spline(z_arr, phi_arr, coil_center, mm):
     return interpolator
 
 
-
-
 def _parse_raw_flux_input(raw_flux_input):
     """Parse a raw flux input.
 

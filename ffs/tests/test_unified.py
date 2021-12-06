@@ -4,15 +4,13 @@ import numpy as np
 import pandas as pd
 from ffs import metrics
 from ffs.electrical_components.coil import CoilConfiguration
-from ffs.electrical_components.flux import (
-    FluxModelInterp, FluxModelPretrained)
+from ffs.electrical_components.flux import FluxModelInterp, FluxModelPretrained
 from ffs.evaluate import Measurement
 from ffs.mechanical_components.magnet_assembly import MagnetAssembly
 from ffs.mechanical_components.magnetic_spring import MagneticSpringInterp
 from ffs.mechanical_components.mechanical_spring import MechanicalSpring
 from ffs.mechanical_components.damper import MassProportionalDamper
-from ffs.mechanical_components.input_excitation.accelerometer import \
-    AccelerometerInput
+from ffs.mechanical_components.input_excitation.accelerometer import AccelerometerInput
 from . import utils as test_utils
 from ffs.unified import UnifiedModel
 from ffs.utils.utils import Sample

@@ -67,7 +67,7 @@ class MagneticSpringInterp:
         self,
         fea_data_file: str,
         magnet_assembly: Any,
-        filter_callable: Union[Callable, str] = 'auto',
+        filter_callable: Union[Callable, str] = "auto",
         **model_kwargs,
     ) -> None:
         """Constructor.
@@ -89,7 +89,7 @@ class MagneticSpringInterp:
         self.fea_data_file = fea_data_file
         self.filter_callable = filter_callable
 
-        if filter_callable == 'auto':
+        if filter_callable == "auto":
             self._filter = lambda x: savgol_filter(x, 11, 7)
         elif callable(filter_callable):
             self._filter = filter_callable
@@ -178,7 +178,9 @@ class MagneticSpringInterp:
             self.magnet_length = model.magnet_assembly.l_m_mm / 1000
             self._model = self._fit_model(self.fea_dataframe, self.magnet_length)
         except AssertionError:
-            warnings.warn('Missing dependency `magnet_assembly` for MagneticSpringInterp.')
+            warnings.warn(
+                "Missing dependency `magnet_assembly` for MagneticSpringInterp."
+            )
 
 
 # TODO: Update to match latest version in paper.

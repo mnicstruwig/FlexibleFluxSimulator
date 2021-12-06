@@ -1,5 +1,4 @@
 import numpy as np
-/home/michael/Nextcloud/PhD/Python/unified_model/unified_model/tests/test_utils.py
 import unittest
 
 from unified_model.utils.utils import (

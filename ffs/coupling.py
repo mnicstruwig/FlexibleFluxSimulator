@@ -1,4 +1,3 @@
-
 class CouplingModel:
     """Coupling between mechanical and electrical class."""
 

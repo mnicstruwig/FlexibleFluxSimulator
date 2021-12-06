@@ -173,17 +173,17 @@ def calc_p_load_avg(x, r_load):
 def simulate_unified_model_for_power(model: UnifiedModel, **solve_kwargs) -> Dict:
     """Simulate a unified model and return the average load power.
 
-    Parameters
-    ----------
-  m  : UnifiedModel
-        The unified model to simulate.
-    solve_kwargs : dict
-        Keyword arguments passed to the `.solve` method them .
+      Parameters
+      ----------
+    m  : UnifiedModel
+          The unified model to simulate.
+      solve_kwargs : dict
+          Keyword arguments passed to the `.solve` method them .
 
-    Returns
-    -------
-    dict
-        Output of the `.calulate_metrics` method ofm .
+      Returns
+      -------
+      dict
+          Output of the `.calulate_metrics` method ofm .
 
     """
     model.reset()  # Make sure we're starting from a clean slate

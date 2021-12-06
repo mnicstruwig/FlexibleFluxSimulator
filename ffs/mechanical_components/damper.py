@@ -110,7 +110,9 @@ class MassProportionalDamper:
             assert model.magnet_assembly is not None
             self.magnet_assembly_mass = model.magnet_assembly.get_mass()
         except AssertionError:
-            warnings.warn('Missing dependency `magnet_assembly` for MassProportionalDamper.')
+            warnings.warn(
+                "Missing dependency `magnet_assembly` for MassProportionalDamper."
+            )
 
     def __repr__(self) -> str:
         return f"MassProportionalDamper(damping_coefficient={self.damping_coefficient}, magnet_assembly_mass={self.magnet_assembly_mass})"  # noqa
