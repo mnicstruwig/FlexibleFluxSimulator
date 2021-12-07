@@ -16,26 +16,24 @@ def _get_material_density(material_dict, material_key):
 
 class MagnetAssembly:
     """
-    The magnet assembly class.
+    Represent a magnet assembly.
 
-    Note: Only used for weight-based calculations.
-
-        Parameters
-        ----------
-        m : int
-            Number of magnets.
-        l_m_mm : float
-            Height of the magnets in mm.
-        l_mcd_mm : float
-            Distance between the centers of each magnet, in mm.
-        dia_magnet_mm: float
-            Diameter of magnets in mm.
-        dia_spacer_mm : float
-            Diameter of spacer in mm
-        mat_magnet : str
-            Magnet material key. Optional.
-        mat_spacer: str
-            Spacer material key. Optional.
+    Parameters
+    ----------
+    m : int
+        Number of magnets.
+    l_m_mm : float
+        Height of the magnets in mm.
+    l_mcd_mm : float
+        Distance between the centers of each magnet, in mm.
+    dia_magnet_mm: float
+        Diameter of magnets in mm.
+    dia_spacer_mm : float
+        Diameter of spacer in mm
+    mat_magnet : str
+        Magnet material key. Optional.
+    mat_spacer: str
+        Spacer material key. Optional.
 
     """
 
