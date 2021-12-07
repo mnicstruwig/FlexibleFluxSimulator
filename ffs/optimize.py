@@ -13,8 +13,7 @@ from flux_modeller.model import CurveModel
 from tqdm import tqdm
 
 from .electrical_components.coil import CoilConfiguration
-from .electrical_components.flux.model import FluxModelInterp
-from .gridsearch import UnifiedModelFactory
+from .electrical_components.flux import FluxModelInterp
 from .local_exceptions import ModelError
 from .mechanical_components.damper import MassProportionalDamper
 from .mechanical_components.magnet_assembly import MagnetAssembly
