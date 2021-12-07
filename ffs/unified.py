@@ -136,7 +136,9 @@ class UnifiedModel:
 
     def __str__(self) -> str:
         """Return string representation of the UnifiedModel"""
-        return f"Unified Model: {pretty_str(self.__dict__)}"
+        internals = copy.deepcopy(self.__dict__)
+        del internals['_observers']  # We don't want to show this
+        return f"Unified Model: {pretty_str(internals)}"
 
     @send_notification
     def with_magnetic_spring(self, magnetic_spring):
