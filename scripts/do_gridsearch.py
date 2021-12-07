@@ -16,14 +16,14 @@ from ffs.mechanical_components.mechanical_spring import \
     MechanicalSpring
 from ffs.unified import UnifiedModel
 from ffs.utils.utils import collect_samples
+from ffs import optimize
 
 # Parameters
-c = 1
-m = 1
-n_z_arr = np.arange(5, 101, 10)
-n_w_arr = np.arange(5, 101, 10)
+c = 2
+m = 2
+n_z_arr = np.arange(6, 101, 10)
+n_w_arr = np.arange(6, 101, 10)
 c_c_arr = np.arange(20, 82, 10)
-
 
 # Convert this into our parameter sets
 gridsearch_params: Any = []
@@ -35,6 +35,21 @@ for n_z, n_w, c_c in product(n_z_arr, n_w_arr, c_c_arr):
         ('coil_configuration.n_w', n_w),
         ('coil_configuration.c_c', c_c),
     ]
+
+    # We calculate the optimal coil / magnet spacing using experimental data
+    # directly (in th case of c > 1 and/or m > 1)
+    spacing = None
+    if c > 1 or m > 1:
+        spacing = optimize.lookup_best_spacing(
+            '../data/flux_curve_model/optimal_l_ccd_0_200_2_v2.csv',
+            n_z=n_z,
+            n_w=n_w
+        )
+        if c > 1:
+            param.append(('coil_configuration.l_ccd_mm', spacing))
+        if m > 1:
+            param.append(('magnet_assembly.l_mcd_mm', spacing))
+
     gridsearch_params.append(param)
 
 print(len(gridsearch_params))
@@ -126,7 +141,7 @@ def calc_p_load_avg(x, r_load):
 batch.solve_for_batch(
     base_model_config=base_model.get_config(),
     params=gridsearch_params,
-    samples=samples,
+    samples=samples[:1],
     prediction_expr='g(t, x5)',
     prediction_metrics={'p_load_avg': lambda x: calc_p_load_avg(x, load.R)},
     output_root_dir='.'
