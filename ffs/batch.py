@@ -17,23 +17,23 @@ from .utils.utils import batchify
 
 
 @ray.remote
-def _score_measurement(
+def _score_sample(
     model: UnifiedModel,
     solve_kwargs: Dict,
-    measurement: Measurement,
-    mech_pred_expr: str,
+    sample: Sample,
+    y_diff_expr: str,
     mech_metrics: Dict,
-    elec_pred_expr: str,
+    v_load_expr: str,
     elec_metrics: Dict,
     prediction_expr: str,
     prediction_metrics: Dict,
 ):
-    result, _ = model.score_measurement(
-        measurement=measurement,
+    result, _ = model.score_sample(
+        sample=sample,
         solve_kwargs=solve_kwargs,
-        mech_pred_expr=mech_pred_expr,
+        y_diff_expr=y_diff_expr,
         mech_metrics_dict=mech_metrics,
-        elec_pred_expr=elec_pred_expr,
+        v_load_expr=v_load_expr,
         elec_metrics_dict=elec_metrics,
     )
 
@@ -51,9 +51,9 @@ def solve_for_batch(
     base_model_config: Dict,
     params: List[List[Tuple[str, Any]]],
     samples: List[Sample],
-    mech_pred_expr: str = None,
+    y_diff_expr: str = None,
     mech_metrics: Dict = None,
-    elec_pred_expr: str = None,
+    v_load_expr: str = None,
     elec_metrics: Dict = None,
     prediction_expr: str = None,
     prediction_metrics: Dict = None,
@@ -84,7 +84,7 @@ def solve_for_batch(
         List of instantiated `Sample`s that contain both the input excitation
         and groundtruth data. Typically collected using the
         `utils.utils.collect_samples` function.
-    mech_pred_expr : str
+    y_diff__expr : str
          Expression that is evaluated and used as the predictions for the
          mechanical system. Any reasonable expression is possible. You
          can refer to each of the differential equations referenced by the
@@ -99,14 +99,14 @@ def solve_for_batch(
         some built-in metrics. Optional.
     elec_pred_expr : str
         Expression that is evaluated and used as the predictions for the
-        electrical system. Identical in functionality to `mech_pred_expr`.
+        electrical system. Identical in functionality to `y_diff_expr`.
         Optional.
     elec_metrics: Dict[str, Any]
         Metrics to compute on the predicted and target electrical data.
         Identical in functionality to `mech_metrics`. Optional.
     prediction_expr : str
         Expression that is evaluated and used as input for `prediction_metrics`.
-        Identical in functionality to `mech_pred_expr`.  Optional.
+        Identical in functionality to `y_diff_expr`.  Optional.
     prediction_metrics: Dict[str, Any]
         Metrics to compute on `prediction_expr`. Identical in functionality to
         `mech_metrics`. Optional.
@@ -171,13 +171,13 @@ def solve_for_batch(
 
             for i, s in enumerate(samples):  # For each sample
 
-                task_id = _score_measurement.remote(  # type: ignore
+                task_id = _score_sample.remote(  # type: ignore
                     model=model,
                     solve_kwargs=solve_kwargs,
-                    measurement=Measurement(s, model),
-                    mech_pred_expr=mech_pred_expr,
+                    sample=s,
+                    y_diff_expr=y_diff_expr,
                     mech_metrics=mech_metrics,
-                    elec_pred_expr=elec_pred_expr,
+                    v_load_expr=v_load_expr,
                     elec_metrics=elec_metrics,
                     prediction_expr=prediction_expr,
                     prediction_metrics=prediction_metrics,

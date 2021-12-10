@@ -8,7 +8,7 @@ import nevergrad as ng
 import numpy as np
 import ray  # type: ignore
 
-from .evaluate import Measurement
+from .evaluate import Measurement, Sample
 from .metrics import (
     dtw_euclid_norm_by_length,
     power_difference_perc,
@@ -25,7 +25,7 @@ def _assert_valid_cost_metric(cost_metric: str) -> None:
 
 
 def mean_of_scores(
-    models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
+    models_and_samples: List[Tuple[UnifiedModel, List[Sample]]],
     instruments: Dict[str, ng.p.Scalar],
     cost_metric: str,
     budget: int = 500,
@@ -51,11 +51,11 @@ def mean_of_scores(
 
     Parameters
     ----------
-    models_and_measurements : List[Tuple[UnifiedModel, List[Measurement]]]
+    models_and_samples : List[Tuple[UnifiedModel, List[Sample]]]
         A list of tuples. The first element of each tuple is a
         fully-instantiated UnifiedModel object that will be used as the basis
         for the parameter search. The second element of each tuple is a list of
-        corresponding `Measurement` objects to the unified model. For the
+        corresponding `Sample` objects to the unified model. For the
         unified model, the damper, coupling model, mechanical spring and input
         excitation will be replaced during the parameter search. Every other
         component must be specified.
@@ -99,9 +99,6 @@ def mean_of_scores(
 
     See Also
     --------
-    evaluate.Measurement : Class
-        The Measurement class that contains both input excitation and measured
-        ground truth information.
     nevergrad.p.Scalar : Class
         The nevergrad Scalar parametrization instrument.
 
@@ -109,7 +106,7 @@ def mean_of_scores(
     _assert_valid_cost_metric(cost_metric)
 
     instrum = ng.p.Instrumentation(
-        models_and_measurements=models_and_measurements,
+        models_and_samples=models_and_samples,
         cost_metric=cost_metric,
         mech_damping_coefficient=instruments["mech_damping_coefficient"],
         coupling_constant=instruments["coupling_constant"],
@@ -137,7 +134,7 @@ def mean_of_scores(
 
     ray.init()
     recommendation = optimizer.minimize(
-        _calculate_cost_for_multiple_devices_multiple_measurements
+        _calculate_cost_for_multiple_devices_multiple_samples
     )
 
     recommended_params = {
@@ -153,20 +150,19 @@ def mean_of_scores(
     return recommended_params
 
 
-def _calculate_cost_for_single_measurement(
+def _calculate_cost_for_single_sample(
     model_prototype: UnifiedModel,
-    measurement: Measurement,
+    sample: Sample,
     cost_metric: str,
     mech_damping_coefficient: float,
     coupling_constant: float,
     mech_spring_damping_coefficient: float,
 ) -> float:
-    """Return the cost of a unified model for a single ground truth measurement.
+    """Return the cost of a unified model for a single ground truth sample.
 
     This function is intended to be passed to a `nevergrad` optimizer.
 
     """
-
     model = copy.deepcopy(model_prototype)
 
     # Quick verification
@@ -182,6 +178,7 @@ def _calculate_cost_for_single_measurement(
         ]
     )
 
+    measurement = Measurement(sample, model)
     # Set the new input excitation
     model.with_input_excitation(measurement.input_)
 
@@ -215,18 +212,18 @@ def _calculate_cost_for_single_measurement(
 
 # TODO: Docs
 @ray.remote
-def _calculate_cost_for_single_measurement_distributed(
+def _calculate_cost_for_single_sample_distributed(
     model_prototype: UnifiedModel,
-    measurement: Measurement,
+    sample: Sample,
     cost_metric: str,
     mech_damping_coefficient: float,
     coupling_constant: float,
     mech_spring_damping_coefficient: float,
 ) -> float:
-    """A ray-wrapped version to calculate the cost if a single measurement."""
-    return _calculate_cost_for_single_measurement(
+    """A ray-wrapped version to calculate the cost if a single sample."""
+    return _calculate_cost_for_single_sample(
         model_prototype=model_prototype,
-        measurement=measurement,
+        sample=sample,
         cost_metric=cost_metric,
         mech_damping_coefficient=mech_damping_coefficient,
         coupling_constant=coupling_constant,
@@ -234,14 +231,14 @@ def _calculate_cost_for_single_measurement_distributed(
     )
 
 
-def _calculate_cost_for_multiple_devices_multiple_measurements(
-    models_and_measurements: List[Tuple[UnifiedModel, List[Measurement]]],
+def _calculate_cost_for_multiple_devices_multiple_samples(
+    models_and_samples: List[Tuple[UnifiedModel, List[Sample]]],
     cost_metric: str,
     mech_damping_coefficient: float,
     coupling_constant: float,
     mech_spring_damping_coefficient: float,
 ) -> float:
-    """Return cost of multiple unified models with multiple measurements.
+    """Return cost of multiple unified models with multiple samples.
 
     The cost is the average cost across all devices and their respective ground
     truth measurements.  This function is intended to be passed to a `nevergrad`
@@ -250,12 +247,11 @@ def _calculate_cost_for_multiple_devices_multiple_measurements(
     """
     costs = []
     tasks = []
-    for model, measurements in models_and_measurements:
-        for measurement in measurements:
-
-            task_id = _calculate_cost_for_single_measurement_distributed.remote(
+    for model, samples in models_and_samples:
+        for sample in samples:
+            task_id = _calculate_cost_for_single_sample_distributed.remote(
                 model_prototype=model,
-                measurement=measurement,
+                sample=sample,
                 cost_metric=cost_metric,
                 mech_damping_coefficient=mech_damping_coefficient,
                 coupling_constant=coupling_constant,

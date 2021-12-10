@@ -23,7 +23,7 @@ from .coupling import CouplingModel
 from .electrical_components.coil import CoilConfiguration
 from .electrical_components.flux import FluxModelPretrained
 from .electrical_components.load import SimpleLoad
-from .evaluate import ElectricalSystemEvaluator, Measurement, MechanicalSystemEvaluator
+from .evaluate import ElectricalSystemEvaluator, MechanicalSystemEvaluator, Sample, Measurement
 from .local_exceptions import ModelError
 from .mechanical_components import magnet_assembly
 from .mechanical_components.damper import MassProportionalDamper
@@ -340,8 +340,8 @@ class UnifiedModel:
         mid_rule = "-----------\n"
 
         magnet_assembly_str = (
-            f"🧲 The magnet assembly consists of {ma.m} magnet(s)"
-            f" that are {ma.l_m_mm}mm long and have a diameter of {ma.dia_magnet_mm}mm.\n"
+            f"🧲 There are {ma.m} magnet(s) in the magnet assembly,"
+            f" each {ma.l_m_mm}mm long with a diameter of {ma.dia_magnet_mm}mm.\n"
             f"🧲 The magnets' centers are {ma.l_mcd_mm}mm apart.\n"
             f"🧲 The magnet assembly has a weight of {np.round(ma.get_weight(), 4)}N.\n"
             f"🧲 The magnet assembly hovers {np.round(mag_spring.get_hover_height(ma) * 1000, 3)}mm above the fixed magnet.\n"
@@ -354,12 +354,12 @@ class UnifiedModel:
             f" and width of ~{np.round(cc.get_width() * 1000, 2)}mm.\n"
             f"⚡ The coils' centers are {cc.l_ccd_mm}mm apart.\n"
             f"⚡ The first coil's center is {cc.coil_center_mm}mm above the fixed magnet.\n"
-            f"⚡ The total microgenerator resistance is {cc.get_coil_resistance()}Ω.\n"
+            f"⚡ The estimated total coil resistance is {cc.get_coil_resistance()}Ω.\n"
         )
 
         mech_spring_str = (
             f"📏 The device has a height of {ms.position * 1000}mm.\n"
-            f"📏 The minimum required height is {np.round(self._calculate_required_vertical_space() * 1000, 3)}mm.\n"
+            # f"📏 The minimum required height is {np.round(self._calculate_required_vertical_space() * 1000, 3)}mm.\n"
         )
 
         load_str = f"🎯 The device is powering a {load.R}Ω load.\n"
@@ -502,7 +502,7 @@ class UnifiedModel:
         **kwargs,
     ):
         warnings.warn(
-            "`score_mechanical_model has been deprecated.` Please use `score_measurement` instead.",  # noqa
+            "`score_mechanical_model has been deprecated.` Please use `score_sample` instead.",  # noqa
             DeprecationWarning,
         )
 
@@ -636,7 +636,7 @@ class UnifiedModel:
         **kwargs,
     ):
         warnings.warn(
-            "`score_electrical_model has been deprecated.` Please use `score_measurement` instead.",  # noqa
+            "`score_electrical_model has been deprecated.` Please use `score_sample` instead.",  # noqa
             DeprecationWarning,
         )
 
@@ -730,13 +730,13 @@ class UnifiedModel:
 
         return electrical_scores, electrical_evaluator
 
-    def score_measurement(
+    def score_sample(
         self,
-        measurement: Measurement,
+        sample: Sample,
         solve_kwargs: Dict,
-        mech_pred_expr: Optional[str] = None,
+        y_diff_expr: Optional[str] = None,
         mech_metrics_dict: Optional[Dict[str, Callable]] = None,
-        elec_pred_expr: Optional[str] = None,
+        v_load_expr: Optional[str] = None,
         elec_metrics_dict: Optional[Dict[str, Callable]] = None,
     ) -> Tuple[Dict[str, float], Dict[str, Any]]:
         """Score against a single measurement using its input excitation.
@@ -750,20 +750,21 @@ class UnifiedModel:
 
         Parameters
         ----------
-        measurement : Measurement
-            The measurement object containing the groundtruth data.
+        sample : Sample
+            The sample object containing the paths to the groundtruth data.
         solve_kwargs : Dict
             The keyword arguments to pass to the `solve` method.
-        mech_pred_expr : str
-            Optional. The mechanical expression to score.
+        y_diff_expr : str
+            Optional. The expression that returns the estimated assembly
+            position, relative to the tube.
         mech_metrics_dict : Dict[str, Callable]
             The metrics to calculate on `mech_pred_expr` and the mechanical
             ground truth data. Keys are a user-chosen name to give each metric.
             Values are callables that accept two positional arguments; the first
             being the predicted output (calculated from `mech_pred_expr`), and
             the second being the ground truth measurement.
-        elec_pred_expr : str
-            Optional. The electrical expression to score.
+        v_load_expr : str
+            Optional. The expression that returns the estimated load voltage.
         elec_metrics_dict : Dict[str, Callable]
             The metrics to calculate on `elec_pred_expr` and the electrical
             ground truth data. Keys are a user-chosen name to give each metric.
@@ -774,13 +775,13 @@ class UnifiedModel:
         Examples
         --------
 
-        >>> model.score_measurement(
-        ...    measurement=measurement,
-        ...    mech_pred_expr='x3-x1',
+        >>> model.score_sample(
+        ...    sample=sample,
+        ...    y_diff_expr='x3-x1',
         ...    mech_metrics_dict={
         ...    'y_diff_dtw_distance': metrics.dtw_euclid_distance
         ...    },
-        ...    elec_pred_expr='g(t, x5)',
+        ...    v_load_expr='g(t, x5)',
         ...    elec_metrics_dict={
         ...        'emf_dtw_distance': metrics.dtw_euclid_distance,
         ...        'rms_perc_diff': metrics.root_mean_square_percentage_diff
@@ -796,6 +797,7 @@ class UnifiedModel:
             calculated Callables.
 
         """
+        measurement = Measurement(sample, self)  # Make a measurement from the sample
 
         result = {}
         evaluators: Dict[str, Any] = {"mech": None, "elec": None}
@@ -810,22 +812,22 @@ class UnifiedModel:
         self.solve(**solve_kwargs)
 
         # Do the scoring
-        if mech_pred_expr is not None and mech_metrics_dict is not None:
+        if y_diff_expr is not None and mech_metrics_dict is not None:
             mech_result, mech_eval = self._score_mechanical_model(
                 y_target=measurement.groundtruth.mech["y_diff"],
                 time_target=measurement.groundtruth.mech["time"],
                 metrics_dict=mech_metrics_dict,
-                prediction_expr=mech_pred_expr,
+                prediction_expr=y_diff_expr,
                 return_evaluator=True,
             )
             evaluators["mech"] = mech_eval
 
-        if elec_pred_expr is not None and elec_metrics_dict is not None:
+        if v_load_expr is not None and elec_metrics_dict is not None:
             elec_result, elec_eval = self._score_electrical_model(
                 emf_target=measurement.groundtruth.elec["emf"],
                 time_target=measurement.groundtruth.elec["time"],
                 metrics_dict=elec_metrics_dict,
-                prediction_expr=elec_pred_expr,
+                prediction_expr=v_load_expr,
                 return_evaluator=True,
             )
             evaluators["elec"] = elec_eval

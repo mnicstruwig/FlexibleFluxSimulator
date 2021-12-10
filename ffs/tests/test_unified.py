@@ -218,24 +218,22 @@ def test_get_results():
     assert len(test_t_eval) == len(results)
 
 
-def test_score_measurement_mech_model():
+def test_score_sample_mech_model():
     """Test the that we can score a solution of a `UnifiedModel` against a
     measurement, for the mechanical component of the model."""
 
     test_model = test_utils.build_unified_model_with_standard_components()
 
-    # Create our measurement
+    # Create our sample
     test_sample = Sample(
         acc_path=test_utils.TEST_LOG_ACC_PATH_1,
         adc_path=test_utils.TEST_LOG_ADC_PATH_1,
         video_labels_path=test_utils.TEST_LOG_VIDEO_LABELS_PATH_1,
     )
 
-    test_measurement = Measurement(sample=test_sample, model_prototype=test_model)
-
     # Score
-    actual_score, _ = test_model.score_measurement(
-        measurement=test_measurement,
+    actual_score, _ = test_model.score_sample(
+        sample=test_sample,
         solve_kwargs=dict(
             t_start=0,
             t_end=8,
@@ -244,7 +242,7 @@ def test_score_measurement_mech_model():
             t_max_step=1e-3,
             method="RK45",
         ),
-        mech_pred_expr="x3-x1",
+        y_diff_expr="x3-x1",
         mech_metrics_dict={"y_diff_dtw": metrics.dtw_euclid_distance},
     )
 
@@ -252,24 +250,22 @@ def test_score_measurement_mech_model():
     assert "y_diff_dtw" in actual_score
 
 
-def test_score_measurement_elec_model():
+def test_score_sample_elec_model():
     """Test the that we can score a solution of a `UnifiedModel` against a
     measurement, for the electrical component of the model."""
 
     test_model = test_utils.build_unified_model_with_standard_components()
 
-    # Create our measurement
+    # Create our sample
     test_sample = Sample(
         acc_path=test_utils.TEST_LOG_ACC_PATH_1,
         adc_path=test_utils.TEST_LOG_ADC_PATH_1,
         video_labels_path=test_utils.TEST_LOG_VIDEO_LABELS_PATH_1,
     )
 
-    test_measurement = Measurement(sample=test_sample, model_prototype=test_model)
-
     # Score
-    actual_score, _ = test_model.score_measurement(
-        measurement=test_measurement,
+    actual_score, _ = test_model.score_sample(
+        sample=test_sample,
         solve_kwargs=dict(
             t_start=0,
             t_end=8,
@@ -278,7 +274,7 @@ def test_score_measurement_elec_model():
             t_max_step=1e-3,
             method="RK45",
         ),
-        elec_pred_expr="g(t, x5)",
+        v_load_expr="g(t, x5)",
         elec_metrics_dict={"rms_perc_diff": metrics.root_mean_square_percentage_diff},
     )
 
