@@ -219,7 +219,7 @@ def test_get_results():
 
 
 def test_score_sample_mech_model():
-    """Test the that we can score a solution of a `UnifiedModel` against a
+    """Test that we can score a solution of a `UnifiedModel` against a
     measurement, for the mechanical component of the model."""
 
     test_model = test_utils.build_unified_model_with_standard_components()

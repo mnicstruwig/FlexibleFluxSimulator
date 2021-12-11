@@ -43,13 +43,7 @@ for base_dir in model_sample_dirs:
     )
     samples.append(sample_collection)
 
-measurements = []
-for model, sample_collection in zip(models, samples):
-    measurement_set = [Measurement(s, model) for s in sample_collection]
-    measurements.append(measurement_set)
-
-
-models_and_measurements = list(zip(models, measurements))
+models_and_samples = list(zip(models, samples))
 
 instruments = {
     'mech_damping_coefficient': ng.p.Scalar(init=2, lower=0, upper=10),
@@ -58,7 +52,7 @@ instruments = {
 }
 
 results = parameter_search.mean_of_scores(
-    models_and_measurements=models_and_measurements,
+    models_and_samples=models_and_samples,
     instruments=instruments,
     cost_metric='power',
     budget=budget
