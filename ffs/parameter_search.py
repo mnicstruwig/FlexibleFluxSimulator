@@ -2,7 +2,7 @@
 
 import copy
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 import nevergrad as ng
 import numpy as np
@@ -24,14 +24,15 @@ def _assert_valid_cost_metric(cost_metric: str) -> None:
         )  # noqa
 
 
+# TODO: Update docs
 def mean_of_scores(
     models_and_samples: List[Tuple[UnifiedModel, List[Sample]]],
-    instruments: Dict[str, ng.p.Scalar],
+    instrumented_params: List[Tuple[str, ng.p.Scalar]],
     cost_metric: str,
     budget: int = 500,
     verbose: bool = True,
     log_to_disk: bool = False,
-) -> Dict[str, float]:
+) -> Dict[str, Optional[float]]:
     """Perform the `mean of scores` evolutionary parameter search optimization.
 
     A set of model parameters is found that minimizes the average cost functions
@@ -105,12 +106,16 @@ def mean_of_scores(
     """
     _assert_valid_cost_metric(cost_metric)
 
+    # Put our search parameter into the correct form for ng.p.Instrumentation
+    instruments = {}
+    for param_tup in instrumented_params:
+        instruments[param_tup[0]] = param_tup[1]
+
+    # Instrument our parameters
     instrum = ng.p.Instrumentation(
         models_and_samples=models_and_samples,
         cost_metric=cost_metric,
-        mech_damping_coefficient=instruments["mech_damping_coefficient"],
-        coupling_constant=instruments["coupling_constant"],
-        mech_spring_damping_coefficient=instruments["mech_spring_damping_coefficient"],
+        **instruments
     )
 
     optimizer = ng.optimizers.OnePlusOne(parametrization=instrum, budget=budget)
@@ -118,7 +123,7 @@ def mean_of_scores(
     def callback(optimizer, candidate, value):
         try:
             best_score = np.round(optimizer.provide_recommendation().loss, 5)
-        except TypeError as e:
+        except TypeError:
             best_score = None
         latest_score = np.round(value, 5)
         text = f"{optimizer.num_ask} / {budget} - latest: {latest_score} - best: {best_score}"  # noqa
@@ -137,14 +142,10 @@ def mean_of_scores(
         _calculate_cost_for_multiple_devices_multiple_samples
     )
 
-    recommended_params = {
-        "mech_damping_coefficient": recommendation.value[1]["mech_damping_coefficient"],
-        "coupling_constant": recommendation.value[1]["coupling_constant"],
-        "mech_spring_damping_coefficient": recommendation.value[1][
-            "mech_spring_damping_coefficient"
-        ],
-        "loss": recommendation.loss,
-    }
+    # Get recommended parameter values and loss
+    recommended_params = {'loss': recommendation.loss}
+    for param_name in instruments.keys():
+        recommended_params[param_name] = recommendation.value[1][param_name]
 
     ray.shutdown()
     return recommended_params
@@ -154,9 +155,7 @@ def _calculate_cost_for_single_sample(
     model_prototype: UnifiedModel,
     sample: Sample,
     cost_metric: str,
-    mech_damping_coefficient: float,
-    coupling_constant: float,
-    mech_spring_damping_coefficient: float,
+    **instrumented_params
 ) -> float:
     """Return the cost of a unified model for a single ground truth sample.
 
@@ -169,17 +168,16 @@ def _calculate_cost_for_single_sample(
     assert model.magnet_assembly is not None
     assert model.mechanical_spring is not None
 
-    # Update the model using the suggested parameters
-    model = model.update_params(
-        [
-            ("mechanical_damper.damping_coefficient", mech_damping_coefficient),
-            ("coupling_model.coupling_constant", coupling_constant),
-            ("mechanical_spring.damping_coefficient", mech_spring_damping_coefficient),
-        ]
-    )
+    # Arrange our parameters for .update_params
+    params = []
+    for param_name, param_value in instrumented_params.items():
+        params.append((param_name, param_value))
 
-    measurement = Measurement(sample, model)
+    # Update the model using the suggested parameters
+    model = model.update_params(params)
+
     # Set the new input excitation
+    measurement = Measurement(sample, model)
     model.with_input_excitation(measurement.input_)
 
     model.solve(
@@ -216,27 +214,21 @@ def _calculate_cost_for_single_sample_distributed(
     model_prototype: UnifiedModel,
     sample: Sample,
     cost_metric: str,
-    mech_damping_coefficient: float,
-    coupling_constant: float,
-    mech_spring_damping_coefficient: float,
+    **instrumented_params
 ) -> float:
     """A ray-wrapped version to calculate the cost if a single sample."""
     return _calculate_cost_for_single_sample(
         model_prototype=model_prototype,
         sample=sample,
         cost_metric=cost_metric,
-        mech_damping_coefficient=mech_damping_coefficient,
-        coupling_constant=coupling_constant,
-        mech_spring_damping_coefficient=mech_spring_damping_coefficient,
+        **instrumented_params
     )
 
 
 def _calculate_cost_for_multiple_devices_multiple_samples(
     models_and_samples: List[Tuple[UnifiedModel, List[Sample]]],
     cost_metric: str,
-    mech_damping_coefficient: float,
-    coupling_constant: float,
-    mech_spring_damping_coefficient: float,
+    **instrumented_params
 ) -> float:
     """Return cost of multiple unified models with multiple samples.
 
@@ -253,9 +245,7 @@ def _calculate_cost_for_multiple_devices_multiple_samples(
                 model_prototype=model,
                 sample=sample,
                 cost_metric=cost_metric,
-                mech_damping_coefficient=mech_damping_coefficient,
-                coupling_constant=coupling_constant,
-                mech_spring_damping_coefficient=mech_spring_damping_coefficient,
+                **instrumented_params
             )
             tasks.append(task_id)
 

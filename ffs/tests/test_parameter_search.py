@@ -34,24 +34,30 @@ def test_mean_of_scores_param_search_single_device(get_test_models_and_samples):
     test_models, test_samples = get_test_models_and_samples
     test_model = test_models[0]
 
-    test_instruments = {
-        "mech_damping_coefficient": ng.p.Scalar(init=0.1, lower=0, upper=10),
-        "coupling_constant": ng.p.Scalar(init=0.1, lower=0, upper=5),
-        "mech_spring_damping_coefficient": ng.p.Scalar(init=0.1, lower=0, upper=5),
-    }
+    test_instrumented_params = [
+        ('mechanical_damper.damping_coefficient', ng.p.Scalar(init=0.1,
+                                                              lower=0,
+                                                              upper=10)),
+        ('coupling_model.coupling_constant', ng.p.Scalar(init=0.1,
+                                                         lower=0,
+                                                         upper=5)),
+        ('mechanical_spring.damping_coefficient', ng.p.Scalar(init=0.1,
+                                                              lower=0,
+                                                              upper=5))
+    ]
 
     results = parameter_search.mean_of_scores(
         models_and_samples=[(test_model, test_samples)],
-        instruments=test_instruments,
+        instrumented_params=test_instrumented_params,
         cost_metric="dtw",
         budget=5,  # Keep it small for the test
         verbose=True,
         log_to_disk=False,
     )
 
-    assert results["mech_damping_coefficient"] is not None
-    assert results["coupling_constant"] is not None
-    assert results["mech_spring_damping_coefficient"] is not None
+    assert results["mechanical_damper.damping_coefficient"] is not None
+    assert results["coupling_model.coupling_constant"] is not None
+    assert results["mechanical_spring.damping_coefficient"] is not None
     assert results["loss"] is not None
 
 
@@ -62,25 +68,25 @@ def test_mean_of_scores_param_search_multiple_devices(get_test_models_and_sample
     test_model_1, test_model_2 = test_models
     test_measurement_1, test_measurement_2 = test_samples
 
-    test_instruments = {
-        "mech_damping_coefficient": ng.p.Scalar(init=0.1, lower=0, upper=10),
-        "coupling_constant": ng.p.Scalar(init=0.1, lower=0, upper=5),
-        "mech_spring_damping_coefficient": ng.p.Scalar(init=0.1, lower=0, upper=5),
-    }
+    test_instrumented_params = [
+        ("mechanical_damper.damping_coefficient", ng.p.Scalar(init=0.1, lower=0, upper=10)),
+        ("coupling_model.coupling_constant", ng.p.Scalar(init=0.1, lower=0, upper=5)),
+        ("mechanical_spring.damping_coefficient", ng.p.Scalar(init=0.1, lower=0, upper=5)),
+    ]
 
     results = parameter_search.mean_of_scores(
         models_and_samples=[
             (test_model_1, [test_measurement_1]),
             (test_model_2, [test_measurement_2]),
         ],
-        instruments=test_instruments,
+        instrumented_params=test_instrumented_params,
         cost_metric="dtw",
         budget=5,  # Keep it small for the test
         verbose=True,
         log_to_disk=False,
     )
 
-    assert results["mech_damping_coefficient"] is not None
-    assert results["coupling_constant"] is not None
-    assert results["mech_spring_damping_coefficient"] is not None
+    assert results["mechanical_damper.damping_coefficient"] is not None
+    assert results["coupling_model.coupling_constant"] is not None
+    assert results["mechanical_spring.damping_coefficient"] is not None
     assert results["loss"] is not None

@@ -8,7 +8,7 @@ time-constrained research schedule. Please feel free to contact me if you have
 any questions (or raise an issue).
 
 If you're lost, this [Example
-Notebook](https://github.com/mnicstruwig/unified_model/blob/master/experiments/2020-03-06-Example-Notebook.ipynb)
+Notebook](https://github.com/mnicstruwig/FlexibleFluxSimulator/blob/master/examples/01_microgenerator.ipynb)
 is a good place to start (even if it is usually slightly out-of-date).
 
 TODO: Rest of the README.

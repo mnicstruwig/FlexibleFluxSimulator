@@ -125,7 +125,6 @@ samples = collect_samples(
     video_label_pattern='*labels*.csv'
 )
 
-
 def calc_rms(x):
     """Calculate the RMS of `x`."""
     return np.sqrt(np.sum(x ** 2) / len(x))
